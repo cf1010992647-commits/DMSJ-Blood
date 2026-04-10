@@ -1,0 +1,281 @@
+
+===== PAGE 578 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.561
+(4) Basic ladder program
+10.7.2.3 Send and receive process
+(1) Modbus master station
+When programming, before each RS (Modbus mode) instruction, the assignmentof each operand unit, such as the communication
+operation objectaddress, operation type, operation register address, data number, sending or receiving unit, etc., is completed, once
+the execution starts, the system program will automatically calculate the CRC check, organize the communication frame, and
+complete the operation of sending data and receiving response.
+If you use Modbus-ASC protocol communication (setSD2592 as H30), the HEX-ASC formatconversion of sending and receiving data is
+automatically completed by the PLC system program. The RS (Modbus mode) instruction method and the Modbus-RTU protocol
+method are exactly the same.
+In the plc program, if multiple RS (Modbus mode) instructions are driven, the system program will still execute the "sending, waiting
+for answer, receiving, verification, analysis and storage" of an RS instruction, and then perform the same process for the next RS
+instruction until all RS instructions are executed and then restarted. You don notneed to care aboutthe timing and process of its
+execution, which simplifies the PLC programming design. This is the advantage of Modbus instruction.
+Modbus master function list
+Function code Function name Details
+0x01 Coil readout Coil readout(multiple points optional)
+0x02 Inputreadout Inputand read (multiple points optional)
+0x03 Holding register readout Holding register readout(multiple points optional)
+0x04 Inputregister readout Inputregister readout(multiple points optional)
+0x05 1 coil write Coil writing (only 1 point)
+0x06 1 register write Holding register write (only 1 point)
+0x0F Batch coil write Multi-pointcoil writing
+0x10 Batch register write Multi-pointholding register write
+Example:
+As shown in the ladder program shown:
+When M1 is turned ON, PLC will send data (hexadecimal) from COM2 of PLC: 01 03 00 0A 00 05 A5 C8
+01: Slave address, the high 8 bits of (s);
+03: Modbus instruction code, the lower 8 bits of (s). Itis to read the slave register;
+00 0A: The address of the slave register to be read, the value of (m);
+Serial portparameter setting
+Baud rate 115200, data bit8, parity bitnone, stop bit1
+Communication protocol setting: ModbusRTU master station protocol
+Sending interval: 5ms
+Receiving timeout: 100ms
+Timeoutretry times: 3 times
+Station number 01H, function code 03H, slave address 10,
+Serial portparameter setting
+Baud rate 115200, data bit8, no parity bit, stop bit1
+Communication protocol setting: ModbusRTU master station protocol
+Sending interval: 5ms
+Receiving timeout: 100ms
+Timeoutretry times: 3 times
+Station number 01H, function code 03H, slave address 10,
+===== PAGE 579 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.562
+00 05: The number of registers to be read, the value of (d),
+A5 C8: CRC check code.
+✎Note:
+When using 1 coil to write (0x05), the value used for writing 1 is 0xFF00, and the value used for writing 0 is 0x0000.
+When using batch coil write (0x0F), pay attention to the high and low byte exchange. For example, when writing 1 length, the fourth
+parameter value is 1 (0x0001), which means 0 is sent. You need to write 256 (0x0100) to write 1 to the targetaddress.
+(2) Modbus slave
+When the PLC series is used as a Modbus slave, itsupports Modbus communication operation instructions such as 0x01, 0x03, 0x05,
+0x06, 0x 0f, 0x10. The coils of the PLC thatcan be read and written include M, S, T, C, X (only Read) SM, Y, LC, HSC and other variables
+through these instructions. Register variables include D, T, C, R, SD, LC, HSC.
+When the Modbus communication master accesses (reads or rewrites) the internal variables of the PLC slave, it must follow the
+following communication instruction frame definition and the variable address index method in order to carry out normal
+communication operations.
+1) instruction code 0x01 (01): read coil
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x01 (instruction code) 1 byte Read coil
+3 Coil startaddress 2 bytes High bitin front, low bitin back, see coil addressing
+4 Number of coils 2 bytes High bitin front, low bitin back (N)
+5 CRC check 2 bytes Low bitin front, high bitin back
+Response frame format: slave address + 0x01 + number of bytes + coil status + CRC check
+Serial
+number
+Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x01 (instruction code) 1 byte Read coil
+3 Number of bytes 1 byte Value: [(N+7)/8]
+4 Coil state [(N+7)/8] bytes
+Every 8 coils are combined into one byte. If the lastone is less than 8
+bits, fill in 0 in the undefined part. The first8 coils are in the firstbyte,
+and the coil with the smallestaddress is in the lowestbit. And so on
+5 CRC check 2 bytes High bitfirst, then low bit
+Error response: refer to error response frame.
+2) instruction code 0x03 (03): read register
+Requestframe format: slave address + 0x03 + register startaddress + number of registers + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x03 (instruction code) 1 byte Read register
+3 Register startaddress 2 bytes High bitin front, low bitin back, see register addressing
+4 Number of registers 2 bytes High bitin front, low bitin back (N)
+5 CRC check 2 bytes High bitin front, low bitin back
+Response frame format: slave address + 0x03 + number of bytes + register value + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+===== PAGE 580 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.563
+2 0x03 (instruction code) 1 byte Read register
+3 Number of bytes 1 byte Value: N*2
+4 Register value N*2 bytes
+Every two bytes representa register value, with high
+bitin front, low bitin back. The smallestregister
+address comes first
+5 CRC check 2 bytes High bitin front, low bitin back
+Error response: See error response frame.
+3) instruction code 0x05 (05): write single coil
+Requestframe format: slave address + 0x05 + coil address + coil status + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x05 (instruction code) 1 byte Write single coil
+3 Coil address 2 bytes High bitin front, low bitin back, see coil addressing
+4 Coil state 2 bytes High bitin front, low bitin back. Non-zero is valid
+5 CRC check 2 bytes High bitin front, low bitin back
+Response frame format: slave address + 0x05 + coil address + coil status + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x05 (instruction code) 1 byte Write single coil
+3 Coil address 2 bytes High bitin front, low bitin back, see coil addressing
+4 Coil state 2 bytes High bitin front, low bitin back. Non-zero is valid
+5 CRC check 2 bytes High bitin front, low bitin back
+Error response: see error response frame. The coil status 0xFF00 means ON, and 0x0000 means OFF.
+4) instruction code 0x06 (06): write a single register
+Requestframe format: slave address + 0x06 + register address + register value + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x06 (instruction code) 1 byte Write single coil
+3 Register 2 bytes High bitin front, low bitin back, see coil addressing
+4 Register value 2 bytes High bitin front, low bitin back. Non-zero is valid
+5 CRC check 2 bytes High bitin front, low bitin back
+Response frame format: slave address + 0x06 + register address + register value + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x06 (instruction code) 1 byte Write single coil
+3 Register 2 bytes High bitin front, low bitin back, see coil addressing
+4 Register value 2 bytes High bitin front, low bitin back. Non-zero is valid
+5 CRC check 2 bytes High bitin front, low bitin back
+Error response: See error response frame.
+===== PAGE 581 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.564
+5) instruction code 0x 0f (15): write multiple coils
+Requestframe format: slave address + 0x 0f + coil startaddress + coil number + byte number + coil status + CRC check.
+Serial
+number
+Data (byte) meaning
+Number of
+bytes
+Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x 0f (instruction code) 1 byte Write multiple single coils
+3 Coil startaddress 2 bytes High bitin front, low bitin back, see coil addressing
+4 Number of coils 2 bytes High bitin front, low bitin back. The maximum of N is 1968
+5 Number of bytes 1 byte Value: [(N+7)/8]
+6 Coil state [(N+7)/8] bytes
+Every 8 coils are combined into one byte. If the lastone is less than 8
+bits, fill in 0 in the undefined part. The first8 coils are in the firstbyte,
+and the coil with the smallestaddress is in the lowestbit. And so on
+7 CRC check 2 bytes High bitin front, low bitin back
+Response frame format: slave address + 0x 0f + coil startaddress + coil number + CRC check
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x 0f (instruction code) 1 byte Write multiple single coils
+3 Coil startaddress 2 bytes High bitin front, low bitin back, see coil addressing
+4 Number of coils 2 bytes High bitin front, low bitin back
+5 CRC check 2 bytes High bitin front, low bitin back
+Error response: See error response frame.
+6) 3.2.6 instruction code 0x10 (16): write multiple registers
+Requestframe format: slave address + 0x10 + register startaddress + register number + byte number + register value + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x10(instruction code) 1 byte Write multiple registers
+3 Register startaddress 2 bytes High bitin front, low bitin back, see register addressing
+4 Number of registers 2 bytes High bitin front, low bitin back. The maximum of N is 120
+5 Number of bytes 1 byte Value: N*2
+6 Register value N*2 (N*4)
+7 CRC check 2 bytes High bitin front, low bitin back
+Response frame format: slave address + 0x10 + register startaddress + register number + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 0x10 (instruction code) 1 byte Write multiple registers
+3 Register startaddress 2 bytes High bitin front, low bitin back, see register addressing
+4 Number of registers 2 bytes High bitin front, low bitin back. The maximum of N is 120
+5 CRC check 2 bytes High bitin front, low bitin back
+Error response: See error response frame.
+===== PAGE 582 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.565
+7) Error response frame
+Error response: slave address + (instruction code + 0x80) + Error code + CRC check.
+Serial number Data (byte) meaning Number of bytes Instruction
+1 Slave address 1 byte Value 1 to 247, setby SD2544, SD2594
+2 Instruction code+0x80 1 byte Error instruction code
+3 Code 1 byte 1 to 4
+4 CRC check 2 bytes High bitin front, low bitin back
+Serial number Error code Instruction
+1 01 Unsupported function code
+2 02 Wrong address or function code
+3 03 Wrong length
+4 04 Imperfectinstruction
+5 05 Address notallowed
+8) Slave address table
+Word address
+Address type Occupy Address range Decimal address Total reserved address size
+T0 to T511 512 WORD 0x0000-0x01ff 0 1536
+C0 to C255 256 WORD 0x0600-0x06ff 1536 1024
+LC0 to LC255 512 WORD 0x0A00-0x0BFF 2560 1024
+HSC0 to HSC15 32 WORD 0x0E00-0x0E1F 3584 512
+D0 to D7999 8000 WORD 0x1000-0x2F3F 4096 16384
+SD0 to SD4095 4096 WORD 0x5000-0x5FFF 20480 12288
+R0 to R30000 30000 WORD 0x8000-0xF52F 32768 30000
+Bit address
+Address type Occupy Address range Decimal address Total reserved address size
+T0 to T511 512 bit 0x0000-0x01ff 1536
+C0 to C255 256 bit 0x0600-0x06ff 1536 1024
+LC0 to LC255 256 bit 0x0A00-0x0AFF 2560 1024
+HSC0 to HSC15 16 bit 0x0E00-0x0E0F 3584 512
+M0 to M8000 8000 bit 0x1000-0x2F3F 4096 16384
+SM0 to SM4095 4096 bit 0x5000-0x5FFF 20480 12288
+Reserved 0x8000-0xBFFF 16383
+S0 to S4095 4096 bit 0xC000-0xCFFF 49152 8192
+X0 to X1023 1024 bit 0xE000-0xE3FF 57344 4096
+Y0 to Y1023 1024bit 0xF000-0xF3FF 61440 4096
+===== PAGE 583 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.566
+10.7.2.4 Error message
+Currently the Error code will be displayed on SD7 and SD0 and SD2611 and SD2612.
+The Error codes thatappear in the Modbus protocol are mainly as follows.
+Error code Content
+4085H (s)(m)(d)(n) The read address is outof the device range (this error is only displayed on SD7 and SD0)
+3180H
+COM2 data reception error. There may be interference on the communication line, itis recommended to connect
+the ground wire.
+3181H
+COM2 data reception timed out. "Check the wiring, check whether the serial portparameter settings are
+compatible with master and slave, check whether there is interference. Check whether the slave station is too late
+to respond. For this reason, you can try to increase the sending interval SD2546."
+3182H
+COM2 CRC check error. There may be interference on the communication line, itis recommended to connectthe
+ground wire.
+3183H
+COM2 LRC check error. There may be interference on the communication line, itis recommended to connectthe
+ground wire.
+3184H
+The COM2 station number is incorrectly configured. Check the slave station number setting. And check whether
+there is any problem with the receiving and sending mechanism from the station.
+3185H COM2 send buffer overflow. Contacta technician if this error occurs
+3186H COM2 function code is wrong. Check whether the setfunction code is a function code supported by PLC
+3187H COM2 address is wrong. Check whether the slave station has this address (please refer to Modbus Abnormal 02)
+3188H
+The length of COM2 is wrong. Check whether the communication length exceeds the length range specified by the
+Modbus protocol, or whether itexceeds the specified length range of the custom protocol.
+3189H
+COM2 data error. "Check whether there are errors in the parameters of the instruction. Check whether the slave
+station supports the setting of this value. (Please refer to Modbus Abnormal 03)"
+318AH COM2 slave is busy. Slave station returns information: Slave station is busy (please refer to Modbus exception 06)
+318BH
+The COM2 slave station does notsupportfunction codes. Check whether the slave station supports this function
+code (please refer to Modbus exception 01)
+318CH
+The COM2 slave is faulty. Slave station returns information: Slave station is faulty, please check whether the slave
+station is faulty (please refer to Modbus Abnormal 04)
+318DH
+COM2 slave confirms. Slave station return information: slave station confirmation (please refer to Modbus abnormal
+05)
+318EH
+COM2 currentprotocol does notsupportthis instruction. RS instruction cannotbe used when itis setto slave
+station protocol, please change the protocol or close the contactbefore RS instruction (this error is only displayed
+on SD7 and SD0)
+318FH COM2 sending timed out. Contacta technician if this error occurs
+3190H COM2 receiving data exceeds the buffer limit.
+31A0H
+COM2 is notavailable as a gateway. Returned information from the station: unavailable gateway (please refer to
+Modbus exception 0A)
+31A1H
+COM2 indicates thatno response was obtained from the targetdevice. Slave station returns information: the device
+is notin the network (please refer to Modbus exception 0B)
+After resetting the protocol or communication parameters, the error will be cleared.
+In addition, the communication completion/communication error/communication timeout flag will be set after the executed
+instruction.

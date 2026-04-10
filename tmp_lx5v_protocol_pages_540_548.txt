@@ -1,0 +1,404 @@
+
+===== PAGE 540 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.523
+S type acceleration and deceleration curve parameter table
+S type acceleration and deceleration curve parameter setting
+Parameter
+Offset
+address
+Name Format Instruction Unit Range
+Parameter 1
+Address 0 Total number of pulses
+(length)
+32-bitinteger Total number of outputpulses Pulse 1 to 2147483647
+Address 1
+Parameter 2
+Address 2 Setthe maximum speed of
+pulse
+32-bitinteger Setthe highestfrequency of pulses Hz 1 to 200000
+Address 3
+Parameter 3
+Address 4
+Reserved Retained Reserved 2 to 32767
+Address 5
+Parameter 4 Address 6 Accelerated time 16-bitinteger Pulse acceleration time ms 2 to 32767
+Parameter 5 Address 7 Deceleration time 16-bitinteger Pulse deceleration time ms 50 to 511
+Parameter 6 Address 8 Resolution 16-bitinteger Pulse resolution Length 51 to 512
+Parameter 7 Address 9 Reserved Reserved Reserved
+Parameter 8
+Address 10 Number of pulses of
+spindle in the lastsegment
+32-bitinteger
+Number of pulses of spindle in the last
+segment(high and low)
+Pulse
+Internally
+generated
+Address 11
+Parameter 9
+Address 12 Number of pulses of slave
+axis in the lastsegment
+32-bitinteger
+Number of pulses of slave axis in the last
+segment(high and low)
+Pulse
+Address 13
+Parameter 10
+Address 14
+Uniform time 32-bitinteger
+The time span when outputting pulses
+ata constantspeed
+Pulse
+Address 15
+Parameter 11
+Address 16
+Maximum speed 32-bitinteger
+The maximum speed of curve during
+operation
+Hz
+Address 17
+Parameter 12 Address 18 Reserved
+Parameter 13 Address 19 Curve generation result
+4 Specified key points generate a table
+Specified key points generate table parameters
+Address Name Length Instruction Range
+S0 Curve generation result Single word
+>0: The curve is generated successfully
+<0: Failed to generate the curve
+S0+1 Error parameter location Single word
+S0+2 Total resolution Single word 10 to 511
+S0+3 Number of key points (n) Single word 1 to 10
+S0+4
+Startposition of slave axis Double word Setthe startoffsetposition of slave axis Reserved
+S0+5
+S0+6 Spindle segment0 Single word
+The master/slave axis of segment0 is always 0 Reserved
+S0+7 Slave axis segment0 Single word
+Key
+S0+8
+Spindle segment1 Double word The number of pulse of spindle segment1 32-bitinteger
+S0+9
+S0+10
+Slave axis segment1 Double word The number of pulse of slave axis segment1 32-bitinteger
+S0+11
+===== PAGE 541 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.524
+point1 S0+12 Curve type of segment1 Single word *1
+S0+13 Resolution of segment1 Single word *2
+Key
+Point2
+S0+14
+Spindle segment2 Double word The number of pulse of spindle segment2 32-bitinteger
+S0+15
+S0+16
+Slave axis segment2 Double word The number of pulse of slave axis segment2 32-bitinteger
+S0+17
+S0+18 Curve type of segment2 Single word *1
+S0+19 Resolution of segment2 Single word *2
+...... ...... .... ...... ......
+Key
+pointN
+S0+n*6+2
+Spindle segmentN Double word The number of pulse of spindle segmentN 32-bitinteger
+S0+n*6+3
+S0+n*6+4
+Slave axis segmentN Double word The number of pulse of slave axis segmentN 32-bitinteger
+S0+n*6+5
+S0+n*6+6 Curve type of segmentN Single word *1
+S0+n*6+7 Resolution of segmentN Single word *2
+===== PAGE 542 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.525
+10 Communication instruction
+10.1 Communication port protocol setting
+PROTOCOL/communication port protocol setting
+PROTOCOL(P)
+Set(s) protocol for (n) communication port.
+-[PROTOCOL (s) (n)]
+Content, range and data type
+Parameter Content Range Data type Data type
+(label)
+(s) Protocol number to be set - Unsigned BIN 16 bit ANY16
+(n) Which communication portto set, 0 means COM1, 1 means COM2 *1 0, 1 Unsigned BIN 16 bit ANY16
+Device used
+Instruction Parameter
+Devices Offset
+modification
+Pulse
+extension
+X Y M S SM T(bit) C(bit) LC(bit) HSC(bit) D.b KnX KnY KnM KnS T C D R SD LC HSC K H E [D] XXP
+PROTOCOL
+Parameter 1 ● ● ● ● ● ● ● ● ● ● ● ●
+Parameter 2 ● ● ● ● ● ● ● ● ● ● ● ●
+Features
+This instruction is mainly used to setthe protocol during run, and can also be used in the firstcycle of run.
+The value of the protocol address (COM1 SD2542, COM2 SD2592) and the protocol modification flag (COM1 SD2543, COM2 SD2593)
+can be directly setaccording to the command parameters.
+The specific calculation formula for setting the protocol modification flag (COM1 SD2543, COM2 SD2593) is: (parameter setting value
++ offsetof the corresponding serial port's initial special softcomponent+ 10)*2
+For example, setting the protocol to 2 is (2 +2593-2590 +10)*2, which is (2+3+10) *2=30. Atthis time, SD2592 will be setto 1, and
+SD2593 will be setto 32.
+✎Note: Whether itis by self-calculation and then modifying the setting value of the identifier (COM1 SD2543, COM2 SD2593) to the
+protocol, or using this instruction to set, itis possible to modify the protocol when the PLC is in the RUN state.
+Regarding the protocol modification flags (COM1 SD2543, COM2 SD2593): During the RUN process, the first cycle of setting the
+protocol and modifying the flags is correct (judging at END) to the correct first cycle. When the modification is completed, the
+protocol modification flags (COM1 SD2543, COM2 SD2593) is cleared, and then setthe same value will notbe processed. Mainly to
+avoid repeated settings multiple times.
+Agreement Number
+Agreement Number Content
+0 H Wecon Modbus slave
+2 H ModbusRTU slave
+3 H ModbusASCII slave
+10 H User-defined protocol
+20 H ModbusRTU master station
+30 H ModbusASCII master
+===== PAGE 543 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.526
+Related software components
+Devices Content
+SD2542 COM1 protocol settings
+SD2543 COM1 protocol modification sign
+SD2592 COM2 protocol settings
+SD2593 COM2 protocol modification sign
+✎Note:
+The setting of communication parameters will affectthe overall communication. The processing in the PLC is to modify itwhen there
+is no communication or after a round of communication is completed. This pointneeds attention.
+If the setprotocol does notmatch the provided protocol number, the protocol modification flag (COM1 SD2543, COM2 SD2593) will
+notbe cleared after setting. Atthis time, the protocol will notbe setsuccessfully, and itwill run according to the original protocol.
+Error code
+Error code Content
+4085H The read address of (s) and (n) exceeds the device range
+4084H (n) is not1
+Example
+Example above
+M1 changes from OFF to ON during the run
+SD2592 will be set to 32 (20H), SD2593 will be set to 90 and then it will be cleared. At this time, it means that the setting is
+successful.
+If you turn M1 from OFF to ON again
+SD2592 will be setto 32 (20H), SD2593 will be setto 90 butwill notbe cleared.
+
+===== PAGE 544 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.527
+10.2 Modbus serial port parameter setting
+PORTPARA/Modbus serial port parameter setting
+PORTPARA(P)
+Set(s) serial portparameters for (n) communication port.
+-[PORTPARA (s) (n)]
+Content, range and data type
+Parameter Content Range Data type Data type
+(label)
+(s) Serial portparameters to be set - Unsigned BIN 16 bit ANY16
+(n) Which communication portto set, 0 means COM1, 1 means COM2 0, 1 Unsigned BIN 16 bit ANY16
+Device used
+Instruction Parameter Devices Offset
+modification
+Pulse
+extension
+X Y M S SM T(bit) C(bit) LC(bit) HSC(bit) D.b KnX KnY KnM KnS T C D R SD LC HSC K H E [D] XXP
+ECAMCUT Parameter 1 ● ● ● ● ● ● ● ● ● ● ● ●
+Parameter 2 ● ● ● ● ● ● ● ● ● ● ● ●
+Features
+This instruction is mainly used to setserial portparameters during run, and can also be used in the firstcycle of run.
+Can directly setthe serial portparameter address (COM1 SD2540, COM2 SD2590) and the value of the serial parameter modification
+flag (COM1 SD2541, COM2 SD2591) according to the command parameters.
+The specific calculation formula for setting the serial portparameter modification flags (COM1 SD2541, COM2 SD2591) is: (parameter
+setting value + offsetof the corresponding serial port's initial special softcomponent+ 10)*2
+For example, setting the COM1 serial portparameter to 193 (HC1) is (193 +2541-2540 +10)*2 which is (193 +1+10) *2=408. Atthis
+time, 193 (HC1) will be setfor SD2540 and 408 for SD2541.
+✎Note: Whether itis by self-calculation and then to the serial portparameter to modify the flag (COM1 SD2541, COM2 SD2591)
+setting value, or use this instruction to set, itis possible to modify the serial portparameter when the PLC is in the RUN state.
+Aboutserial portparameter modification flags (COM1 SD2541, COM2 SD2591): During RUN, when the serial portparameters are set
+and the modified flag is correct(judging atEND) to the correctfirstcycle, the serial portparameter modification flag (COM1 SD2541,
+COM2, SD2591) are cleared, and then setthe same value will notbe processed. Mainly to avoid repeated settings multiple times.
+Serial port parameter setting table
+Bit number B0 B1、B2 B3 B4、B5、B6、B7、B8、B9 B10 B11
+Name
+Data
+length
+Parity
+Stop
+Bit
+Baud Rate（bps） STX ETX
+Content
+0
+off
+7bit
+b2,b1
+(0,0):None
+(0,1):Odd parity(ODD)
+(1,1):Even parity(EVEN)
+1bit
+4800 0111
+9600 1000
+19200 1001
+38400 1010
+57600 1011
+115200 1100
+187500 1101
+230400 1110
+460800 1111
+921600 10000
+Turn off STX
+function
+Turn off ETX
+function
+1
+on
+8bit 2bit
+Enable STX
+function, the
+specific value
+is setby
+D8124
+Turn on the
+ETX function,
+the specific
+value is setby
+D8125
+===== PAGE 545 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.528
+Related software components
+Devices Content
+SD2540 COM1 serial portparameter setting
+SD2541 COM1 serial portparameter modification identification
+SD2590 COM2 serial portparameter setting
+SD2591 COM2 serial portparameter modification sign
+✎Note:
+The setting of communication parameters will affectthe overall communication. The processing in the PLC is to be modified when
+there is no communication or after a round of communication is completed. This pointneeds attention.
+STX function and ETX function are only useful in the case of custom protocol.
+If the setprotocol does notmatch the provided protocol number, the serial portparameter modification flags (COM1 SD2541, COM2
+SD2591) will notbe cleared after setting. Atthis time, the protocol will notbe setsuccessfully, and itwill run according to the original
+protocol.
+Error code
+Error code Content
+4085H The read address of (s) and (n) exceeds the device range
+4084H (n) is not0 or 1
+Example
+Example above
+M1 changes from OFF->ON during run
+SD2540 will be setto 129 (H81, baud rate: 9600, stop bit: 1, data bit: 8, parity bit: none), SD2541 will be setto 280 and then cleared.
+Atthis time ithas been setsuccessfully
+If you turn M1 from OFF->ON again
+SD2540 will be setto 129 (H81), SD2541 will be setto 280 butwill be cleared.
+
+===== PAGE 546 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.529
+10.3 Modbus station number setting
+STATION/Modbus station number setting
+STATION(P)
+Under the Modbus slave station protocol. Setthe station number (s) for the (n) communication port.
+-[STATION (s) (n)]
+Content, range and data type
+Parameter Content Range Data type Data type
+(label)
+(s) Station number to be set 0 to 255 Unsigned BIN 16 bit ANY16
+(n) Which communication portto set0 means COM1, 1 means COM2 0, 1 Unsigned BIN 16 bit ANY16
+Device used
+Instruction Parameter Devices Offset
+modification
+Pulse
+extension
+X Y M S SM T(bit) C(bit) LC(bit) HSC(bit) D.b KnX KnY KnM KnS T C D R SD LC HSC K H E [D] XXP
+ECAMCUT Parameter 1 ● ● ● ● ● ● ● ● ● ● ● ●Parameter 2 ● ● ● ● ● ● ● ● ● ● ●
+Features
+●This instruction is mainly used to setthe station number during run, and itcan also be used in the firstcycle of run.
+●The value of the station number address (COM1 SD2544, COM2 SD2594) and the station number modification flag (COM1 SD2545,
+COM2 SD2595) can be directly setaccording to the command parameters.
+●The specific calculation formula for setting the station number modification flag (COM1 SD2545, COM2 SD2595) is: (parameter
+setting value + offsetof the corresponding serial port's initial special device + 10)*2
+●For example, setting the COM2 station number to 1 is (1 +2595-2590 +10)*2, which is (1 +5+10) *2=32. Atthis time, SD2594 will be
+setto 1, and SD2595 will be setto 32.
+✎Note: Whether it is by self-calculation and then modifying the ID (COM1 SD2545, COM2 SD2595) setting value to the station
+number, or setting with this instruction, the station number can be modified when the PLC is in the RUN state.
+●Regarding station number modification identification (COM1 SD2545, COM2 SD2595): During RUN, when the station number is set
+and the modification identification is correct(judgmentatEND) to the correctfirstcycle, the station number will be modified when
+the modification is completed (COM1 SD2545, COM2 SD2595) are cleared, and then setthe same value will notbe processed. Mainly
+to avoid repeated settings multiple times.
+Related software components
+Devices Content
+SD2544 COM1 station number setting
+SD2545 COM1 station number modification sign
+SD2594 COM2 station number setting
+SD2595 COM2 station number modification sign
+Error code
+Error code Content
+4085H The read address of (s) and (n) exceeds the device range
+4084H
+(s) notin the range of 0 to 255
+(n) is not0 or 1
+✎Note:
+The setting of communication parameters will affectthe overall communication. The processing in the PLC is to modify itwhen there
+is no communication or after a round of communication is completed. This pointneeds attention.
+===== PAGE 547 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.530
+Example
+Example above
+M1 changes from OFF->ON during run
+SD2594 will be setto 2, SD2595 will be setto 34 and then itwill be cleared. Atthis time ithas been setsuccessfully
+If you turn M1 from OFF->ON again
+SD2594 will be setto 2, SD2595 will be setto 34 butwill notbe cleared.
+
+===== PAGE 548 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.531
+10.4 RS instruction
+RS/External communication instruction
+RS
+In the case of Modbus master station protocol: This instruction is the setting interface for the master station to send protocol frames.
+The function code (s), slave address (m), length (d) of the station number set according to the instruction, and the function code
+determines whether the data of n is required to be automatically combined to send and receive protocol frames. If itis a read type
+function code, the data will be written into (n).
+-[RS (s) (m) (d) (n)]
+Content, range and data type
+In the case of user-defined protocol:
+Parameter Content Range Data type Data type
+(label)
+(s) The startaddress of register area thatstores the data to be sent - Unsigned BIN 16 bit ANY16
+(m) The length of data to be sent(bytes) 0 to 523 Unsigned BIN 16 bit ANY16
+(d) The device startnumber thatstores the written data - Unsigned BIN 16 it ANY16
+(n) Number of data written (bytes) 0 to 523 Unsigned BIN 16 bit ANY16
+In the case of Modbus protocol:
+Parameter Content Range Data type Data type
+(label)
+(s)
+The high byte stores the station number of slave station, and the
+low byte stores function code of Modbus
+- Unsigned BIN 16 bit ANY16
+(m)
+Slave address. The address provided by the slave station will
+read or write data from this address of the slave station
+- Unsigned BIN 16 bit ANY16
+(d)
+Length. The length of Modbus read or write. The unitis
+determined by function code.
+- Unsigned BIN 16 bit ANY16
+(n) Startaddress for reading or writing data - Unsigned BIN 16 bit ANY16
+Device used
+Instruction Parameter
+Devices Offset
+modification
+Pulse
+extension
+X Y M S SM T(bit) C(bit) LC(bit) HSC(bit) D.b KnX KnY KnM KnS T C D R SD LC HSC K H E [D] XXP
+RS
+Parameter 1 ● ● ● ● ● ●
+Parameter 2 ● ● ● ● ● ●
+Parameter 3 ● ● ● ● ● ●
+Parameter 4 ● ● ● ● ● ●
+(1) Custom protocol
+When the communication protocol is setas a custom protocol. When the contactin before RS instruction is turned on and SM2591 is
+also turned on atthe same time, if the sending length (m) is not0, the data of (s) will be sent(m) bytes out, and then itwill be in the
+mode of waiting for reception. When the data is received, (n) bytes of data will be stored in (d). SM2593 will be turned ON after
+receiving (n) data.
+In addition, when the sending length (m) is 0, itwill be in the receive-only mode. When the receiving length (n) is 0, itwill be in the
+send-only mode.
+To enable the startcharacter (STX) and the end character (ETX) modes of RS instruction, the status of the 10th and 11th bits of the
+special address SD2600 mustbe set. See the table below for detailed settings:

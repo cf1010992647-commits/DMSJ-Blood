@@ -1,0 +1,433 @@
+<UserControl x:Class="Blood_Alcohol.Views.CoordinateDebugView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="clr-namespace:Blood_Alcohol.ViewModels"
+             mc:Ignorable="d"
+             d:DesignHeight="860"
+             d:DesignWidth="1450">
+    <UserControl.DataContext>
+        <vm:CoordinateDebugViewModel />
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <Style x:Key="CoordinateButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="#F8FAFC" />
+            <Setter Property="Background" Value="#2F6E9E" />
+            <Setter Property="BorderBrush" Value="#1E4F73" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="MinWidth" Value="104" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#3A7FB2" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#285B82" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#AEB9C6" />
+                    <Setter Property="BorderBrush" Value="#9AA6B3" />
+                    <Setter Property="Foreground" Value="#EEF2F7" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CoordinateTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <DataTemplate x:Key="ProfileTemplate" DataType="{x:Type vm:CoordinateProfileViewModel}">
+            <Grid Background="White" Margin="0,10,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Background="#F7F9FC"
+                        BorderBrush="#CBD5E1"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="12">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="行数" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="1" Text="{Binding Rows}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="2" Text="列数" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="3" Text="{Binding Columns}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="4" Text="X起始D地址(低位)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="5" Text="{Binding XStartAddress}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="6" Text="Y起始D地址(低位)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="7" Text="{Binding YStartAddress}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="8" Text="步长寄存器数" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="9" Text="{Binding RegisterStridePerPoint}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="10" Text="总点数" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBlock Grid.Column="11" Text="{Binding TotalPoints}" VerticalAlignment="Center" Foreground="#0F172A" FontWeight="SemiBold" />
+                        </Grid>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="当前X地址(低位)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="1" Text="{Binding CurrentXAddress}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="2" Text="当前Y地址(低位)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="3" Text="{Binding CurrentYAddress}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="4" Text="起点X(mm)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="5" Text="{Binding BaseX, StringFormat=F3}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="6" Text="起点Y(mm)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="7" Text="{Binding BaseY, StringFormat=F3}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="8" Text="X步距(mm)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="9" Text="{Binding StepX, StringFormat=F3}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="10" Text="Y步距(mm)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="11" Text="{Binding StepY, StringFormat=F3}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="12" Text="比例" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="13" Text="{Binding Scale, StringFormat=F0}" Style="{StaticResource CoordinateTextBoxStyle}" />
+                        </Grid>
+
+                        <TextBlock Text="说明：每个坐标轴占两个D寄存器（低位+高位），例如 D5100 + D5101。"
+                                   Foreground="#475569"
+                                   Margin="0,0,0,10" />
+
+                        <WrapPanel>
+                            <Button Content="重建点位"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding BuildGridCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="从起点推导"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding GenerateFromBaseCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="读当前坐标到起点"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding ReadCurrentToBaseCommand}"
+                                    Margin="0,0,8,8"
+                                    MinWidth="136" />
+                            <Button Content="读取PLC点表"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding ReadPointsFromPlcCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="写入全部点"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding WriteAllPointsToPlcCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="写入选中点"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding WriteSelectedPointToPlcCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="选中点设为起点"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding SetBaseFromSelectedPointCommand}"
+                                    Margin="0,0,8,8"
+                                    MinWidth="126" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1"
+                        Margin="0,10,0,10"
+                        Background="#F7F9FC"
+                        BorderBrush="#CBD5E1"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="10">
+                    <DataGrid ItemsSource="{Binding Points}"
+                              SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              SelectionMode="Single"
+                              GridLinesVisibility="Horizontal"
+                              HeadersVisibility="Column"
+                              RowHeaderWidth="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="点号" Binding="{Binding Index}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="行" Binding="{Binding Row}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Header="列" Binding="{Binding Column}" Width="60" IsReadOnly="True" />
+                            <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="220" IsReadOnly="True" />
+                            <DataGridTextColumn Header="X地址" Binding="{Binding XAddress}" Width="130" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Y地址" Binding="{Binding YAddress}" Width="130" IsReadOnly="True" />
+                            <DataGridTextColumn Header="X(mm)" Binding="{Binding X, StringFormat=F3, UpdateSourceTrigger=PropertyChanged}" Width="140" />
+                            <DataGridTextColumn Header="Y(mm)" Binding="{Binding Y, StringFormat=F3, UpdateSourceTrigger=PropertyChanged}" Width="140" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <Border Grid.Row="2"
+                        Background="#F7F9FC"
+                        BorderBrush="#CBD5E1"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="10">
+                    <TextBlock Text="{Binding ProfileStatusMessage}" Foreground="#334155" FontSize="14" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ZProfileTemplate" DataType="{x:Type vm:ZCoordinateProfileViewModel}">
+            <Grid Background="White" Margin="0,10,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Background="#F7F9FC"
+                        BorderBrush="#CBD5E1"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="12">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="点位总数" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="1" Text="{Binding PointCount}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="2" Text="Z起始D地址(低位)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="3" Text="{Binding ZStartAddress}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="4" Text="步长寄存器数" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="5" Text="{Binding RegisterStridePerPoint}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="6" Text="总点数" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBlock Grid.Column="7" Text="{Binding TotalPoints}" VerticalAlignment="Center" Foreground="#0F172A" FontWeight="SemiBold" />
+                        </Grid>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="95" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="当前Z地址(低位)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="1" Text="{Binding CurrentZAddress}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="2" Text="起点Z(mm)" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="3" Text="{Binding BaseZ, StringFormat=F3}" Style="{StaticResource CoordinateTextBoxStyle}" Margin="0,0,12,0" />
+
+                            <TextBlock Grid.Column="6" Text="比例" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#334155" />
+                            <TextBox Grid.Column="7" Text="{Binding Scale, StringFormat=F0}" Style="{StaticResource CoordinateTextBoxStyle}" />
+                        </Grid>
+
+                        <TextBlock Text="说明：Z轴独立调试。"
+                                   Foreground="#475569"
+                                   Margin="0,0,0,10" />
+
+                        <WrapPanel>
+                            <Button Content="重建点位"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding BuildGridCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="读当前坐标到起点"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding ReadCurrentToBaseCommand}"
+                                    Margin="0,0,8,8"
+                                    MinWidth="136" />
+                            <Button Content="读取PLC点表"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding ReadPointsFromPlcCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="写入全部点"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding WriteAllPointsToPlcCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="写入选中点"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding WriteSelectedPointToPlcCommand}"
+                                    Margin="0,0,8,8" />
+                            <Button Content="选中点设为起点"
+                                    Style="{StaticResource CoordinateButtonStyle}"
+                                    Command="{Binding SetBaseFromSelectedPointCommand}"
+                                    Margin="0,0,8,8"
+                                    MinWidth="126" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1"
+                        Margin="0,10,0,10"
+                        Background="#F7F9FC"
+                        BorderBrush="#CBD5E1"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="10">
+                    <DataGrid ItemsSource="{Binding Points}"
+                              SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
+                              AutoGenerateColumns="False"
+                              CanUserAddRows="False"
+                              SelectionMode="Single"
+                              GridLinesVisibility="Horizontal"
+                              HeadersVisibility="Column"
+                              RowHeaderWidth="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="点号" Binding="{Binding Index}" Width="70" IsReadOnly="True" />
+                            <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="300" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Z地址" Binding="{Binding ZAddress}" Width="130" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Z(mm)" Binding="{Binding Z, StringFormat=F3, UpdateSourceTrigger=PropertyChanged}" Width="140" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <Border Grid.Row="2"
+                        Background="#F7F9FC"
+                        BorderBrush="#CBD5E1"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="10">
+                    <TextBlock Text="{Binding ProfileStatusMessage}" Foreground="#334155" FontSize="14" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Background="White" Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="#F7F9FC"
+                BorderBrush="#CBD5E1"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="12"
+                Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="{Binding StatusMessage}"
+                           VerticalAlignment="Center"
+                           FontSize="14"
+                           Foreground="#334155" />
+
+                <Button Grid.Column="1"
+                        Content="加载配置"
+                        Style="{StaticResource CoordinateButtonStyle}"
+                        Width="100"
+                        Margin="0,0,8,0"
+                        Command="{Binding ReloadConfigCommand}" />
+
+                <Button Grid.Column="2"
+                        Content="保存配置"
+                        Style="{StaticResource CoordinateButtonStyle}"
+                        Width="100"
+                        Command="{Binding SaveConfigCommand}" />
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="1">
+            <TabItem Header="采血管XY">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ContentControl Content="{Binding BloodTubeProfile}" ContentTemplate="{StaticResource ProfileTemplate}" />
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="顶空瓶XY">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ContentControl Content="{Binding HeadspaceVialProfile}" ContentTemplate="{StaticResource ProfileTemplate}" />
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="其他XY">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ContentControl Content="{Binding OtherPositionProfile}" ContentTemplate="{StaticResource ProfileTemplate}" />
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="枪头XY">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ContentControl Content="{Binding PipetteTipProfile}" ContentTemplate="{StaticResource ProfileTemplate}" />
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Z轴">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ContentControl Content="{Binding ZAxisProfile}" ContentTemplate="{StaticResource ZProfileTemplate}" />
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

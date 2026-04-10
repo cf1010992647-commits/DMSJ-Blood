@@ -1,0 +1,13 @@
+# Build outputs
+bin/
+obj/
+obj_codex/
+
+# IDE / workspace
+.vs/
+.svn/
+*.user
+
+# Runtime artifacts
+Logs/
+

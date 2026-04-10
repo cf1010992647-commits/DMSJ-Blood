@@ -1,0 +1,427 @@
+
+===== PAGE 548 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.531
+10.4 RS instruction
+RS/External communication instruction
+RS
+In the case of Modbus master station protocol: This instruction is the setting interface for the master station to send protocol frames.
+The function code (s), slave address (m), length (d) of the station number set according to the instruction, and the function code
+determines whether the data of n is required to be automatically combined to send and receive protocol frames. If itis a read type
+function code, the data will be written into (n).
+-[RS (s) (m) (d) (n)]
+Content, range and data type
+In the case of user-defined protocol:
+Parameter Content Range Data type Data type
+(label)
+(s) The startaddress of register area thatstores the data to be sent - Unsigned BIN 16 bit ANY16
+(m) The length of data to be sent(bytes) 0 to 523 Unsigned BIN 16 bit ANY16
+(d) The device startnumber thatstores the written data - Unsigned BIN 16 it ANY16
+(n) Number of data written (bytes) 0 to 523 Unsigned BIN 16 bit ANY16
+In the case of Modbus protocol:
+Parameter Content Range Data type Data type
+(label)
+(s)
+The high byte stores the station number of slave station, and the
+low byte stores function code of Modbus
+- Unsigned BIN 16 bit ANY16
+(m)
+Slave address. The address provided by the slave station will
+read or write data from this address of the slave station
+- Unsigned BIN 16 bit ANY16
+(d)
+Length. The length of Modbus read or write. The unitis
+determined by function code.
+- Unsigned BIN 16 bit ANY16
+(n) Startaddress for reading or writing data - Unsigned BIN 16 bit ANY16
+Device used
+Instruction Parameter
+Devices Offset
+modification
+Pulse
+extension
+X Y M S SM T(bit) C(bit) LC(bit) HSC(bit) D.b KnX KnY KnM KnS T C D R SD LC HSC K H E [D] XXP
+RS
+Parameter 1 ● ● ● ● ● ●
+Parameter 2 ● ● ● ● ● ●
+Parameter 3 ● ● ● ● ● ●
+Parameter 4 ● ● ● ● ● ●
+(1) Custom protocol
+When the communication protocol is setas a custom protocol. When the contactin before RS instruction is turned on and SM2591 is
+also turned on atthe same time, if the sending length (m) is not0, the data of (s) will be sent(m) bytes out, and then itwill be in the
+mode of waiting for reception. When the data is received, (n) bytes of data will be stored in (d). SM2593 will be turned ON after
+receiving (n) data.
+In addition, when the sending length (m) is 0, itwill be in the receive-only mode. When the receiving length (n) is 0, itwill be in the
+send-only mode.
+To enable the startcharacter (STX) and the end character (ETX) modes of RS instruction, the status of the 10th and 11th bits of the
+special address SD2600 mustbe set. See the table below for detailed settings:
+===== PAGE 549 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.532
+Bit number B0 B1、B2 B3 B4、B5、B6、
+B7、B8、B9 B10 B11
+Name Data
+length Parity Stop
+Bit Baud rate(bps) STX ETX
+Content
+0
+off 7-bit
+b2, b1
+(0,0): None
+(0,1): Odd parity (ODD)
+(1,1): Even parity (EVEN)
+1-bit
+9600 001000
+19200 001001
+38400 001010
+57600 001011
+115200 001100
+187500 001101
+230400 001110
+460800 001111
+921600 010000
+None None
+1
+on 8-bit 2-bit
+Turn on STX, the
+STX value is set
+in SD2600
+Turn on ETX, the
+ETX value is set
+in SD2601
+Example
+When M1 is ON, the sending and receiving data of communication after executing instruction is stored as the following figure.
+Some configuration and preparation of serial communication are needed for actual programming to communicate as expected, such
+as setting the transceiver mode of serial port, baud rate, number of bits, parity, software protocol settings, timeout judgment
+conditions, and data preparation for the transceiver buffer, send and receive flag processing, etc.,
+A relatively complete RS communication setup program is shown as follows:
+For detailed user-defined protocol instructions, please refer to "10.7.1 Custom protocol description"
+Serial portparameters settings:
+Baud rate 112500, stop bit1, data bit8, parity bitnone
+Setthe protocol as a custom protocol
+Sending interval: 5ms
+Receiving timeout: 100ms
+Number of repetitions: 3 times
+Timeoutbetween characters: 30ms
+Custom protocol, send startaddress D200, sending length 8,
+receive startaddress D300, receiving length 8,
+Receive startaddress D300 Receive length 6Send directly after trigger
+After receiving, close the instruction directly and resetthe
+instruction receiving flag
+===== PAGE 550 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.533
+(2) Modbus protocol
+When the protocol is setto Modbus master protocol (whether itis RTU or ASCII). When the contactbefore RS instruction is turned
+ON, the RS instruction will send the combined data frame according to the station number function code (s), slave station address
+(m), length (d) and judge whether the data of (n) is needed according to the function code.
+Parameter Content
+(s) The high byte stores the station number of slave station, and the low byte stores the function code of Modbus
+(m) Slave address. The address provided by the slave station will read or write data from this address of the slave station
+(d) Length, the length of Modbus read or write. The unitis determined by the function code.
+(n) Startaddress for reading or writing data
+As the ladder program shown above:
+When M1 is turned ON, PLC will send data (hexadecimal) from COM2 of PLC: 01 03 00 0A 00 05 A5 C8
+01: represents slave address, the upper 8 bits of (s);
+03: Modbus instruction code, the lower 8 bits of (s), meaning to read the slave register;
+00 0A: The address of slave register to be read, the value of (m);
+00 05: The number of registers to be read, the value of (d),
+A5 C8: CRC check code.
+For detailed custom protocol instructions, please refer to "10.7.2 Modbus protocol description"
+✎Note:
+Although the RS instruction currently allows all the parameters of the instruction to use constants such as K and H, there are
+differentrestrictions depending on the protocol.
+When the protocol is a custom protocol, S and D cannotbe constants, otherwise itwill report(3189H) error.
+When the protocol is Modbus protocol, n cannotbe a constant, otherwise itwill report(3189H) error.
+The combination of RTU protocol and 7-bitdata bits cannotbe set.
+If the serial portparameter settings are different, itmay still be able to communicate. Atpresent, itis normal to setone.
+Currently, the RS instruction cannotbe used in interrupts and events.
+Error code
+Error code Content
+4085H The read address of (s), (m), (d) and (n) exceed the device range.
+3180H
+COM2 data reception error. There may be interference on the communication line, itis recommended to connect
+the ground wire.
+3181H
+COM2 data reception timed out. "Check the wiring, check whether the serial portparameter settings are compatible
+with master and slave, check whether there is interference. Check whether the slave station is too late to respond.
+For this reason, you can try to increase the sending interval SD2546."
+Serial portparameter setting
+Baud rate 115200, data bit8, parity bitnone, stop bit1
+Communication protocol setting: ModbusRTU master
+Sending interval: 5ms
+Receiving timeout: 100ms
+Timeoutretry times: 3 times
+Station number 01H, function code 03H, slave address
+===== PAGE 551 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.534
+3182H
+COM2 CRC check error. There may be interference on the communication line, itis recommended to connectthe
+ground wire.
+3183H
+COM2 LRC check error. There may be interference on the communication line, itis recommended to connectthe
+ground wire.
+3184H
+The COM2 station number is incorrectly configured. Check the slave station number setting, and check whether
+there is any problem with the receiving and sending mechanism of slave station.
+3185H COM2 send buffer overflow. Contacta technician if this error occurs
+3186H COM2 function code is wrong. Check whether the setfunction code is a function code supported by PLC
+3187H COM2 address is wrong. Check whether the slave station has this address (please refer to Modbus Abnormal 02)
+3188H The length of COM2 is wrong. Check whether the communication length exceeds the length range specified by the
+Modbus protocol, or whether itexceeds the specified length range of the custom protocol.
+3189H COM2 data error. "Check whether there are errors in the parameters of the instruction. Check whether the slave
+station supports the setting of this value. (Please refer to Modbus Abnormal 03)"
+318AH COM2 slave station is busy. Slave station returns information: Slave station is busy (please refer to Modbus exception
+06)
+318BH COM2 slave station does notsupportfunction codes. Check whether the slave station supports this function code
+(please refer to Modbus exception 01)
+318CH COM2 slave station is faulty. Slave station returns information: Slave station is faulty, please check whether the slave
+station is faulty (please refer to Modbus Abnormal 04)
+318DH COM2 slave station confirmation. Slave station return information: slave station confirmation (please refer to
+Modbus abnormal 05)
+318EH COM2 currentprotocol does notsupportthis instruction or function. The related conmunication instruction of
+master station or the function of maste station cannotbe used when itis setto slave station protocol, please change
+the protocol or close the contactbefore the corresponding instruction or diable the corresponding communication
+function.
+318FH COM2 sending timed out. Contacta technician if this error occurs
+31A0H COM2 is notavailable as a gateway. Slave station returns information: unavailable gateway (please refer to Modbus
+exception 0A)
+31A1H COM2 indicates thatno response was obtained from the targetdevice. Slave station returns information: the device
+is notin the network (please refer to Modbus exception 0B)
+===== PAGE 552 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.535
+10.5 RS2 instruction
+RS2/External communication instruction
+RS2
+In custom protocol: This instruction is a communication send and receive instruction. Ittakes out(M) of the initial data specified (s)
+and send it, and stores (n) of the data received through the serial portin (d) and sentby (n1) automatic communication port.
+In Modbus master station protocol: This instruction is the setting interface for the master station to send protocol frames. According
+to the station number function code (s), slave address (m), length (d) set by the instruction, and the function code to determine
+whether n data is required to automatically combined sending and receiving protocol frames. If itis a read type function code, the
+data would be written to (n) and sentby (n1) custom communication port.
+-[RS2 (s) (m) (d) (n) (n1)]
+Content, range and data type
+In custom protocol
+Parameter Content Range Data type Data type
+(label)
+(s) The startaddress of register area thatstores the data to be sent - Unsigned BIN 16 bit ANY16
+(m) The length of data to be sent(bytes) 0 to 528 Unsigned BIN 16 bit ANY16
+(d) The device startnumber thatstores the written data - Unsigned BIN 16 bit ANY16
+(n) Number of data written (bytes) 0 to 528 Unsigned BIN 16 bit ANY16
+(n1) Specify the communication port Unsigned BIN 16 bit ANY16
+In Modbus protocol
+Parameter Content Range Data type Data type
+(label)
+(s)
+The high byte stores the station number of slave station, and the low
+byte stores function code of Modbus
+- Unsigned BIN 16 bit ANY16
+(m)
+Slave address. The address provided by the slave station will read or
+write data from this address of the slave station
+- Unsigned BIN 16 bit ANY16
+(d)
+Length. The length of Modbus read or write. The unitis determined
+by function code.
+- Unsigned BIN 16 bit ANY16
+(n) The startaddress of the data to be read or written - Unsigned BIN 16 bit ANY16
+(n1) Specify the communicatiom port Unsigned BIN 16 bit ANY16
+Device used
+Instruction Parameter Devices Offset
+modification
+Pulse
+extension
+X Y M S SM T(bit) C(bit) LC(bit) HSC(bit) D.b KnX KnY KnM KnS T C D R SD LC HSC K H E [D] XXP
+RS2
+(s) - - - - - - - - - - - - - - ● ● ● ● ● - - ● ● - - -
+(m) - - - - - - - - - - - - - - ● ● ● ● ● - - ● ● - - -
+(d) - - - - - - - - - - - - - - ● ● ● ● ● - - ● ● - - -
+(n) - - - - - - - - - - - - - - ● ● ● ● ● - - ● ● - - -
+(n1) ● ●
+Features
+Parameter (n1) is the specified port. Curently, k0 indicates COM1, and k1 indicates COM2.
+(1) Custom protocol
+When the communication protocol is setas a custom protocol. When the contactin before RS2 instruction is turned on and “sending
+control enable” is also turned on atthe same time, and the sending length (m) is not0, the data of (s) will be sent(m) bytes out, and
+then it will be in the mode of waiting for reception. When the data is received, (n) bytes of data will be stored in (d). “reception
+control or reception notice” will be turned ON after receiving (n) data.
+===== PAGE 553 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.536
+In addition, when the sending length (m) is 0, itwill be in the receive-only mode. When the receiving length (n) is 0, itwill be in the
+send-only mode.
+To enable the startcharacter (STX) and the end character (ETX) modes of RS2 instruction, the status of the 10th and 11th bits of the
+special address “communication portsetting” mustbe set. See the table below for detailed settings:
+Bit number B0 B1、B2 B3 B4、B5、B6、
+B7、B8、B9 B10 B11
+Name Data
+length Parity Stop
+Bit Baud rate(bps) STX ETX
+Content
+0
+off 7-bit
+b2, b1
+(0,0): none
+(0,1): odd parity (ODD)
+(1,1): even parity (EVEN)
+1-bit
+9600 001000
+19200 001001
+38400 001010
+57600 001011
+115200 001100
+187500 001101
+230400 001110
+460800 001111
+921600 010000
+None None
+1
+on 8-bit 2-bit
+Turn on STX, the
+STX value is setin
+the device of the
+corresponding
+communication
+Turn on ETX, the
+ETX value is setin
+the device of the
+corresponding
+communication
+Example
+When M1 is ON, the sending and receiving data of communication after executing instruction is stored as the following figure.
+Some configuration and preparation of serial communication are needed for actual programming to communicate as expected, such
+as setting the transceiver mode of serial port, baud rate, number of bits, parity, software protocol settings, timeout judgment
+conditions, and data preparation for the transceiver buffer, send and receive flag processing, etc.,
+A relatively complete RS communication setup program is shown as follows:
+===== PAGE 554 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.537
+For detailed custom protocol instructions, please refer to "10.7.1 Custom protocol description"
+(2) Modbus protocol
+When the protocol is setto Modbus master protocol (whether itis RTU or ASCII). When the contactbefore RS2 instruction is turned
+ON, the RS2 instruction will send the combined data frame according to the station number function code (s), slave station address
+(m), length (d) and judge whether the data of (n) is needed according to the function code.
+Parameter Content
+(s) The high byte stores the station number of slave station, and the low byte stores function code of Modbus
+(m) Slave address. The address provided by the slave station will read or write data from this address of the slave station
+(d) Length. The length of Modbus read or write. The unitis determined by function code.
+(n) The startaddress of the data to be read or written
+(n1) Specify the communicatiom port
+As the ladder program shown above:
+When M1 is turned ON, PLC will send data (hexadecimal) from COM2 of PLC: 01 03 00 0A 00 05 A5 C8
+01: represents slave address, the high 8 bits of (s);
+03: Modbus command code, the low 8 bits of (s), which means to read the slave register;
+00 0A: The address of slave register to be read, the value of (m);
+00 05: The number of registers to be read, the value of (d),
+A5 C8: CRC check code.
+Serial portparameter setting
+Baud rate 115200, data bit8, no parity bit, stop bit1
+Communication protocol setting: ModbusRTU master station
+protocolSending interval: 5ms
+Receiving timeout: 100ms
+Timeoutretry times: 3 times
+Station number 01H, function code 03H, slave address 10,
+length 05
+Setthe protocol to a custom protocol.
+Set serial port parameter: baud rate
+115200 stop bit1, data bit8, no parity
+bit
+===== PAGE 555 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.538
+For detailed custom protocol instructions, please refer to "10.7.2 Modbus protocol description"
+✎Note:
+1 The RS2 instruction allows parameters to be represented by K and H constants, but there are different restrictions
+depending on the protocol.
+2 When the protocol is a custom protocol, S and D cannotbe constants, otherwise itwill report(3X189H) error.
+3 When the protocol is Modbus protocol, n cannotbe a constant, otherwise itwill report(3X89H) error.
+4 When the protocol is setto the RTU protocol, only 8 bits of data can be selected
+5 If the serial portparameter settings are different, itmay still be able to communicate. However, itis recommended thatthe
+serial portparameters be the same to avoid other faults.
+6 Currently, the RS2 instruction cannotbe used in interrupts and events.
+Error code
+Error code Content
+4085H The read address of (s), (m), (d) and (n) exceed the device range.
+4084H The parameter value exceed the specified range
+3080H
+COM1 data reception error. There may be interference on the communication line, itis recommended to connect
+the ground wire.
+3081H
+COM1 data reception timed out. "Check the wiring, check whether the serial portparameter settings are compatible
+with master and slave, check whether there is interference. Check whether the slave station is too late to respond.
+For this reason, you can try to increase “the sending interval".
+3082H
+COM1 CRC check error. There may be interference on the communication line, itis recommended to connectthe
+ground wire.
+3083H
+COM1 LRC check error. There may be interference on the communication line, itis recommended to connectthe
+ground wire.
+3084H
+The COM1 station number is incorrectly configured. Check the slave station number setting, and check whether
+there is any problem with the receiving and sending mechanism of slave station.
+3085H COM1 send buffer overflow. Contacta technician if this error occurs
+3086H COM1 function code is wrong. Check whether the setfunction code is a function code supported by PLC
+3087H COM1 address is wrong. Check whether the slave station has this address (please refer to Modbus Abnormal 02)
+3088H The length of COM1 is wrong. Check whether the communication length exceeds the length range specified by the
+Modbus protocol, or whether itexceeds the specified length range of the custom protocol.
+3089H COM1 data error. "Check whether there are errors in the parameters of the instruction. Check whether the slave
+station supports the setting of this value. (Please refer to Modbus Abnormal 03)"
+308AH COM1 slave station is busy. Slave station returns information: Slave station is busy (please refer to Modbus exception
+06)
+308BH COM1 slave station does notsupportfunction codes. Check whether the slave station supports this function code
+(please refer to Modbus exception 01)
+308CH COM1 slave station is faulty. Slave station returns information: Slave station is faulty, please check whether the slave
+station is faulty (please refer to Modbus Abnormal 04)
+308DH COM1 slave station confirmation. Slave station return information: slave station confirmation (please refer to
+Modbus abnormal 05)
+308EH COM1 currentprotocol does notsupportthis instruction or function. The related conmunication instruction of
+master station or the function of maste station cannotbe used when itis setto slave station protocol, please change
+===== PAGE 556 =====
+PLC LX5V Series Programming Manual (V2.3)
+WECON technology Co., Ltd.539
+the protocol or close the contactbefore the corresponding instruction or diable the corresponding communication
+function.
+308FH COM1 sending timed out. Contacta technician if this error occurs.
+30A0H COM1 is notavailable as a gateway. Slave station returns information: unavailable gateway (please refer to Modbus
+exception 0A)
+30A1H COM1 indicates thatno response was obtained from the targetdevice. Slave station returns information: the device
+is notin the network (please refer to Modbus exception 0B).
+3181H
+COM2 data reception timed out. "Check the wiring, check whether the serial portparameter settings are compatible
+with master and slave, check whether there is interference. Check whether the slave station is too late to respond.
+For this reason, you can try to increase the “sending interval".
+3182H
+COM2 CRC check error. There may be interference on the communication line, itis recommended to connectthe
+ground wire.
+3183H
+COM2 LRC check error. There may be interference on the communication line, itis recommended to connectthe
+ground wire.
+3184H
+The COM2 station number is incorrectly configured. Check the slave station number setting, and check whether
+there is any problem with the receiving and sending mechanism of slave station.
+3185H COM2 send buffer overflow. Contacta technician if this error occurs
+3186H COM2 function code is wrong. Check whether the setfunction code is a function code supported by PLC
+3187H COM2 address is wrong. Check whether the slave station has this address (please refer to Modbus Abnormal 02)
+3188H The length of COM2 is wrong. Check whether the communication length exceeds the length range specified by the
+Modbus protocol, or whether itexceeds the specified length range of the custom protocol.
+3189H COM2 data error. "Check whether there are errors in the parameters of the instruction. Check whether the slave
+station supports the setting of this value. (Please refer to Modbus Abnormal 03)"
+318AH COM2 slave station is busy. Slave station returns information: Slave station is busy (please refer to Modbus exception
+06)
+318BH COM2 slave station does notsupportfunction codes. Check whether the slave station supports this function code
+(please refer to Modbus exception 01)
+318CH COM2 slave station is faulty. Slave station returns information: Slave station is faulty, please check whether the slave
+station is faulty (please refer to Modbus Abnormal 04)
+318DH COM2 slave station confirmation. Slave station return information: slave station confirmation (please refer to
+Modbus abnormal 05)
+318EH COM2 currentprotocol does notsupportthis instruction or function. The related conmunication instruction of
+master station or the function of maste station cannotbe used when itis setto slave station protocol, please change
+the protocol or close the contactbefore the corresponding instruction or diable the corresponding communication
+function.
+318FH COM2 sending timed out. Contacta technician if this error occurs
+31A0H COM2 is notavailable as a gateway. Slave station returns information: unavailable gateway (please refer to Modbus
+exception 0A)
+31A1H COM2 indicates thatno response was obtained from the targetdevice. Slave station returns information: the device
+is notin the network (please refer to Modbus exception 0B)
