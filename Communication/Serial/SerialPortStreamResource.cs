@@ -44,7 +44,7 @@ namespace Blood_Alcohol.Communication.Serial
 
         public void Dispose()
         {
-            // SerialPort lifecycle is owned by Rs485Helper.
+            // SerialPort lifecycle is owned by Rs485Helper; no action here.
         }
     }
 }
