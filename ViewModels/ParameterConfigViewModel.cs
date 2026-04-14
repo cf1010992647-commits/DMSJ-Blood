@@ -32,6 +32,12 @@ namespace Blood_Alcohol.ViewModels
         private int _headspaceShakeTargetCount = 0;
         private int _butanolAspirateDelay100ms = 0;
         private int _butanolDispenseDelay100ms = 0;
+        private int _sampleBottlePressureTime100ms = 0;
+        private int _quantitativeLoopBalanceTime100ms = 0;
+        private int _injectionTime100ms = 0;
+        private int _sampleBottlePressurePosition = 0;
+        private int _quantitativeLoopBalancePosition = 0;
+        private int _injectionPosition = 0;
         private string _statusMessage = "参数配置已加载。";
 
         public double HeatingBoxTemperature
@@ -229,6 +235,84 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        public int SampleBottlePressureTime100ms
+        {
+            get => _sampleBottlePressureTime100ms;
+            set
+            {
+                if (_sampleBottlePressureTime100ms != value)
+                {
+                    _sampleBottlePressureTime100ms = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int QuantitativeLoopBalanceTime100ms
+        {
+            get => _quantitativeLoopBalanceTime100ms;
+            set
+            {
+                if (_quantitativeLoopBalanceTime100ms != value)
+                {
+                    _quantitativeLoopBalanceTime100ms = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int InjectionTime100ms
+        {
+            get => _injectionTime100ms;
+            set
+            {
+                if (_injectionTime100ms != value)
+                {
+                    _injectionTime100ms = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int SampleBottlePressurePosition
+        {
+            get => _sampleBottlePressurePosition;
+            set
+            {
+                if (_sampleBottlePressurePosition != value)
+                {
+                    _sampleBottlePressurePosition = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int QuantitativeLoopBalancePosition
+        {
+            get => _quantitativeLoopBalancePosition;
+            set
+            {
+                if (_quantitativeLoopBalancePosition != value)
+                {
+                    _quantitativeLoopBalancePosition = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int InjectionPosition
+        {
+            get => _injectionPosition;
+            set
+            {
+                if (_injectionPosition != value)
+                {
+                    _injectionPosition = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public string StatusMessage
         {
             get => _statusMessage;
@@ -289,6 +373,12 @@ namespace Blood_Alcohol.ViewModels
                 HeadspaceShakeTargetCount = config.HeadspaceShakeTargetCount;
                 ButanolAspirateDelay100ms = config.ButanolAspirateDelay100ms;
                 ButanolDispenseDelay100ms = config.ButanolDispenseDelay100ms;
+                SampleBottlePressureTime100ms = config.SampleBottlePressureTime100ms;
+                QuantitativeLoopBalanceTime100ms = config.QuantitativeLoopBalanceTime100ms;
+                InjectionTime100ms = config.InjectionTime100ms;
+                SampleBottlePressurePosition = config.SampleBottlePressurePosition;
+                QuantitativeLoopBalancePosition = config.QuantitativeLoopBalancePosition;
+                InjectionPosition = config.InjectionPosition;
                 StatusMessage = $"{DateTime.Now:HH:mm:ss} 参数配置已加载。";
             }
             catch (Exception ex)
@@ -324,7 +414,13 @@ namespace Blood_Alcohol.ViewModels
                     HeadspaceShakeWorkDelay100ms = Math.Max(0, HeadspaceShakeWorkDelay100ms),
                     HeadspaceShakeTargetCount = Math.Max(0, HeadspaceShakeTargetCount),
                     ButanolAspirateDelay100ms = Math.Max(0, ButanolAspirateDelay100ms),
-                    ButanolDispenseDelay100ms = Math.Max(0, ButanolDispenseDelay100ms)
+                    ButanolDispenseDelay100ms = Math.Max(0, ButanolDispenseDelay100ms),
+                    SampleBottlePressureTime100ms = Math.Max(0, SampleBottlePressureTime100ms),
+                    QuantitativeLoopBalanceTime100ms = Math.Max(0, QuantitativeLoopBalanceTime100ms),
+                    InjectionTime100ms = Math.Max(0, InjectionTime100ms),
+                    SampleBottlePressurePosition = Math.Max(0, SampleBottlePressurePosition),
+                    QuantitativeLoopBalancePosition = Math.Max(0, QuantitativeLoopBalancePosition),
+                    InjectionPosition = Math.Max(0, InjectionPosition)
                 };
 
                 _configService.Save(config);
@@ -360,6 +456,12 @@ namespace Blood_Alcohol.ViewModels
             HeadspaceShakeTargetCount = 0;
             ButanolAspirateDelay100ms = 0;
             ButanolDispenseDelay100ms = 0;
+            SampleBottlePressureTime100ms = 0;
+            QuantitativeLoopBalanceTime100ms = 0;
+            InjectionTime100ms = 0;
+            SampleBottlePressurePosition = 0;
+            QuantitativeLoopBalancePosition = 0;
+            InjectionPosition = 0;
             StatusMessage = $"{DateTime.Now:HH:mm:ss} 已恢复默认值（未保存）。";
         }
     }

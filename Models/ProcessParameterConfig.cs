@@ -99,5 +99,41 @@ namespace Blood_Alcohol.Models
         /// </summary>
         /// By:ChengLei
         public int ButanolDispenseDelay100ms { get; set; } = 0;
+
+        /// <summary>
+        /// 样品瓶加压时间 100ms
+        /// </summary>
+        /// By:ChengLei
+        public int SampleBottlePressureTime100ms { get; set; } = 0;
+
+        /// <summary>
+        /// 定量环平衡时间 100ms
+        /// </summary>
+        /// By:ChengLei
+        public int QuantitativeLoopBalanceTime100ms { get; set; } = 0;
+
+        /// <summary>
+        /// 进样时间 100ms
+        /// </summary>
+        /// By:ChengLei
+        public int InjectionTime100ms { get; set; } = 0;
+
+        /// <summary>
+        /// 样品瓶加压位置
+        /// </summary>
+        /// By:ChengLei
+        public int SampleBottlePressurePosition { get; set; } = 0;
+
+        /// <summary>
+        /// 定量环平衡位置
+        /// </summary>
+        /// By:ChengLei
+        public int QuantitativeLoopBalancePosition { get; set; } = 0;
+
+        /// <summary>
+        /// 进样位置
+        /// </summary>
+        /// By:ChengLei
+        public int InjectionPosition { get; set; } = 0;
     }
 }

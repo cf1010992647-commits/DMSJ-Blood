@@ -904,31 +904,32 @@
                     </ItemsControl>
 
                     <StackPanel Grid.Column="1"
-                                Margin="10,80,0,0">
+                                Margin="10,150,0,0">
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <Ellipse Style="{StaticResource LegendDot}" Fill="#9CA3AF" />
-                            <TextBlock Text="分配" VerticalAlignment="Center" Foreground="#334155" />
+                            <Ellipse Style="{StaticResource LegendDot}"
+                                     Fill="#005ECC" />
+                            <TextBlock Text="已分配" VerticalAlignment="Center" Foreground="#334155" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <Ellipse Style="{StaticResource LegendDot}" Fill="#D1D5DB" />
-                            <TextBlock Text="离心" VerticalAlignment="Center" Foreground="#334155" />
+                            <Ellipse Style="{StaticResource LegendDot}" Fill="White" />
+                            <TextBlock Text="未分配" VerticalAlignment="Center" Foreground="#334155" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Ellipse Style="{StaticResource LegendDot}" Fill="#7C3AED" />
-                            <TextBlock Text="移动" VerticalAlignment="Center" Foreground="#334155" />
+                            <TextBlock Text="运行中" VerticalAlignment="Center" Foreground="#334155" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Ellipse Style="{StaticResource LegendDot}" Fill="#16A34A" />
                             <TextBlock Text="完成" VerticalAlignment="Center" Foreground="#334155" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <!--<StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Ellipse Style="{StaticResource LegendDot}" Fill="#64748B" />
                             <TextBlock Text="等待" VerticalAlignment="Center" Foreground="#334155" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Ellipse Style="{StaticResource LegendDot}" Fill="#4338CA" />
                             <TextBlock Text="限制" VerticalAlignment="Center" Foreground="#334155" />
-                        </StackPanel>
+                        </StackPanel>-->
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Style="{StaticResource LegendDot}" Fill="#EF4444" />
                             <TextBlock Text="错误" VerticalAlignment="Center" Foreground="#334155" />

@@ -25,6 +25,10 @@ public class WorkflowEngine
 		public int TubeIndex { get; init; }
 
 		public string ScanCode { get; init; } = string.Empty;
+
+		public string WeightStepKey { get; init; } = string.Empty;
+
+		public double? MeasuredWeight { get; init; }
 	}
 
 	private const string WorkflowSignalConfigFileName = "WorkflowSignalConfig.json";
@@ -193,14 +197,14 @@ public class WorkflowEngine
 	private async Task PollRisingEdgeAndDispatchAsync(CancellationToken token)
 	{
 		await DetectRisingAndHandleAsync(_signals.AllowScanCoil, "scan", HandleScanFlowAsync, token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs1PlaceWeightCoil, "hs1_place_weight", (CancellationToken t) => HandleWeightFlowAsync(10, 11, _signals.AllowHs1PlaceWeightCoil, _signals.Hs1PlaceWeightOkCoil, _signals.Hs1PlaceWeightRegister, "顶空1放置", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs2PlaceWeightCoil, "hs2_place_weight", (CancellationToken t) => HandleWeightFlowAsync(12, 13, _signals.AllowHs2PlaceWeightCoil, _signals.Hs2PlaceWeightOkCoil, _signals.Hs2PlaceWeightRegister, "顶空2放置", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowTubePlaceWeightCoil, "tube_place_weight", (CancellationToken t) => HandleWeightFlowAsync(14, 16, _signals.AllowTubePlaceWeightCoil, _signals.TubePlaceWeightOkCoil, _signals.TubePlaceWeightRegister, "采血管放置", needWeightToZ: true, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowTubeAfterAspirateWeightCoil, "tube_after_aspirate_weight", (CancellationToken t) => HandleWeightFlowAsync(17, 19, _signals.AllowTubeAfterAspirateWeightCoil, _signals.TubeAfterAspirateWeightOkCoil, _signals.TubeAfterAspirateWeightRegister, "采血管吸液后", needWeightToZ: true, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs1AfterBloodWeightCoil, "hs1_after_blood_weight", (CancellationToken t) => HandleWeightFlowAsync(20, 21, _signals.AllowHs1AfterBloodWeightCoil, _signals.Hs1AfterBloodWeightOkCoil, _signals.Hs1AfterBloodWeightRegister, "顶空1加血液后", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs2AfterBloodWeightCoil, "hs2_after_blood_weight", (CancellationToken t) => HandleWeightFlowAsync(22, 23, _signals.AllowHs2AfterBloodWeightCoil, _signals.Hs2AfterBloodWeightOkCoil, _signals.Hs2AfterBloodWeightRegister, "顶空2加血液后", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs1AfterButanolWeightCoil, "hs1_after_butanol_weight", (CancellationToken t) => HandleWeightFlowAsync(24, 25, _signals.AllowHs1AfterButanolWeightCoil, _signals.Hs1AfterButanolWeightOkCoil, _signals.Hs1AfterButanolWeightRegister, "顶空1加叔丁醇后", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs2AfterButanolWeightCoil, "hs2_after_butanol_weight", (CancellationToken t) => HandleWeightFlowAsync(26, 27, _signals.AllowHs2AfterButanolWeightCoil, _signals.Hs2AfterButanolWeightOkCoil, _signals.Hs2AfterButanolWeightRegister, "顶空2加叔丁醇后", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs1PlaceWeightCoil, "hs1_place_weight", (CancellationToken t) => HandleWeightFlowAsync(10, 11, _signals.AllowHs1PlaceWeightCoil, _signals.Hs1PlaceWeightOkCoil, _signals.Hs1PlaceWeightRegister, "顶空1放置", "hs1_place_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs2PlaceWeightCoil, "hs2_place_weight", (CancellationToken t) => HandleWeightFlowAsync(12, 13, _signals.AllowHs2PlaceWeightCoil, _signals.Hs2PlaceWeightOkCoil, _signals.Hs2PlaceWeightRegister, "顶空2放置", "hs2_place_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowTubePlaceWeightCoil, "tube_place_weight", (CancellationToken t) => HandleWeightFlowAsync(14, 16, _signals.AllowTubePlaceWeightCoil, _signals.TubePlaceWeightOkCoil, _signals.TubePlaceWeightRegister, "采血管放置", "tube_place_weight", needWeightToZ: true, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowTubeAfterAspirateWeightCoil, "tube_after_aspirate_weight", (CancellationToken t) => HandleWeightFlowAsync(17, 19, _signals.AllowTubeAfterAspirateWeightCoil, _signals.TubeAfterAspirateWeightOkCoil, _signals.TubeAfterAspirateWeightRegister, "采血管吸液后", "tube_after_aspirate_weight", needWeightToZ: true, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs1AfterBloodWeightCoil, "hs1_after_blood_weight", (CancellationToken t) => HandleWeightFlowAsync(20, 21, _signals.AllowHs1AfterBloodWeightCoil, _signals.Hs1AfterBloodWeightOkCoil, _signals.Hs1AfterBloodWeightRegister, "顶空1加血液后", "hs1_after_blood_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs2AfterBloodWeightCoil, "hs2_after_blood_weight", (CancellationToken t) => HandleWeightFlowAsync(22, 23, _signals.AllowHs2AfterBloodWeightCoil, _signals.Hs2AfterBloodWeightOkCoil, _signals.Hs2AfterBloodWeightRegister, "顶空2加血液后", "hs2_after_blood_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs1AfterButanolWeightCoil, "hs1_after_butanol_weight", (CancellationToken t) => HandleWeightFlowAsync(24, 25, _signals.AllowHs1AfterButanolWeightCoil, _signals.Hs1AfterButanolWeightOkCoil, _signals.Hs1AfterButanolWeightRegister, "顶空1加叔丁醇后", "hs1_after_butanol_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs2AfterButanolWeightCoil, "hs2_after_butanol_weight", (CancellationToken t) => HandleWeightFlowAsync(26, 27, _signals.AllowHs2AfterButanolWeightCoil, _signals.Hs2AfterButanolWeightOkCoil, _signals.Hs2AfterButanolWeightRegister, "顶空2加叔丁醇后", "hs2_after_butanol_weight", needWeightToZ: false, t), token);
 	}
 
 	/// <summary>
@@ -358,13 +362,14 @@ public class WorkflowEngine
 	/// <param name="okCoil">步骤完成确认线圈地址。</param>
 	/// <param name="weightRegister">对应重量寄存器地址。</param>
 	/// <param name="stepLabel">步骤日志名称。</param>
+	/// <param name="weightStepKey">称重步骤标识，用于界面侧识别重量来源。</param>
 	/// <param name="needWeightToZ">是否执行重量转Z坐标下发。</param>
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
 	/// <returns>返回称重流程异步任务。</returns>
 	/// <remarks>
 	/// 由 PollRisingEdgeAndDispatchAsync 针对各类称重触发位调用。
 	/// </remarks>
-	private async Task HandleWeightFlowAsync(int stepReadWeight, int stepWaitOk, ushort allowCoil, ushort okCoil, ushort weightRegister, string stepLabel, bool needWeightToZ, CancellationToken token)
+	private async Task HandleWeightFlowAsync(int stepReadWeight, int stepWaitOk, ushort allowCoil, ushort okCoil, ushort weightRegister, string stepLabel, string weightStepKey, bool needWeightToZ, CancellationToken token)
 	{
 		await _weightLock.WaitAsync(token);
 		try
@@ -376,7 +381,7 @@ public class WorkflowEngine
 			if (needWeightToZ)
 			{
 				int zRaw = ComputeZRawFromWeight(weight);
-				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，换算Z={zRaw}（吸液步骤，下发Z坐标）", "信息", "检测日志", tubeIndex);
+				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，换算Z={zRaw}（吸液步骤，下发Z坐标）", "信息", "检测日志", tubeIndex, scanCode: null, weightStepKey: weightStepKey, measuredWeight: weight);
 				int stepWeightToZ = (CurrentStep = ((stepReadWeight == 14) ? 15 : 18));
 				await WriteInt32AtAddressAsync(_signals.ZAbsolutePositionLowRegister, zRaw, token);
 				WriteWorkflowLog($"步骤{stepWeightToZ} 重量->Z下发：D{_signals.ZAbsolutePositionLowRegister}/D{_signals.ZAbsolutePositionLowRegister + 1}={zRaw}", "信息", "检测日志", tubeIndex);
@@ -384,7 +389,7 @@ public class WorkflowEngine
 			}
 			else
 			{
-				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，仅记录显示（不下发PLC，D{weightRegister}仅作配置占位）", "信息", "检测日志", tubeIndex);
+				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，仅记录显示（不下发PLC，D{weightRegister}仅作配置占位）", "信息", "检测日志", tubeIndex, scanCode: null, weightStepKey: weightStepKey, measuredWeight: weight);
 			}
 			CurrentStep = stepWaitOk;
 			await WaitForCoilTrueAsync(okCoil, stepLabel + "OK", token);
@@ -931,10 +936,12 @@ public class WorkflowEngine
 	/// <param name="logKind">日志分类文本。</param>
 	/// <param name="tubeIndex">可选采血管序号。</param>
 	/// <param name="scanCode">可选扫码值，空时使用当前流程扫码值。</param>
+	/// <param name="weightStepKey">可选称重步骤标识，空值表示非称重日志。</param>
+	/// <param name="measuredWeight">可选称重值（g），空值表示非称重日志。</param>
 	/// <remarks>
 	/// 由流程各步骤调用，并通过 OnLogGenerated 推送到首页日志。
 	/// </remarks>
-	private void WriteWorkflowLog(string message, string levelText = "信息", string logKind = "普通操作日志", int? tubeIndex = null, string? scanCode = null)
+	private void WriteWorkflowLog(string message, string levelText = "信息", string logKind = "普通操作日志", int? tubeIndex = null, string? scanCode = null, string? weightStepKey = null, double? measuredWeight = null)
 	{
 		DateTime now = DateTime.Now;
 		string batchNo = now.ToString("yyyyMMdd");
@@ -950,7 +957,9 @@ public class WorkflowEngine
 				LevelText = levelText,
 				LogKind = logKind,
 				TubeIndex = num,
-				ScanCode = text
+				ScanCode = text,
+				WeightStepKey = weightStepKey ?? string.Empty,
+				MeasuredWeight = measuredWeight
 			});
 		}
 		catch

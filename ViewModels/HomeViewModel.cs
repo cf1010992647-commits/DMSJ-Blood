@@ -37,51 +37,233 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private const int MaxHeadspaceCount = 100;
 
-	// DMSJ：以下为采血管总是PLC地址(占位地址)，待电气确认后替换为正式地址。
-	private const ushort PlcTubeCountRegisterAddress = 9000;
+	/// <summary>
+	/// 采血管总数写入地址 D230
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由采血管数量同步流程调用 用于写入当前采血管总数
+	/// </remarks>
+	private const ushort PlcTubeCountRegisterAddress = 230;
 
 	private const string ProcessParameterConfigFileName = "ProcessParameterConfig.json";
 
+	private const string WeightToZConfigFileName = "WeightToZCalibrationConfig.json";
+
+	/// <summary>
+	/// 初始化参数 Z轴丢枪头上升慢速速度地址 D6000
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入Z轴慢速参数
+	/// </remarks>
 	private const ushort PlcInitZDropNeedleRiseSlowSpeedRegisterAddress = 6000;
 
+	/// <summary>
+	/// 初始化参数 移液枪吸液延时地址 D6020
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入移液枪吸液延时
+	/// </remarks>
 	private const ushort PlcInitPipetteAspirateDelayRegisterAddress = 6020;
 
+	/// <summary>
+	/// 初始化参数 移液枪打液延时地址 D6021
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入移液枪打液延时
+	/// </remarks>
 	private const ushort PlcInitPipetteDispenseDelayRegisterAddress = 6021;
 
+	/// <summary>
+	/// 初始化参数 采血管摇匀原位延时地址 D6022
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入采血管摇匀原位延时
+	/// </remarks>
 	private const ushort PlcInitTubeShakeHomeDelayRegisterAddress = 6022;
 
+	/// <summary>
+	/// 初始化参数 采血管摇匀工位延时地址 D6023
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入采血管摇匀工位延时
+	/// </remarks>
 	private const ushort PlcInitTubeShakeWorkDelayRegisterAddress = 6023;
 
+	/// <summary>
+	/// 初始化参数 采血管摇匀目标次数地址 D6024
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入采血管摇匀目标次数
+	/// </remarks>
 	private const ushort PlcInitTubeShakeTargetCountRegisterAddress = 6024;
 
+	/// <summary>
+	/// 初始化参数 顶空瓶摇匀原位延时地址 D6026
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入顶空瓶摇匀原位延时
+	/// </remarks>
 	private const ushort PlcInitHeadspaceShakeHomeDelayRegisterAddress = 6026;
 
+	/// <summary>
+	/// 初始化参数 顶空瓶摇匀工位延时地址 D6027
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入顶空瓶摇匀工位延时
+	/// </remarks>
 	private const ushort PlcInitHeadspaceShakeWorkDelayRegisterAddress = 6027;
 
+	/// <summary>
+	/// 初始化参数 顶空瓶摇匀目标次数地址 D6028
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入顶空瓶摇匀目标次数
+	/// </remarks>
 	private const ushort PlcInitHeadspaceShakeTargetCountRegisterAddress = 6028;
 
+	/// <summary>
+	/// 初始化参数 叔丁醇吸液延时地址 D6030
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入叔丁醇吸液延时
+	/// </remarks>
 	private const ushort PlcInitButanolAspirateDelayRegisterAddress = 6030;
 
+	/// <summary>
+	/// 初始化参数 叔丁醇打液延时地址 D6031
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入叔丁醇打液延时
+	/// </remarks>
 	private const ushort PlcInitButanolDispenseDelayRegisterAddress = 6031;
 
-	// DMSJ：初始化按钮地址由电气确认为 M13（线圈地址 13）。
+	/// <summary>
+	/// 初始化参数 样品瓶加压时间地址 D6040
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入样品瓶加压时间
+	/// </remarks>
+	private const ushort PlcInitSampleBottlePressureTimeRegisterAddress = 6040;
+
+	/// <summary>
+	/// 初始化参数 定量环平衡时间地址 D6041
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入定量环平衡时间
+	/// </remarks>
+	private const ushort PlcInitQuantitativeLoopBalanceTimeRegisterAddress = 6041;
+
+	/// <summary>
+	/// 初始化参数 进样时间地址 D6042
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入进样时间
+	/// </remarks>
+	private const ushort PlcInitInjectionTimeRegisterAddress = 6042;
+
+	/// <summary>
+	/// 初始化参数 样品瓶加压位置地址 D6302
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入样品瓶加压位置
+	/// </remarks>
+	private const ushort PlcInitSampleBottlePressurePositionRegisterAddress = 6302;
+
+	/// <summary>
+	/// 初始化参数 定量环平衡位置地址 D6304
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入定量环平衡位置
+	/// </remarks>
+	private const ushort PlcInitQuantitativeLoopBalancePositionRegisterAddress = 6304;
+
+	/// <summary>
+	/// 初始化参数 进样位置地址 D6306
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化参数下发流程调用 用于写入进样位置
+	/// </remarks>
+	private const ushort PlcInitInjectionPositionRegisterAddress = 6306;
+
+	/// <summary>
+	/// 初始化按钮地址 M13
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化命令发送流程调用 用于触发初始化动作
+	/// </remarks>
 	private const ushort PlcInitCommandCoilAddress = 13;
 
-	// DMSJ：初始化完成状态位地址由电气确认为 M14（线圈地址 14）。
+	/// <summary>
+	/// 初始化完成状态位地址 M14
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由初始化完成轮询流程调用 用于判断初始化是否结束
+	/// </remarks>
 	private const ushort PlcInitDoneCoilAddress = 14;
 
-	// DMSJ：自动挡标记位地址（M10），M10=1 表示自动挡。
+	/// <summary>
+	/// 自动挡标记位地址 M10
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由模式切换流程读写 M10等于1表示自动挡
+	/// </remarks>
 	private const ushort PlcAutoModeCoilAddress = 10;
 
-	// DMSJ：开始命令位地址（M5），按脉冲方式发送。
+	/// <summary>
+	/// 开始命令位地址 M5
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由开始检测流程调用 以脉冲方式下发开始命令
+	/// </remarks>
 	private const ushort PlcStartCommandCoilAddress = 5;
 
+	/// <summary>
+	/// 停止命令位地址 M900
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由停止检测流程调用 以脉冲方式下发停止命令
+	/// </remarks>
 	private const ushort PlcStopCommandCoilAddress = 900;
 
-	// DMSJ：急停位地址临时占位，由电气确认为 M3。
+	/// <summary>
+	/// 急停命令位地址 M3
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由急停流程调用 以脉冲方式下发急停命令
+	/// </remarks>
 	private const ushort PlcEmergencyStopCoilAddress = 3;
 
-	// DMSJ：报警汇总位地址（M2）。
+	/// <summary>
+	/// 报警汇总位地址 M2
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由报警监听流程调用 用于检测当前是否存在报警
+	/// </remarks>
 	private const ushort PlcAlarmSummaryCoilAddress = 2;
 
 	private static readonly TimeSpan InitTimeout = TimeSpan.FromMinutes(10);
@@ -94,32 +276,97 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private static readonly TimeSpan CoilCacheMaxAge = TimeSpan.FromMilliseconds(900);
 
-	// DMSJ：以下四个模式点位暂未定版，当前为占位地址，后续按PLC点表替换。
-	private const ushort PlcStandbyModeCoilAddress = 101;
+	/// <summary>
+	/// 待机模式标记位地址 M490
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由工艺模式监听流程调用 当前为占位地址
+	/// </remarks>
+	private const ushort PlcStandbyModeCoilAddress = 490;
 
-	private const ushort PlcPressureModeCoilAddress = 102;
+	/// <summary>
+	/// 压力模式标记位地址 M491
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由工艺模式监听流程调用 当前为占位地址
+	/// </remarks>
+	private const ushort PlcPressureModeCoilAddress = 491;
 
-	private const ushort PlcExhaustModeCoilAddress = 103;
+	/// <summary>
+	/// 排气模式标记位地址 M492
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由工艺模式监听流程调用 当前为占位地址
+	/// </remarks>
+	private const ushort PlcExhaustModeCoilAddress = 492;
 
-	private const ushort PlcInjectionModeCoilAddress = 104;
+	/// <summary>
+	/// 进样模式标记位地址 M493
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由工艺模式监听流程调用 当前为占位地址
+	/// </remarks>
+	private const ushort PlcInjectionModeCoilAddress = 493;
+
+	/// <summary>
+	/// 料架工序当前生产号起始地址 D233
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由料架工序监控流程调用 用于读取D233到D254寄存器区间
+	/// </remarks>
+	private const ushort PlcRackProcessStartRegisterAddress = 233;
+
+	/// <summary>
+	/// 料架工序当前生产号读取长度 22
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由料架工序监控流程调用 覆盖D233到D254共22个寄存器
+	/// </remarks>
+	private const ushort PlcRackProcessRegisterCount = 22;
+
+	private static readonly int[] TubeRunningRegisterOffsets = new int[5] { 0, 1, 3, 4, 11 };
+
+	private static readonly int[] TubeCompletedRegisterOffsets = new int[1] { 12 };
+
+	private static readonly int[] HeadspaceRunningRegisterOffsets = new int[13]
+	{
+		2, 6, 7, 8, 9, 10, 13, 14, 15, 16,
+		17, 20, 21
+	};
+
+	private static readonly int[] HeadspaceCompletedRegisterOffsets = new int[1] { 18 };
 
 	private static readonly Brush ActiveSlotFill = BrushFromHex("#005ECC");
 
 	private static readonly Brush ActiveSlotText = Brushes.White;
 
-	private static readonly Brush IdleSlotFill = Brushes.WhiteSmoke;
+	private static readonly Brush IdleSlotFill = Brushes.White;
 
 	private static readonly Brush IdleSlotText = BrushFromHex("#0F172A");
 
-	private static readonly Brush NeedleUsedFill = BrushFromHex("#3C4A54");
+	private static readonly Brush RunningSlotFill = BrushFromHex("#7C3AED");
+
+	private static readonly Brush CompletedSlotFill = BrushFromHex("#16A34A");
+
+	private static readonly Brush NeedleUsedFill = BrushFromHex("#D1D5DB");
 
 	private static readonly Brush NeedleIdleFill = Brushes.WhiteSmoke;
+
+	private static readonly TimeSpan RackProcessPollInterval = TimeSpan.FromMilliseconds(300);
 
 	private const string ExportPathConfigFileName = "HomeExportPathConfig.json";
 
 	private readonly ConfigService<HomeExportPathConfig> _exportPathConfigService = new ConfigService<HomeExportPathConfig>("HomeExportPathConfig.json");
 
 	private readonly ConfigService<ProcessParameterConfig> _processParameterConfigService = new ConfigService<ProcessParameterConfig>(ProcessParameterConfigFileName);
+
+	private readonly ConfigService<WeightToZCalibrationConfig> _weightToZConfigService = new ConfigService<WeightToZCalibrationConfig>(WeightToZConfigFileName);
 
 	private LogTool _logTool = new LogTool();
 
@@ -142,6 +389,18 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	private CancellationTokenSource? _processModeMonitorCts;
 
 	private Task? _processModeMonitorTask;
+
+	private CancellationTokenSource? _rackProcessMonitorCts;
+
+	private Task? _rackProcessMonitorTask;
+
+	private readonly HashSet<int> _tubeRunningSlots = new HashSet<int>();
+
+	private readonly HashSet<int> _tubeCompletedSlots = new HashSet<int>();
+
+	private readonly HashSet<int> _headspaceRunningSlots = new HashSet<int>();
+
+	private readonly HashSet<int> _headspaceCompletedSlots = new HashSet<int>();
 
 	private bool _isInitializing;
 
@@ -206,6 +465,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	private bool _showWarningLogs = true;
 
 	private bool _showErrorLogs = true;
+
+	private bool _sampleVolumeCoefficientWarningLogged;
 
 	private OperationMode _operationMode = OperationModeService.CurrentMode;
 
@@ -762,6 +1023,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_workflowEngine.OnLogGenerated += OnWorkflowLogGenerated;
 		StartAlarmMonitor();
 		StartProcessModeMonitor();
+		StartRackProcessMonitor();
 	}
 
 	/// <summary>
@@ -1228,6 +1490,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_isDetectionStarted = false;
 		RefreshDetectionCommandStates();
 		StopTubeCountSync();
+		ClearRackProcessStates();
 		_workflowEngine.Stop();
 		_ = SendStopSignalToPlcAsync();
 		CountRuleText = "检测已停止：可重新选择采血管数量。";
@@ -1246,6 +1509,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_isDetectionStarted = false;
 		RefreshDetectionCommandStates();
 		StopTubeCountSync();
+		ClearRackProcessStates();
 		_workflowEngine.Stop();
 		_ = SendEmergencyStopSignalToPlcAsync();
 		_ = SendStopSignalToPlcAsync();
@@ -1348,6 +1612,230 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_processModeMonitorCts?.Dispose();
 		_processModeMonitorCts = null;
 		_processModeMonitorTask = null;
+	}
+
+	/// <summary>
+	/// 启动料架工序状态监控后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造函数调用，持续读取 D233~D254 映射槽位颜色状态。
+	/// </remarks>
+	private void StartRackProcessMonitor()
+	{
+		StopRackProcessMonitor();
+		_rackProcessMonitorCts = new CancellationTokenSource();
+		_rackProcessMonitorTask = Task.Run(() => RackProcessMonitorLoopAsync(_rackProcessMonitorCts.Token));
+	}
+
+	/// <summary>
+	/// 停止料架工序状态监控后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由 Dispose 调用，避免页面关闭后仍持续读取PLC寄存器。
+	/// </remarks>
+	private void StopRackProcessMonitor()
+	{
+		_rackProcessMonitorCts?.Cancel();
+		_rackProcessMonitorCts?.Dispose();
+		_rackProcessMonitorCts = null;
+		_rackProcessMonitorTask = null;
+	}
+
+	/// <summary>
+	/// 循环读取工序寄存器并刷新料架槽位状态集合。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
+	/// <returns>返回工序监控异步任务。</returns>
+	/// <remarks>
+	/// 由 StartRackProcessMonitor 启动，读取 D233~D254 对应当前生产号。
+	/// </remarks>
+	private async Task RackProcessMonitorLoopAsync(CancellationToken token)
+	{
+		bool readFaultLogged = false;
+		while (!token.IsCancellationRequested)
+		{
+			try
+			{
+				if (!CommunicationManager.Is485Open)
+				{
+					RunOnUiThread(ClearRackProcessStates);
+					readFaultLogged = false;
+					await Task.Delay(RackProcessPollInterval, token);
+					continue;
+				}
+				if (!_isDetectionStarted)
+				{
+					RunOnUiThread(ClearRackProcessStates);
+					readFaultLogged = false;
+					await Task.Delay(RackProcessPollInterval, token);
+					continue;
+				}
+
+				var read = await ReadHoldingRegistersWithLockAsync(PlcRackProcessStartRegisterAddress, PlcRackProcessRegisterCount, token);
+				if (!read.Success)
+				{
+					if (!readFaultLogged)
+					{
+						AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "料架工序状态读取失败：" + read.Error);
+						readFaultLogged = true;
+					}
+
+					await Task.Delay(RackProcessPollInterval, token);
+					continue;
+				}
+
+				RunOnUiThread(delegate
+				{
+					ApplyRackProcessRegisters(read.Values);
+				});
+
+				if (readFaultLogged)
+				{
+					AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "料架工序状态读取已恢复。");
+					readFaultLogged = false;
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				break;
+			}
+			catch (Exception ex)
+			{
+				if (!readFaultLogged)
+				{
+					AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "料架工序状态读取失败：" + ex.Message);
+					readFaultLogged = true;
+				}
+			}
+
+			await Task.Delay(RackProcessPollInterval, token);
+		}
+	}
+
+	/// <summary>
+	/// 在PLC锁保护下读取连续保持寄存器。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="startAddress">起始D寄存器地址。</param>
+	/// <param name="length">读取长度。</param>
+	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
+	/// <returns>返回读取结果和错误信息。</returns>
+	/// <remarks>
+	/// 由 RackProcessMonitorLoopAsync 调用，统一复用寄存器读取逻辑。
+	/// </remarks>
+	private async Task<(bool Success, ushort[] Values, string Error)> ReadHoldingRegistersWithLockAsync(ushort startAddress, ushort length, CancellationToken token)
+	{
+		await _plcLock.WaitAsync(token);
+		try
+		{
+			return await CommunicationManager.Plc.TryReadHoldingRegistersAsync(startAddress, length);
+		}
+		finally
+		{
+			_plcLock.Release();
+		}
+	}
+
+	/// <summary>
+	/// 根据工序寄存器值更新料架运行与完成集合。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="registers">D233~D254读取结果。</param>
+	/// <remarks>
+	/// 由 RackProcessMonitorLoopAsync 在UI线程调用，更新后触发颜色刷新。
+	/// </remarks>
+	private void ApplyRackProcessRegisters(IReadOnlyList<ushort> registers)
+	{
+		HashSet<int> tubeRunning = ExtractSlotsFromRegisters(registers, TubeRunningRegisterOffsets, MaxTubeCount);
+		HashSet<int> tubeCompleted = ExtractSlotsFromRegisters(registers, TubeCompletedRegisterOffsets, MaxTubeCount);
+		HashSet<int> headspaceRunning = ExtractSlotsFromRegisters(registers, HeadspaceRunningRegisterOffsets, MaxHeadspaceCount);
+		HashSet<int> headspaceCompleted = ExtractSlotsFromRegisters(registers, HeadspaceCompletedRegisterOffsets, MaxHeadspaceCount);
+
+		bool changed = ReplaceSlotSet(_tubeRunningSlots, tubeRunning);
+		changed |= ReplaceSlotSet(_tubeCompletedSlots, tubeCompleted);
+		changed |= ReplaceSlotSet(_headspaceRunningSlots, headspaceRunning);
+		changed |= ReplaceSlotSet(_headspaceCompletedSlots, headspaceCompleted);
+		if (changed)
+		{
+			UpdateRackVisuals();
+		}
+	}
+
+	/// <summary>
+	/// 从寄存器集合按偏移提取有效槽位编号。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="registers">读取到的寄存器集合。</param>
+	/// <param name="offsets">需要提取的偏移集合。</param>
+	/// <param name="maxSlotNumber">槽位最大编号限制。</param>
+	/// <returns>返回提取到的槽位编号集合。</returns>
+	/// <remarks>
+	/// 由 ApplyRackProcessRegisters 分别提取采血管和顶空瓶工序槽位时调用。
+	/// </remarks>
+	private static HashSet<int> ExtractSlotsFromRegisters(IReadOnlyList<ushort> registers, IEnumerable<int> offsets, int maxSlotNumber)
+	{
+		HashSet<int> hashSet = new HashSet<int>();
+		foreach (int offset in offsets)
+		{
+			if (offset >= 0 && offset < registers.Count)
+			{
+				int num = registers[offset];
+				if (num > 0 && num <= maxSlotNumber)
+				{
+					hashSet.Add(num);
+				}
+			}
+		}
+		return hashSet;
+	}
+
+	/// <summary>
+	/// 用新集合替换槽位状态集合并返回是否发生变化。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="target">当前状态集合。</param>
+	/// <param name="source">新状态集合。</param>
+	/// <returns>返回集合内容是否发生变化。</returns>
+	/// <remarks>
+	/// 由 ApplyRackProcessRegisters 调用，用于减少无效界面刷新。
+	/// </remarks>
+	private static bool ReplaceSlotSet(HashSet<int> target, HashSet<int> source)
+	{
+		if (target.SetEquals(source))
+		{
+			return false;
+		}
+
+		target.Clear();
+		foreach (int item in source)
+		{
+			target.Add(item);
+		}
+		return true;
+	}
+
+	/// <summary>
+	/// 清空料架工序状态集合并刷新默认颜色。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由 RackProcessMonitorLoopAsync 在PLC离线时调用，避免显示旧工序状态。
+	/// </remarks>
+	private void ClearRackProcessStates()
+	{
+		if (_tubeRunningSlots.Count == 0 && _tubeCompletedSlots.Count == 0 && _headspaceRunningSlots.Count == 0 && _headspaceCompletedSlots.Count == 0)
+		{
+			return;
+		}
+
+		_tubeRunningSlots.Clear();
+		_tubeCompletedSlots.Clear();
+		_headspaceRunningSlots.Clear();
+		_headspaceCompletedSlots.Clear();
+		UpdateRackVisuals();
 	}
 
 	/// <summary>
@@ -1688,6 +2176,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_isDetectionStarted = false;
 		RefreshDetectionCommandStates();
 		StopTubeCountSync();
+		ClearRackProcessStates();
 		_workflowEngine.Stop();
 		_ = SendStopSignalToPlcAsync();
 		CountRuleText = "报警触发：检测已自动停止，请排查后复位。";
@@ -1992,7 +2481,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	private async Task SendInitParametersToPlcWithVerifyAsync()
 	{
 		ProcessParameterConfig config = _processParameterConfigService.Load() ?? new ProcessParameterConfig();
-		(ushort Address, int Value, string Name)[] items = new (ushort, int, string)[11]
+		(ushort Address, int Value, string Name)[] items = new (ushort, int, string)[17]
 		{
 			(PlcInitZDropNeedleRiseSlowSpeedRegisterAddress, config.ZDropNeedleRiseSlowSpeed, "Z轴_丢枪头_上升慢速速度"),
 			(PlcInitPipetteAspirateDelayRegisterAddress, config.PipetteAspirateDelay100ms, "移液枪吸液延时时间"),
@@ -2004,7 +2493,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			(PlcInitHeadspaceShakeWorkDelayRegisterAddress, config.HeadspaceShakeWorkDelay100ms, "顶空瓶摇晃工位延时时间"),
 			(PlcInitHeadspaceShakeTargetCountRegisterAddress, config.HeadspaceShakeTargetCount, "顶空瓶摇晃目标次数"),
 			(PlcInitButanolAspirateDelayRegisterAddress, config.ButanolAspirateDelay100ms, "叔丁醇吸液延时时间"),
-			(PlcInitButanolDispenseDelayRegisterAddress, config.ButanolDispenseDelay100ms, "叔丁醇打液延时时间")
+			(PlcInitButanolDispenseDelayRegisterAddress, config.ButanolDispenseDelay100ms, "叔丁醇打液延时时间"),
+			(PlcInitSampleBottlePressureTimeRegisterAddress, config.SampleBottlePressureTime100ms, "样品瓶加压时间"),
+			(PlcInitQuantitativeLoopBalanceTimeRegisterAddress, config.QuantitativeLoopBalanceTime100ms, "定量环平衡时间"),
+			(PlcInitInjectionTimeRegisterAddress, config.InjectionTime100ms, "进样时间"),
+			(PlcInitSampleBottlePressurePositionRegisterAddress, config.SampleBottlePressurePosition, "样品瓶加压位置"),
+			(PlcInitQuantitativeLoopBalancePositionRegisterAddress, config.QuantitativeLoopBalancePosition, "定量环平衡位置"),
+			(PlcInitInjectionPositionRegisterAddress, config.InjectionPosition, "进样位置")
 		};
 		await _plcLock.WaitAsync();
 		try
@@ -2037,7 +2532,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		{
 			_plcLock.Release();
 		}
-		AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "初始化参数写入并校验成功（D6000、D6020、D6021、D6022、D6023、D6024、D6026、D6027、D6028、D6030、D6031）。");
+		AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "初始化参数写入并校验成功（D6000、D6020、D6021、D6022、D6023、D6024、D6026、D6027、D6028、D6030、D6031、D6040、D6041、D6042、D6302、D6304、D6306）。");
 	}
 
 	/// <summary>
@@ -2257,10 +2752,88 @@ public class HomeViewModel : BaseViewModel, IDisposable
 				ScanCode = scanCode;
 			});
 		}
+		TryUpdateSampleVolumeFromWorkflowWeight(log);
 		HomeLogLevel level = ParseHomeLogLevel(log.LevelText);
 		HomeLogKind kind = ParseHomeLogKind(log.LogKind);
 		int? tubeIndex = (log.TubeIndex > 0) ? log.TubeIndex : null;
 		AddLog(level, HomeLogSource.Process, kind, "流程：" + log.Message, tubeIndex);
+	}
+
+	/// <summary>
+	/// 根据流程称重事件刷新采血管体积显示。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="log">流程日志事件对象。</param>
+	/// <remarks>
+	/// 由 OnWorkflowLogGenerated 调用，仅处理采血管放置和采血管吸液后的称重事件。
+	/// </remarks>
+	private void TryUpdateSampleVolumeFromWorkflowWeight(WorkflowEngine.WorkflowLogMessage log)
+	{
+		if (!log.MeasuredWeight.HasValue || !IsTubeWeightStep(log.WeightStepKey))
+		{
+			return;
+		}
+
+		if (!TryGetMicroliterPerWeight(out double microliterPerWeight))
+		{
+			if (!_sampleVolumeCoefficientWarningLogged)
+			{
+				_sampleVolumeCoefficientWarningLogged = true;
+				AddLog(HomeLogLevel.Warning, HomeLogSource.Process, HomeLogKind.Operation, "未找到有效重量转微升系数，无法刷新采血管体积显示。请先在重量到Z标定页面完成微升系数标定并保存。");
+			}
+			return;
+		}
+
+		_sampleVolumeCoefficientWarningLogged = false;
+		double microliter = Math.Max(0.0, log.MeasuredWeight.Value * microliterPerWeight);
+		RunOnUiThread(delegate
+		{
+			SampleVolume = microliter.ToString("F1");
+		});
+	}
+
+	/// <summary>
+	/// 判断流程称重步骤是否属于采血管体积更新来源。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="weightStepKey">流程称重步骤标识。</param>
+	/// <returns>返回是否为采血管称重步骤。</returns>
+	/// <remarks>
+	/// 由 TryUpdateSampleVolumeFromWorkflowWeight 调用。
+	/// </remarks>
+	private static bool IsTubeWeightStep(string? weightStepKey)
+	{
+		return string.Equals(weightStepKey, "tube_place_weight", StringComparison.Ordinal)
+			|| string.Equals(weightStepKey, "tube_after_aspirate_weight", StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// 读取重量到微升系数配置并校验有效性。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="microliterPerWeight">输出重量到微升系数（ul/g）。</param>
+	/// <returns>返回系数是否有效。</returns>
+	/// <remarks>
+	/// 由 TryUpdateSampleVolumeFromWorkflowWeight 调用，优先读取实时保存的标定配置。
+	/// </remarks>
+	private bool TryGetMicroliterPerWeight(out double microliterPerWeight)
+	{
+		microliterPerWeight = 0.0;
+		try
+		{
+			WeightToZCalibrationConfig config = _weightToZConfigService.Load() ?? new WeightToZCalibrationConfig();
+			if (!config.HasMicroliterCoefficient || Math.Abs(config.MicroliterPerWeight) <= 1E-07)
+			{
+				return false;
+			}
+
+			microliterPerWeight = config.MicroliterPerWeight;
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
 	}
 
 	/// <summary>
@@ -2434,15 +3007,55 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	{
 		foreach (RackSlotItemViewModel tubeRackSlot in TubeRackSlots)
 		{
-			bool flag = tubeRackSlot.Number <= _selectedTubeCount;
-			tubeRackSlot.Fill = (flag ? ActiveSlotFill : IdleSlotFill);
-			tubeRackSlot.Foreground = (flag ? ActiveSlotText : IdleSlotText);
+			if (tubeRackSlot.Number > _selectedTubeCount)
+			{
+				tubeRackSlot.Fill = IdleSlotFill;
+				tubeRackSlot.Foreground = IdleSlotText;
+				continue;
+			}
+
+			if (_tubeCompletedSlots.Contains(tubeRackSlot.Number))
+			{
+				tubeRackSlot.Fill = CompletedSlotFill;
+				tubeRackSlot.Foreground = ActiveSlotText;
+				continue;
+			}
+
+			if (_tubeRunningSlots.Contains(tubeRackSlot.Number))
+			{
+				tubeRackSlot.Fill = RunningSlotFill;
+				tubeRackSlot.Foreground = ActiveSlotText;
+				continue;
+			}
+
+			tubeRackSlot.Fill = ActiveSlotFill;
+			tubeRackSlot.Foreground = ActiveSlotText;
 		}
 		foreach (RackSlotItemViewModel headspaceRackSlot in HeadspaceRackSlots)
 		{
-			bool flag2 = headspaceRackSlot.Number <= _selectedHeadspaceCount;
-			headspaceRackSlot.Fill = (flag2 ? ActiveSlotFill : IdleSlotFill);
-			headspaceRackSlot.Foreground = (flag2 ? ActiveSlotText : IdleSlotText);
+			if (headspaceRackSlot.Number > _selectedHeadspaceCount)
+			{
+				headspaceRackSlot.Fill = IdleSlotFill;
+				headspaceRackSlot.Foreground = IdleSlotText;
+				continue;
+			}
+
+			if (_headspaceCompletedSlots.Contains(headspaceRackSlot.Number))
+			{
+				headspaceRackSlot.Fill = CompletedSlotFill;
+				headspaceRackSlot.Foreground = ActiveSlotText;
+				continue;
+			}
+
+			if (_headspaceRunningSlots.Contains(headspaceRackSlot.Number))
+			{
+				headspaceRackSlot.Fill = RunningSlotFill;
+				headspaceRackSlot.Foreground = ActiveSlotText;
+				continue;
+			}
+
+			headspaceRackSlot.Fill = ActiveSlotFill;
+			headspaceRackSlot.Foreground = ActiveSlotText;
 		}
 	}
 
@@ -2564,6 +3177,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		StopTubeCountSync();
 		StopAlarmMonitor();
 		StopProcessModeMonitor();
+		StopRackProcessMonitor();
 		UnregisterCorePlcPollingPoints();
 	}
 
