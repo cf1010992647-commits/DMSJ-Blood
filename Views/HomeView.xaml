@@ -751,7 +751,7 @@
                                    VerticalAlignment="Center"
                                    Margin="0,0,8,0" />
                         <TextBox Grid.Column="1"
-                                 Text="{Binding ScanCode}"
+                                 Text="{Binding ScanCode, Mode=OneWay}"
                                  Style="{StaticResource DisplayInput}" />
                     </Grid>
                 </Border>

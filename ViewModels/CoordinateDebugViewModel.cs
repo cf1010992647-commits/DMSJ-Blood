@@ -11,6 +11,13 @@ using System.Windows.Input;
 
 namespace Blood_Alcohol.ViewModels
 {
+    /// <summary>
+    /// 坐标调试页视图模型，负责多组XY/Z坐标配置的加载与保存。
+    /// </summary>
+    /// By:ChengLei
+    /// <remarks>
+    /// 由 CoordinateDebugView 创建为 DataContext，内部组合多个坐标配置子模块。
+    /// </remarks>
     public class CoordinateDebugViewModel : BaseViewModel
     {
         private const string CoordinateConfigFileName = "CoordinateDebugConfig.json";
@@ -57,6 +64,13 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 初始化坐标调试视图模型并创建各坐标配置模块。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由页面初始化调用；构造完成后会立即执行 LoadConfig 加载本地配置。
+        /// </remarks>
         public CoordinateDebugViewModel()
         {
             _configService = new ConfigService<CoordinateDebugConfig>(CoordinateConfigFileName);
@@ -101,6 +115,13 @@ namespace Blood_Alcohol.ViewModels
             LoadConfig();
         }
 
+        /// <summary>
+        /// 从配置文件读取坐标参数并下发到各子模块。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由构造函数和“重新加载配置”按钮调用，用于恢复已保存的坐标调试参数。
+        /// </remarks>
         private void LoadConfig()
         {
             try
@@ -121,6 +142,13 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 汇总当前坐标参数并保存到配置文件。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由“保存配置”按钮调用，包含采血管、顶空瓶、其他工位、枪头和Z轴配置。
+        /// </remarks>
         private void SaveConfig()
         {
             try
@@ -143,6 +171,15 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 生成“其他工位”点位描述文本。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="index">点位序号（从1开始）。</param>
+        /// <returns>返回用于界面显示的点位描述。</returns>
+        /// <remarks>
+        /// 由 OtherPositionProfile 的描述工厂委托调用。
+        /// </remarks>
         private static string BuildOtherPositionDescription(int index)
         {
             int xp = 300 + index - 1;
@@ -153,6 +190,15 @@ namespace Blood_Alcohol.ViewModels
             return $"M1XP{xp}{suffix}";
         }
 
+        /// <summary>
+        /// 生成“枪头位”点位描述文本。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="index">点位序号（从1开始）。</param>
+        /// <returns>返回用于界面显示的枪头点位描述。</returns>
+        /// <remarks>
+        /// 由 PipetteTipProfile 的描述工厂委托调用。
+        /// </remarks>
         private static string BuildPipetteTipDescription(int index)
         {
             int xp = 400 + index - 1;

@@ -6,14 +6,36 @@ namespace Blood_Alcohol.Views
 {
     public partial class HomeView : UserControl
     {
+        private Window? _hostWindow;
+
         public HomeView()
         {
             InitializeComponent();
-            Unloaded += HomeView_Unloaded;
+            Loaded += HomeView_Loaded;
         }
 
-        private void HomeView_Unloaded(object sender, RoutedEventArgs e)
+        private void HomeView_Loaded(object sender, RoutedEventArgs e)
         {
+            if (_hostWindow != null)
+            {
+                return;
+            }
+
+            _hostWindow = Window.GetWindow(this);
+            if (_hostWindow != null)
+            {
+                _hostWindow.Closed += HostWindow_Closed;
+            }
+        }
+
+        private void HostWindow_Closed(object? sender, System.EventArgs e)
+        {
+            if (_hostWindow != null)
+            {
+                _hostWindow.Closed -= HostWindow_Closed;
+                _hostWindow = null;
+            }
+
             if (DataContext is HomeViewModel vm)
             {
                 vm.Dispose();

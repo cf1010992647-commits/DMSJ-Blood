@@ -82,7 +82,7 @@
                                FontSize="20"
                                FontWeight="SemiBold"
                                Foreground="#0F172A" />
-                    <TextBlock Text="点位来源于 PointMonitorConfig.json，可在界面新增/删除后保存。"
+                    <TextBlock Text="支持 M线圈 与 D寄存器监控（16/32位），配置保存在 PointMonitorConfig.json。"
                                FontSize="13"
                                Foreground="#64748B"
                                Margin="0,2,0,0" />
@@ -123,6 +123,17 @@
                     <DataGridTextColumn Header="地址"
                                         Binding="{Binding Address, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                         Width="120" />
+                    <DataGridTextColumn Header="类型"
+                                        Binding="{Binding PointTypeText}"
+                                        IsReadOnly="True"
+                                        Width="130" />
+                    <DataGridTextColumn Header="位宽"
+                                        Binding="{Binding RegisterBitWidth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                        Width="70" />
+                    <DataGridTextColumn Header="当前值"
+                                        Binding="{Binding ValueText}"
+                                        IsReadOnly="True"
+                                        Width="110" />
                     <DataGridTextColumn Header="描述"
                                         Binding="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                         Width="*" />
@@ -147,6 +158,7 @@
                                             Content="开启"
                                             Height="26"
                                             Margin="0,0,4,0"
+                                            IsEnabled="{Binding IsWriteSupported}"
                                             Command="{Binding DataContext.TogglePointCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"
                                             Style="{StaticResource IndustrialButtonStyle}" />
@@ -154,6 +166,7 @@
                                             Content="关闭"
                                             Height="26"
                                             Margin="4,0,0,0"
+                                            IsEnabled="{Binding IsWriteSupported}"
                                             Command="{Binding DataContext.TogglePointOffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"
                                             Style="{StaticResource SecondaryButtonStyle}" />

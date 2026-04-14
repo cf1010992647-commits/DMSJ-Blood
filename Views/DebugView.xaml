@@ -47,7 +47,7 @@
                      IsHitTestVisible="{Binding DataContext.IsManualMode, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <views:CoordinateDebugView />
             </TabItem>
-            <TabItem Header="Weight-Z调试"
+            <TabItem Header="系数配置"
                      IsEnabled="{Binding DataContext.IsManualMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
                      IsHitTestVisible="{Binding DataContext.IsManualMode, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <views:WeightToZDebugView />

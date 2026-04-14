@@ -7,13 +7,6 @@
     </UserControl.DataContext>
 
     <UserControl.Resources>
-        <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#334155" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="0,0,8,0" />
-            <Setter Property="FontSize" Value="14" />
-        </Style>
-
         <Style x:Key="InputBoxStyle" TargetType="TextBox">
             <Setter Property="Height" Value="30" />
             <Setter Property="Padding" Value="6,2" />
@@ -43,7 +36,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
@@ -55,7 +48,8 @@
                 Margin="0,0,0,10">
             <TextBlock Text="{Binding StatusMessage}"
                        Foreground="#334155"
-                       FontSize="14" />
+                       FontSize="14"
+                       TextWrapping="Wrap" />
         </Border>
 
         <Border Grid.Row="1"
@@ -65,44 +59,97 @@
                 CornerRadius="10"
                 Padding="12"
                 Margin="0,0,0,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="重量转Z轴系数"
+                           Foreground="#0F172A"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,10" />
 
-                <TextBlock Grid.Column="0" Text="Z地址(坐标Json)" Style="{StaticResource FieldLabelStyle}" />
-                <TextBox Grid.Column="1"
-                         Text="{Binding ZAddress, Mode=OneWay}"
-                         Style="{StaticResource InputBoxStyle}"
-                         IsReadOnly="True"
-                         Focusable="False"
-                         Margin="0,0,12,0" />
-
-                <TextBlock Grid.Column="2" Text="Z比例(坐标Json)" Style="{StaticResource FieldLabelStyle}" />
-                <TextBox Grid.Column="3"
-                         Text="{Binding ZScale, Mode=OneWay, StringFormat=F3}"
-                         Style="{StaticResource InputBoxStyle}"
-                         IsReadOnly="True"
-                         Focusable="False" />
-
-                <WrapPanel Grid.Column="4" HorizontalAlignment="Right">
-                    <Button Content="读取当前Z"
+                <WrapPanel Margin="0,0,0,10">
+                    <Button Content="获取重量"
+                            Style="{StaticResource ActionButtonStyle}"
+                            Command="{Binding ReadCurrentWeightCommand}"
+                            Margin="0,0,8,8" />
+                    <Button Content="获取当前Z轴位置"
                             Style="{StaticResource ActionButtonStyle}"
                             Command="{Binding ReadCurrentZCommand}"
-                            Margin="0,0,8,0" />
-                    <Button Content="加载Json"
+                            Margin="0,0,8,8" />
+                    <Button Content="计算Z轴系数"
                             Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding LoadConfigCommand}"
-                            Margin="0,0,8,0" />
-                    <Button Content="保存Json"
+                            Command="{Binding ComputeCoefficientCommand}"
+                            Margin="0,0,8,8" />
+                    <Button Content="一键采集计算Z轴系数"
                             Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding SaveConfigCommand}" />
+                            Command="{Binding AcquireAndComputeCoefficientCommand}"
+                            MinWidth="180"
+                            Margin="0,0,8,8" />
                 </WrapPanel>
-            </Grid>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Background="White"
+                            BorderBrush="#D8E1EB"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12"
+                            Margin="0,0,8,0">
+                        <StackPanel>
+                            <TextBlock Text="重量(g)"
+                                       Foreground="#64748B"
+                                       FontSize="13" />
+                            <TextBox Text="{Binding CurrentWeight, Mode=OneWay, StringFormat=F3}"
+                                     Style="{StaticResource InputBoxStyle}"
+                                     IsReadOnly="True"
+                                     Focusable="False"
+                                     Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            Background="White"
+                            BorderBrush="#D8E1EB"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12"
+                            Margin="0,0,8,0">
+                        <StackPanel>
+                            <TextBlock Text="Z轴坐标(mm)"
+                                       Foreground="#64748B"
+                                       FontSize="13" />
+                            <TextBox Text="{Binding CurrentZ, Mode=OneWay, StringFormat=F3}"
+                                     Style="{StaticResource InputBoxStyle}"
+                                     IsReadOnly="True"
+                                     Focusable="False"
+                                     Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2"
+                            Background="White"
+                            BorderBrush="#D8E1EB"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel>
+                            <TextBlock Text="重量转Z系数(mm/g)"
+                                       Foreground="#64748B"
+                                       FontSize="13" />
+                            <TextBox Text="{Binding ZPerWeight, Mode=OneWay, StringFormat=F6}"
+                                     Style="{StaticResource InputBoxStyle}"
+                                     IsReadOnly="True"
+                                     Focusable="False"
+                                     Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </StackPanel>
         </Border>
 
         <Border Grid.Row="2"
@@ -112,46 +159,104 @@
                 CornerRadius="10"
                 Padding="12"
                 Margin="0,0,0,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="重量转微升系数"
+                           Foreground="#0F172A"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,10" />
 
-                <TextBlock Grid.Column="0" Text="当前重量(g)" Style="{StaticResource FieldLabelStyle}" />
-                <TextBox Grid.Column="1"
-                         Text="{Binding CurrentWeight, StringFormat=F3}"
-                         Style="{StaticResource InputBoxStyle}"
-                         Margin="0,0,12,0" />
-
-                <TextBlock Grid.Column="2" Text="当前Z(mm)" Style="{StaticResource FieldLabelStyle}" />
-                <TextBox Grid.Column="3"
-                         Text="{Binding CurrentZ, Mode=OneWay, StringFormat=F3}"
-                         Style="{StaticResource InputBoxStyle}"
-                         IsReadOnly="True"
-                         Focusable="False"
-                         Margin="0,0,12,0" />
-
-                <TextBlock Grid.Column="4" Text="目标重量(g)" Style="{StaticResource FieldLabelStyle}" />
-                <TextBox Grid.Column="5"
-                         Text="{Binding QueryWeight, StringFormat=F3}"
-                         Style="{StaticResource InputBoxStyle}" />
-
-                <WrapPanel Grid.Column="6" HorizontalAlignment="Right">
-                    <Button Content="计算系数"
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0"
+                            Content="获取重量"
                             Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding ComputeCoefficientCommand}"
+                            Command="{Binding ReadCurrentWeightCommand}"
                             Margin="0,0,8,0" />
-                    <Button Content="计算目标Z"
+                    <TextBox Grid.Column="1"
+                             Text="{Binding InputMicroliter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}"
+                             Style="{StaticResource InputBoxStyle}"
+                             Margin="0,0,8,0" />
+                    <TextBlock Grid.Column="2"
+                               Text="ul"
+                               VerticalAlignment="Center"
+                               Foreground="#334155"
+                               Margin="0,0,8,0" />
+                    <Button Grid.Column="3"
+                            Content="计算重量转微升系数"
                             Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding CalculateCommand}" />
-                </WrapPanel>
-            </Grid>
+                            Command="{Binding ComputeMicroliterCoefficientCommand}" />
+                </Grid>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Background="White"
+                            BorderBrush="#D8E1EB"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12"
+                            Margin="0,0,8,0">
+                        <StackPanel>
+                            <TextBlock Text="重量(g)"
+                                       Foreground="#64748B"
+                                       FontSize="13" />
+                            <TextBox Text="{Binding CurrentWeight, Mode=OneWay, StringFormat=F3}"
+                                     Style="{StaticResource InputBoxStyle}"
+                                     IsReadOnly="True"
+                                     Focusable="False"
+                                     Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            Background="White"
+                            BorderBrush="#D8E1EB"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12"
+                            Margin="0,0,8,0">
+                        <StackPanel>
+                            <TextBlock Text="输入微升(ul)"
+                                       Foreground="#64748B"
+                                       FontSize="13" />
+                            <TextBox Text="{Binding InputMicroliter, Mode=OneWay, StringFormat=F3}"
+                                     Style="{StaticResource InputBoxStyle}"
+                                     IsReadOnly="True"
+                                     Focusable="False"
+                                     Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2"
+                            Background="White"
+                            BorderBrush="#D8E1EB"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel>
+                            <TextBlock Text="重量转微升系数(ul/g)"
+                                       Foreground="#64748B"
+                                       FontSize="13" />
+                            <TextBox Text="{Binding MicroliterPerWeight, Mode=OneWay, StringFormat=F6}"
+                                     Style="{StaticResource InputBoxStyle}"
+                                     IsReadOnly="True"
+                                     Focusable="False"
+                                     Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </StackPanel>
         </Border>
 
         <Border Grid.Row="3"
@@ -160,33 +265,20 @@
                 BorderThickness="1"
                 CornerRadius="10"
                 Padding="12">
-            <StackPanel>
-                <TextBlock Text="{Binding FormulaText}"
-                           Foreground="#0F172A"
-                           FontWeight="SemiBold"
-                           FontSize="15" />
-
-                <TextBlock Margin="0,8,0,0" Foreground="#334155" FontSize="14">
-                    <Run Text="系数 Z/重量: " />
-                    <Run Text="{Binding ZPerWeight, Mode=OneWay, StringFormat=F6}" />
-                </TextBlock>
-
-                <TextBlock Margin="0,4,0,0" Foreground="#334155" FontSize="14">
-                    <Run Text="预测Z(mm): " />
-                    <Run Text="{Binding PredictedZ, Mode=OneWay, StringFormat=F3}" />
-                </TextBlock>
-
-                <TextBlock Margin="0,4,0,0" Foreground="#334155" FontSize="14">
-                    <Run Text="发送PLC值(raw): " />
-                    <Run Text="{Binding PredictedRawValue, Mode=OneWay}" />
-                </TextBlock>
-
-                <WrapPanel Margin="0,10,0,0">
-                    <Button Content="测试运动(Z轴)"
-                            Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding TestMoveCommand}" />
-                </WrapPanel>
-            </StackPanel>
+            <WrapPanel>
+                <TextBlock Text="系数配置"
+                           Foreground="#334155"
+                           FontSize="14"
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,0" />
+                <Button Content="加载Json"
+                        Style="{StaticResource ActionButtonStyle}"
+                        Command="{Binding LoadConfigCommand}"
+                        Margin="0,0,8,0" />
+                <Button Content="保存Json"
+                        Style="{StaticResource ActionButtonStyle}"
+                        Command="{Binding SaveConfigCommand}" />
+            </WrapPanel>
         </Border>
     </Grid>
 </UserControl>

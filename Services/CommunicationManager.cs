@@ -66,6 +66,7 @@ namespace Blood_Alcohol.Services
         public static Rs485Helper Rs485 { get; } = new Rs485Helper();
         public static Lx5vPlc Plc { get; } = new Lx5vPlc(Rs485, slaveAddress: 1);
         public static SemaphoreSlim PlcAccessLock { get; } = new SemaphoreSlim(1, 1);
+        public static SemaphoreSlim TcpReceiveLock { get; } = new SemaphoreSlim(1, 1);
         public static PlcPollingService PlcPolling { get; } =
             new PlcPollingService(Plc, PlcAccessLock, () => Is485Open);
         public static TcpServer TcpServer { get; } = new TcpServer();

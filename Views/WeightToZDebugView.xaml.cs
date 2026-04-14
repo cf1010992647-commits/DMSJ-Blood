@@ -8,5 +8,6 @@ namespace Blood_Alcohol.Views
         {
             InitializeComponent();
         }
+
     }
 }

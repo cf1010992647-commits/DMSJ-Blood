@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -7,15 +7,21 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Blood_Alcohol.Models;
 using Blood_Alcohol.Services;
 
 namespace Blood_Alcohol.ViewModels
 {
+    /// <summary>
+    /// 轴调试视图模型。
+    /// </summary>
+    /// By:ChengLei
+    /// <remarks>
+    /// 负责轴状态监控与调试命令下发。
+    /// </remarks>
     public sealed class AxisDebugViewModel : BaseViewModel, IDisposable
     {
-        private const int AxisOffset = 100;
-        private const ushort BaseMAddress = 1000;
-        private const ushort BaseDAddress = 1000;
+        private const string AxisAddressConfigFileName = "AxisDebugAddressConfig.json";
         private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
         private static readonly TimeSpan CoilCacheMaxAge = TimeSpan.FromMilliseconds(800);
 
@@ -23,6 +29,8 @@ namespace Blood_Alcohol.ViewModels
         private static readonly Brush LampOffBrush = Brushes.Gainsboro;
 
         private readonly SemaphoreSlim _plcLock = CommunicationManager.PlcAccessLock;
+        private readonly ConfigService<AxisDebugAddressConfig> _axisAddressConfigService = new(AxisAddressConfigFileName);
+        private readonly AxisDebugAddressConfig _axisAddressConfig;
         private readonly AxisBinding[] _axes;
         private readonly HashSet<ushort> _registeredPollingCoils = new();
         private readonly CancellationTokenSource _pollCts = new();
@@ -49,12 +57,21 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 初始化轴调试视图模型并加载地址配置。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由 AxisDebugView 创建 DataContext 时调用，并启动 PollAxisLoopAsync。
+        /// </remarks>
         public AxisDebugViewModel()
         {
-            AxisBinding xAxis = BuildLinearAxis(1, "M1X轴伺服", "X轴手动定位", true);
-            AxisBinding yAxis = BuildLinearAxis(2, "M2Y轴伺服", "Y轴手动定位", true);
-            AxisBinding zAxis = BuildLinearAxis(3, "M3Z轴伺服", "Z轴手动定位", true);
-            AxisBinding shakeAxis = BuildShakeAxis(4, "M4顶空进样阀");
+            _axisAddressConfig = LoadAxisAddressConfig();
+
+            AxisBinding xAxis = BuildLinearAxis(1, ResolveAddressProfile(1), "M1 X轴伺服", "X轴手动定位", true);
+            AxisBinding yAxis = BuildLinearAxis(2, ResolveAddressProfile(2), "M2 Y轴伺服", "Y轴手动定位", true);
+            AxisBinding zAxis = BuildLinearAxis(3, ResolveAddressProfile(3), "M3 Z轴伺服", "Z轴手动定位", true);
+            AxisBinding shakeAxis = BuildShakeAxis(4, ResolveAddressProfile(4), "M4 摇匀轴");
 
             XAxis = xAxis.Card;
             YAxis = yAxis.Card;
@@ -66,18 +83,103 @@ namespace Blood_Alcohol.ViewModels
             _pollTask = Task.Run(() => PollAxisLoopAsync(_pollCts.Token));
         }
 
+        /// <summary>
+        /// 加载轴地址映射配置并在缺项时回填默认值。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回可用的轴地址配置对象。</returns>
+        /// <remarks>
+        /// 由构造函数调用；加载失败时自动回退默认配置并保存。
+        /// </remarks>
+        private AxisDebugAddressConfig LoadAxisAddressConfig()
+        {
+            AxisDebugAddressConfig defaults = new AxisDebugAddressConfig();
+
+            try
+            {
+                AxisDebugAddressConfig config = _axisAddressConfigService.Load() ?? new AxisDebugAddressConfig();
+                config.Axis1 ??= defaults.Axis1;
+                config.Axis2 ??= defaults.Axis2;
+                config.Axis3 ??= defaults.Axis3;
+                config.Axis4 ??= defaults.Axis4;
+
+                if (string.IsNullOrWhiteSpace(config.Axis1.AxisName))
+                {
+                    config.Axis1.AxisName = defaults.Axis1.AxisName;
+                }
+
+                if (string.IsNullOrWhiteSpace(config.Axis2.AxisName))
+                {
+                    config.Axis2.AxisName = defaults.Axis2.AxisName;
+                }
+
+                if (string.IsNullOrWhiteSpace(config.Axis3.AxisName))
+                {
+                    config.Axis3.AxisName = defaults.Axis3.AxisName;
+                }
+
+                if (string.IsNullOrWhiteSpace(config.Axis4.AxisName))
+                {
+                    config.Axis4.AxisName = defaults.Axis4.AxisName;
+                }
+
+                _axisAddressConfigService.Save(config);
+                return config;
+            }
+            catch
+            {
+                _axisAddressConfigService.Save(defaults);
+                return defaults;
+            }
+        }
+
+        /// <summary>
+        /// 根据轴号返回对应地址映射。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axisNo">轴编号（1~4）。</param>
+        /// <returns>返回指定轴号的地址映射对象。</returns>
+        /// <remarks>
+        /// 由构造函数调用，用于构建四个轴卡片。
+        /// </remarks>
+        private AxisAddressProfile ResolveAddressProfile(int axisNo)
+        {
+            return axisNo switch
+            {
+                1 => _axisAddressConfig.Axis1 ?? new AxisAddressProfile(),
+                2 => _axisAddressConfig.Axis2 ?? new AxisAddressProfile(),
+                3 => _axisAddressConfig.Axis3 ?? new AxisAddressProfile(),
+                4 => _axisAddressConfig.Axis4 ?? new AxisAddressProfile(),
+                _ => new AxisAddressProfile()
+            };
+        }
+
+        /// <summary>
+        /// 注册当前页面使用的轴状态轮询点位。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由构造函数调用；与 Dispose 中注销流程成对出现。
+        /// </remarks>
         private void RegisterAxisPollingPoints()
         {
             foreach (AxisBinding axis in _axes)
             {
-                ushort startM = (ushort)(axis.BaseM + 3);
-                RegisterPollingCoil(startM);
-                RegisterPollingCoil((ushort)(startM + 9));
-                RegisterPollingCoil((ushort)(startM + 10));
-                RegisterPollingCoil((ushort)(startM + 11));
+                RegisterPollingCoil(axis.Addresses.HomeDoneCoil);
+                RegisterPollingCoil(axis.Addresses.PositiveLimitCoil);
+                RegisterPollingCoil(axis.Addresses.NegativeLimitCoil);
+                RegisterPollingCoil(axis.Addresses.HomeSensorCoil);
             }
         }
 
+        /// <summary>
+        /// 向轮询服务注册单个线圈地址。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">PLC地址。</param>
+        /// <remarks>
+        /// 由 RegisterAxisPollingPoints 内部循环调用。
+        /// </remarks>
         private void RegisterPollingCoil(ushort address)
         {
             if (_registeredPollingCoils.Add(address))
@@ -86,6 +188,13 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 注销本页注册的全部轮询线圈。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由 Dispose 调用，避免页面关闭后继续轮询。
+        /// </remarks>
         private void UnregisterAxisPollingPoints()
         {
             foreach (ushort address in _registeredPollingCoils)
@@ -96,40 +205,68 @@ namespace Blood_Alcohol.ViewModels
             _registeredPollingCoils.Clear();
         }
 
-        private AxisBinding BuildLinearAxis(int axisNo, string title, string manualLocateText, bool showManualLocate)
+        /// <summary>
+        /// 构建线性轴卡片并初始化状态灯和输入区域。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axisNo">轴编号（1~4）。</param>
+        /// <param name="addresses">该轴对应的地址映射配置。</param>
+        /// <param name="fallbackTitle">地址配置缺省时显示的默认标题。</param>
+        /// <param name="manualLocateText">手动定位按钮显示文本。</param>
+        /// <param name="showManualLocate">是否展示手动定位输入区域。</param>
+        /// <returns>返回构建完成的线性轴绑定对象。</returns>
+        /// <remarks>
+        /// 由构造函数调用三次，分别创建X/Y/Z轴。
+        /// </remarks>
+        private AxisBinding BuildLinearAxis(int axisNo, AxisAddressProfile addresses, string fallbackTitle, string manualLocateText, bool showManualLocate)
         {
             var card = new AxisControlCardViewModel
             {
-                Title = title,
+                Title = string.IsNullOrWhiteSpace(addresses.AxisName) ? fallbackTitle : addresses.AxisName,
                 CurrentPosition = "0",
                 TargetPosition = "0",
                 ManualSpeed = "0",
                 AutoSpeed = "0",
+                ManualSpeedInput = "0",
+                AutoSpeedInput = "0",
                 ShowPositionFields = true,
                 ShowManualLocate = showManualLocate,
                 ManualLocateText = manualLocateText,
                 ManualLocateInput = "0"
             };
 
-            card.StatusLamps.Add(new AxisStatusLampViewModel("正限"));
+            card.StatusLamps.Add(new AxisStatusLampViewModel("正限位"));
             card.StatusLamps.Add(new AxisStatusLampViewModel("原点"));
-            card.StatusLamps.Add(new AxisStatusLampViewModel("反限"));
-            card.StatusLamps.Add(new AxisStatusLampViewModel("回原点OK"));
+            card.StatusLamps.Add(new AxisStatusLampViewModel("负限位"));
+            card.StatusLamps.Add(new AxisStatusLampViewModel("回原点完成"));
 
-            var axis = new AxisBinding(axisNo, card);
+            var axis = new AxisBinding(axisNo, card, addresses);
             BindAxisCommands(axis);
             return axis;
         }
 
-        private AxisBinding BuildShakeAxis(int axisNo, string title)
+        /// <summary>
+        /// 构建摇匀轴卡片并初始化状态灯。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axisNo">轴编号（1~4）。</param>
+        /// <param name="addresses">该轴对应的地址映射配置。</param>
+        /// <param name="fallbackTitle">地址配置缺省时显示的默认标题。</param>
+        /// <returns>返回构建完成的摇匀轴绑定对象。</returns>
+        /// <remarks>
+        /// 由构造函数调用一次，创建M4摇匀轴。
+        /// </remarks>
+        private AxisBinding BuildShakeAxis(int axisNo, AxisAddressProfile addresses, string fallbackTitle)
         {
             var card = new AxisControlCardViewModel
             {
-                Title = title,
+                Title = string.IsNullOrWhiteSpace(addresses.AxisName) ? fallbackTitle : addresses.AxisName,
                 CurrentPosition = string.Empty,
                 TargetPosition = string.Empty,
                 ManualSpeed = "0",
                 AutoSpeed = "0",
+                ManualSpeedInput = "0",
+                AutoSpeedInput = "0",
                 ShowPositionFields = false,
                 ShowManualLocate = false,
                 ManualLocateText = string.Empty,
@@ -137,13 +274,21 @@ namespace Blood_Alcohol.ViewModels
             };
 
             card.StatusLamps.Add(new AxisStatusLampViewModel("原点"));
-            card.StatusLamps.Add(new AxisStatusLampViewModel("回原点OK"));
+            card.StatusLamps.Add(new AxisStatusLampViewModel("回原点完成"));
 
-            var axis = new AxisBinding(axisNo, card);
+            var axis = new AxisBinding(axisNo, card, addresses);
             BindAxisCommands(axis);
             return axis;
         }
 
+        /// <summary>
+        /// 绑定轴卡片命令（点动、回零、手动定位、速度写入）。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <remarks>
+        /// 由 BuildLinearAxis 与 BuildShakeAxis 在卡片创建后调用。
+        /// </remarks>
         private void BindAxisCommands(AxisBinding axis)
         {
             axis.Card.JogPlusPressCommand = new RelayCommand(_ => _ = WriteAxisCommandLevelAsync(axis, AxisCommand.JogPlus, true));
@@ -157,8 +302,19 @@ namespace Blood_Alcohol.ViewModels
 
             axis.Card.ManualLocatePressCommand = new RelayCommand(_ => _ = ExecuteManualLocateAsync(axis, true));
             axis.Card.ManualLocateReleaseCommand = new RelayCommand(_ => _ = ExecuteManualLocateAsync(axis, false));
+            axis.Card.WriteManualSpeedCommand = new RelayCommand(_ => _ = WriteAxisSpeedAsync(axis, true));
+            axis.Card.WriteAutoSpeedCommand = new RelayCommand(_ => _ = WriteAxisSpeedAsync(axis, false));
         }
 
+        /// <summary>
+        /// 后台轮询所有轴状态并刷新界面。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="token">取消令牌，用于终止当前异步流程。</param>
+        /// <returns>返回轴状态轮询异步任务。</returns>
+        /// <remarks>
+        /// 由构造函数内 Task.Run 启动，循环调用 RefreshAxisAsync。
+        /// </remarks>
         private async Task PollAxisLoopAsync(CancellationToken token)
         {
             bool warnedNotConnected = false;
@@ -205,19 +361,34 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 读取单轴状态、位置、速度并更新界面绑定值。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="token">取消令牌，用于终止当前异步流程。</param>
+        /// <returns>返回单轴刷新异步任务。</returns>
+        /// <remarks>
+        /// 由 PollAxisLoopAsync 在每个轮询周期对各轴调用。
+        /// </remarks>
         private async Task RefreshAxisAsync(AxisBinding axis, CancellationToken token)
         {
-            ushort startM = (ushort)(axis.BaseM + 3);
-            bool homeDone = await ReadCoilStateWithCacheAsync(startM, token);
-            bool posLimit = await ReadCoilStateWithCacheAsync((ushort)(startM + 9), token);
-            bool negLimit = await ReadCoilStateWithCacheAsync((ushort)(startM + 10), token);
-            bool homeSensor = await ReadCoilStateWithCacheAsync((ushort)(startM + 11), token);
+            bool homeDone = await ReadCoilStateWithCacheAsync(axis.Addresses.HomeDoneCoil, token);
+            bool posLimit = await ReadCoilStateWithCacheAsync(axis.Addresses.PositiveLimitCoil, token);
+            bool negLimit = await ReadCoilStateWithCacheAsync(axis.Addresses.NegativeLimitCoil, token);
+            bool homeSensor = await ReadCoilStateWithCacheAsync(axis.Addresses.HomeSensorCoil, token);
 
-            ushort[] regs = await ReadRegistersWithLockAsync((ushort)(axis.BaseD + 2), 16, token);
-            int currentPosition = ComposeInt32(GetRegisterValue(regs, 0), GetRegisterValue(regs, 1)); // D+2 low, D+3 high
-            short jogSpeed = ToInt16(GetRegisterValue(regs, 2));         // D+4
-            short autoSpeed = ToInt16(GetRegisterValue(regs, 6));        // D+8
-            int manualTarget = ComposeInt32(GetRegisterValue(regs, 14), GetRegisterValue(regs, 15)); // D+16 low, D+17 high
+            ushort currentPositionLow = await ReadRegisterValueWithLockAsync(axis.Addresses.CurrentPositionLowRegister, token);
+            ushort currentPositionHigh = await ReadRegisterValueWithLockAsync(axis.Addresses.CurrentPositionHighRegister, token);
+            ushort manualSpeedRaw = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualSpeedRegister, token);
+            ushort autoSpeedRaw = await ReadRegisterValueWithLockAsync(axis.Addresses.AutoSpeedRegister, token);
+            ushort manualTargetLow = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualTargetLowRegister, token);
+            ushort manualTargetHigh = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualTargetHighRegister, token);
+
+            int currentPosition = ComposeInt32(currentPositionLow, currentPositionHigh);
+            short jogSpeed = ToInt16(manualSpeedRaw);
+            short autoSpeed = ToInt16(autoSpeedRaw);
+            int manualTarget = ComposeInt32(manualTargetLow, manualTargetHigh);
 
             RunOnUiThread(() =>
             {
@@ -227,12 +398,11 @@ namespace Blood_Alcohol.ViewModels
                     axis.Card.TargetPosition = manualTarget.ToString(CultureInfo.InvariantCulture);
                 }
 
-                axis.Card.ManualSpeed = jogSpeed.ToString(CultureInfo.InvariantCulture);
-                axis.Card.AutoSpeed = autoSpeed.ToString(CultureInfo.InvariantCulture);
+                axis.Card.UpdateSpeedFromPlc(jogSpeed, autoSpeed);
 
                 if (axis.Card.StatusLamps.Count == 4)
                 {
-                    // 顺序与UI一致：正限 / 原点 / 反限 / 回原点OK
+                    // 顺序与UI一致：正限位 / 原点 / 负限位 / 回原点完成
                     axis.Card.StatusLamps[0].Color = posLimit ? LampOnBrush : LampOffBrush;
                     axis.Card.StatusLamps[1].Color = homeSensor ? LampOnBrush : LampOffBrush;
                     axis.Card.StatusLamps[2].Color = negLimit ? LampOnBrush : LampOffBrush;
@@ -240,13 +410,23 @@ namespace Blood_Alcohol.ViewModels
                 }
                 else if (axis.Card.StatusLamps.Count == 2)
                 {
-                    // M4：原点 / 回原点OK
+                    // M4：原点 / 回原点完成
                     axis.Card.StatusLamps[0].Color = homeSensor ? LampOnBrush : LampOffBrush;
                     axis.Card.StatusLamps[1].Color = homeDone ? LampOnBrush : LampOffBrush;
                 }
             });
         }
 
+        /// <summary>
+        /// 执行手动定位流程，写入目标坐标并触发定位位。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="level">命令电平，true为置位，false为复位。</param>
+        /// <returns>返回手动定位执行异步任务。</returns>
+        /// <remarks>
+        /// 由手动定位按钮按下/释放命令触发。
+        /// </remarks>
         private async Task ExecuteManualLocateAsync(AxisBinding axis, bool level)
         {
             _isAxisCommandBusy = true;
@@ -261,7 +441,7 @@ namespace Blood_Alcohol.ViewModels
 
                 if (!CommunicationManager.Is485Open)
                 {
-                    SetActionMessage($"{axis.Card.Title}: PLC未连接，手动定位未执行。");
+                    SetActionMessage($"{axis.Card.Title}: PLC未连接，跳过手动定位。");
                     return;
                 }
 
@@ -269,19 +449,19 @@ namespace Blood_Alcohol.ViewModels
                 {
                     if (!TryParseInt32(axis.Card.ManualLocateInput, out int target))
                     {
-                        SetActionMessage($"{axis.Card.Title}: 手动定位值无效。");
+                        SetActionMessage($"{axis.Card.Title}: 手动定位输入无效。");
                         return;
                     }
 
                     SplitInt32(target, out ushort lowWord, out ushort highWord);
-                    await WriteRegisterWithLockAsync((ushort)(axis.BaseD + 16), lowWord);
-                    await WriteRegisterWithLockAsync((ushort)(axis.BaseD + 17), highWord);
-                    await WriteCoilWithLockAsync((ushort)(axis.BaseM + 19), true);
+                    await WriteRegisterWithLockAsync(axis.Addresses.ManualTargetLowRegister, lowWord);
+                    await WriteRegisterWithLockAsync(axis.Addresses.ManualTargetHighRegister, highWord);
+                    await WriteCoilWithLockAsync(axis.Addresses.ManualLocateTriggerCoil, true);
                     SetActionMessage($"{axis.Card.Title}: 手动定位触发=1，目标={target}");
                 }
                 else
                 {
-                    await WriteCoilWithLockAsync((ushort)(axis.BaseM + 19), false);
+                    await WriteCoilWithLockAsync(axis.Addresses.ManualLocateTriggerCoil, false);
                     SetActionMessage($"{axis.Card.Title}: 手动定位触发=0");
                 }
             }
@@ -295,6 +475,17 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 下发轴控制命令电平。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="command">轴命令类型（点动正向/反向/回原点）。</param>
+        /// <param name="level">命令电平，true为置位，false为复位。</param>
+        /// <returns>返回命令下发异步任务。</returns>
+        /// <remarks>
+        /// 由点动和回原点按钮按下/释放命令触发。
+        /// </remarks>
         private async Task WriteAxisCommandLevelAsync(AxisBinding axis, AxisCommand command, bool level)
         {
             _isAxisCommandBusy = true;
@@ -304,15 +495,22 @@ namespace Blood_Alcohol.ViewModels
 
                 if (!CommunicationManager.Is485Open)
                 {
-                    SetActionMessage($"{axis.Card.Title}: PLC未连接，{command}未执行。");
+                    SetActionMessage($"{axis.Card.Title}: PLC未连接，跳过指令下发。");
+                    return;
+                }
+
+                if (level && await IsJogBlockedByLimitAsync(axis, command))
+                {
+                    string limitText = command == AxisCommand.JogPlus ? "正限位" : "负限位";
+                    SetActionMessage($"{axis.Card.Title}: {limitText}已触发，阻止{ToCommandText(command)}=1");
                     return;
                 }
 
                 ushort address = command switch
                 {
-                    AxisCommand.JogPlus => (ushort)(axis.BaseM + 0),
-                    AxisCommand.JogMinus => (ushort)(axis.BaseM + 1),
-                    AxisCommand.GoHome => (ushort)(axis.BaseM + 2),
+                    AxisCommand.JogPlus => axis.Addresses.JogPlusCoil,
+                    AxisCommand.JogMinus => axis.Addresses.JogMinusCoil,
+                    AxisCommand.GoHome => axis.Addresses.GoHomeCoil,
                     _ => throw new ArgumentOutOfRangeException(nameof(command), command, null)
                 };
 
@@ -329,17 +527,105 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 判断点动方向是否被限位信号阻挡。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="command">轴命令类型（点动正向/反向/回原点）。</param>
+        /// <returns>返回当前方向是否被限位阻挡。</returns>
+        /// <remarks>
+        /// 由 WriteAxisCommandLevelAsync 在点动置位前调用。
+        /// </remarks>
+        private async Task<bool> IsJogBlockedByLimitAsync(AxisBinding axis, AxisCommand command)
+        {
+            if (command != AxisCommand.JogPlus && command != AxisCommand.JogMinus)
+            {
+                return false;
+            }
+
+            ushort limitAddress = command == AxisCommand.JogPlus
+                ? axis.Addresses.PositiveLimitCoil
+                : axis.Addresses.NegativeLimitCoil;
+
+            return await ReadCoilStateWithCacheAsync(limitAddress, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// 写入手动速度或自动速度到PLC。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="manualSpeed">是否操作手动速度；false表示自动速度。</param>
+        /// <returns>返回速度写入异步任务。</returns>
+        /// <remarks>
+        /// 由手动速度/自动速度写入按钮触发。
+        /// </remarks>
+        private async Task WriteAxisSpeedAsync(AxisBinding axis, bool manualSpeed)
+        {
+            _isAxisCommandBusy = true;
+            try
+            {
+                string speedType = manualSpeed ? "手动速度" : "自动速度";
+                string inputText = manualSpeed ? axis.Card.ManualSpeedInput : axis.Card.AutoSpeedInput;
+
+                if (!CommunicationManager.Is485Open)
+                {
+                    SetActionMessage($"{axis.Card.Title}: PLC未连接，跳过速度下发。");
+                    return;
+                }
+
+                if (!TryParseInt16(inputText, out short speed))
+                {
+                    SetActionMessage($"{axis.Card.Title}: {speedType}输入无效（范围: -32768~32767）。");
+                    return;
+                }
+
+                ushort address = manualSpeed ? axis.Addresses.ManualSpeedRegister : axis.Addresses.AutoSpeedRegister;
+                await WriteRegisterWithLockAsync(address, unchecked((ushort)speed));
+                axis.Card.CommitSpeedInput(manualSpeed, speed);
+                SetActionMessage($"{axis.Card.Title}: {speedType}已下发，D{address}={speed}");
+            }
+            catch (Exception ex)
+            {
+                SetActionMessage($"{axis.Card.Title}: 速度下发失败 - {ex.Message}");
+            }
+            finally
+            {
+                _isAxisCommandBusy = false;
+            }
+        }
+
+        /// <summary>
+        /// 将命令枚举转换为日志显示文本。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="command">轴命令类型（点动正向/反向/回原点）。</param>
+        /// <returns>返回命令显示文本。</returns>
+        /// <remarks>
+        /// 由 WriteAxisCommandLevelAsync 生成日志文本时调用。
+        /// </remarks>
         private static string ToCommandText(AxisCommand command)
         {
             return command switch
             {
-                AxisCommand.JogPlus => "JOG+",
-                AxisCommand.JogMinus => "JOG-",
+                AxisCommand.JogPlus => "点动正向",
+                AxisCommand.JogMinus => "点动反向",
                 AxisCommand.GoHome => "回原点",
                 _ => command.ToString()
             };
         }
 
+        /// <summary>
+        /// 优先使用缓存读取线圈状态，未命中时回源PLC。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">PLC地址。</param>
+        /// <param name="token">取消令牌，用于终止当前异步流程。</param>
+        /// <returns>返回线圈状态值。</returns>
+        /// <remarks>
+        /// 由 RefreshAxisAsync 和 IsJogBlockedByLimitAsync 调用。
+        /// </remarks>
         private async Task<bool> ReadCoilStateWithCacheAsync(ushort address, CancellationToken token)
         {
             if (CommunicationManager.PlcPolling.TryGetCoil(address, CoilCacheMaxAge, out PlcPollingService.CoilSnapshot cached)
@@ -365,6 +651,17 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 在互斥锁保护下读取连续寄存器。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">PLC地址。</param>
+        /// <param name="length">读取寄存器数量。</param>
+        /// <param name="token">取消令牌，用于终止当前异步流程。</param>
+        /// <returns>返回寄存器数组。</returns>
+        /// <remarks>
+        /// 由 ReadRegisterValueWithLockAsync 封装调用。
+        /// </remarks>
         private async Task<ushort[]> ReadRegistersWithLockAsync(ushort address, ushort length, CancellationToken token)
         {
             await _plcLock.WaitAsync(token);
@@ -384,6 +681,32 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 在互斥锁保护下读取单个寄存器。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">PLC地址。</param>
+        /// <param name="token">取消令牌，用于终止当前异步流程。</param>
+        /// <returns>返回单个寄存器值。</returns>
+        /// <remarks>
+        /// 由 RefreshAxisAsync 读取位置与速度时调用。
+        /// </remarks>
+        private async Task<ushort> ReadRegisterValueWithLockAsync(ushort address, CancellationToken token)
+        {
+            ushort[] values = await ReadRegistersWithLockAsync(address, 1, token);
+            return values.Length > 0 ? values[0] : (ushort)0;
+        }
+
+        /// <summary>
+        /// 在互斥锁保护下写入线圈。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">PLC地址。</param>
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <returns>返回线圈写入异步任务。</returns>
+        /// <remarks>
+        /// 由 ExecuteManualLocateAsync 和 WriteAxisCommandLevelAsync 调用。
+        /// </remarks>
         private async Task WriteCoilWithLockAsync(ushort address, bool value)
         {
             await _plcLock.WaitAsync();
@@ -401,6 +724,16 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 在互斥锁保护下写入寄存器。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">PLC地址。</param>
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <returns>返回寄存器写入异步任务。</returns>
+        /// <remarks>
+        /// 由 ExecuteManualLocateAsync 与 WriteAxisSpeedAsync 调用。
+        /// </remarks>
         private async Task WriteRegisterWithLockAsync(ushort address, ushort value)
         {
             await _plcLock.WaitAsync();
@@ -418,16 +751,45 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 从线圈数组按索引安全读取值。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="source">源数组。</param>
+        /// <param name="index">目标索引。</param>
+        /// <returns>返回指定索引线圈值。</returns>
+        /// <remarks>
+        /// 工具方法，供数组安全读取场景复用。
+        /// </remarks>
         private static bool GetCoilValue(bool[] source, int index)
         {
             return index >= 0 && index < source.Length && source[index];
         }
 
+        /// <summary>
+        /// 从寄存器数组按索引安全读取值。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="source">源数组。</param>
+        /// <param name="index">目标索引。</param>
+        /// <returns>返回指定索引寄存器值。</returns>
+        /// <remarks>
+        /// 工具方法，供数组安全读取场景复用。
+        /// </remarks>
         private static ushort GetRegisterValue(ushort[] source, int index)
         {
             return index >= 0 && index < source.Length ? source[index] : (ushort)0;
         }
 
+        /// <summary>
+        /// 将ushort按补码解释为short。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <returns>返回转换后的short值。</returns>
+        /// <remarks>
+        /// 由 RefreshAxisAsync 解析速度寄存器时调用。
+        /// </remarks>
         private static short ToInt16(ushort value)
         {
             unchecked
@@ -436,6 +798,16 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 解析输入文本为Int32，支持小数四舍五入。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="input">待解析输入文本。</param>
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <returns>返回是否成功解析为Int32。</returns>
+        /// <remarks>
+        /// 由 ExecuteManualLocateAsync 和 TryParseInt16 调用。
+        /// </remarks>
         private static bool TryParseInt32(string input, out int value)
         {
             value = 0;
@@ -464,12 +836,59 @@ namespace Blood_Alcohol.ViewModels
             return false;
         }
 
+        /// <summary>
+        /// 解析输入文本为Int16并进行范围校验。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="input">待解析输入文本。</param>
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <returns>返回是否成功解析为Int16。</returns>
+        /// <remarks>
+        /// 由 WriteAxisSpeedAsync 校验输入值时调用。
+        /// </remarks>
+        private static bool TryParseInt16(string input, out short value)
+        {
+            value = 0;
+            if (!TryParseInt32(input, out int parsed))
+            {
+                return false;
+            }
+
+            if (parsed < short.MinValue || parsed > short.MaxValue)
+            {
+                return false;
+            }
+
+            value = (short)parsed;
+            return true;
+        }
+
+        /// <summary>
+        /// 将高低位寄存器合成为Int32。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="lowWord">输出低16位寄存器值。</param>
+        /// <param name="highWord">输出高16位寄存器值。</param>
+        /// <returns>返回组合后的32位整数。</returns>
+        /// <remarks>
+        /// 由 RefreshAxisAsync 组合当前坐标和目标坐标时调用。
+        /// </remarks>
         private static int ComposeInt32(ushort lowWord, ushort highWord)
         {
             int raw = (highWord << 16) | lowWord;
             return raw;
         }
 
+        /// <summary>
+        /// 将Int32拆分为低16位和高16位。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <param name="lowWord">输出低16位寄存器值。</param>
+        /// <param name="highWord">输出高16位寄存器值。</param>
+        /// <remarks>
+        /// 由 ExecuteManualLocateAsync 拆分目标坐标时调用。
+        /// </remarks>
         private static void SplitInt32(int value, out ushort lowWord, out ushort highWord)
         {
             unchecked
@@ -479,12 +898,28 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 写入带时间戳的动作提示并刷新界面。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="action">需要在UI线程执行的委托。</param>
+        /// <remarks>
+        /// 由轴调试各动作节点统一调用，输出提示到页面底部。
+        /// </remarks>
         private void SetActionMessage(string action)
         {
             string text = $"{DateTime.Now:HH:mm:ss}  {action}";
             RunOnUiThread(() => ActionMessage = text);
         }
 
+        /// <summary>
+        /// 确保指定操作在UI线程执行。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="action">需要在UI线程执行的委托。</param>
+        /// <remarks>
+        /// 由 SetActionMessage 和 RefreshAxisAsync 调用。
+        /// </remarks>
         private static void RunOnUiThread(Action action)
         {
             var dispatcher = System.Windows.Application.Current?.Dispatcher;
@@ -497,6 +932,13 @@ namespace Blood_Alcohol.ViewModels
             dispatcher.Invoke(action, DispatcherPriority.Send);
         }
 
+        /// <summary>
+        /// 释放轮询资源并停止后台任务。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由页面生命周期结束调用，取消后台轮询并注销点位。
+        /// </remarks>
         public void Dispose()
         {
             if (_disposed)
@@ -512,16 +954,26 @@ namespace Blood_Alcohol.ViewModels
 
         private sealed class AxisBinding
         {
-            public AxisBinding(int axisNo, AxisControlCardViewModel card)
+            /// <summary>
+            /// 初始化轴绑定对象。
+            /// </summary>
+            /// By:ChengLei
+            /// <param name="axisNo">轴编号（1~4）。</param>
+            /// <param name="card">轴卡片视图模型。</param>
+            /// <param name="addresses">该轴对应的地址映射配置。</param>
+            /// <remarks>
+            /// 由 BuildLinearAxis 和 BuildShakeAxis 创建对象时调用。
+            /// </remarks>
+            public AxisBinding(int axisNo, AxisControlCardViewModel card, AxisAddressProfile addresses)
             {
                 AxisNo = axisNo;
                 Card = card;
+                Addresses = addresses ?? new AxisAddressProfile();
             }
 
             public int AxisNo { get; }
             public AxisControlCardViewModel Card { get; }
-            public ushort BaseM => (ushort)(BaseMAddress + (AxisNo - 1) * AxisOffset);
-            public ushort BaseD => (ushort)(BaseDAddress + (AxisNo - 1) * AxisOffset);
+            public AxisAddressProfile Addresses { get; }
         }
 
         private enum AxisCommand
@@ -539,6 +991,11 @@ namespace Blood_Alcohol.ViewModels
         private string _targetPosition = string.Empty;
         private string _manualSpeed = string.Empty;
         private string _autoSpeed = string.Empty;
+        private string _manualSpeedInput = string.Empty;
+        private string _autoSpeedInput = string.Empty;
+        private bool _manualSpeedInputDirty;
+        private bool _autoSpeedInputDirty;
+        private bool _suppressInputDirty;
         private bool _showPositionFields = true;
         private bool _showManualLocate;
         private string _manualLocateText = string.Empty;
@@ -611,6 +1068,42 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        public string ManualSpeedInput
+        {
+            get => _manualSpeedInput;
+            set
+            {
+                if (_manualSpeedInput != value)
+                {
+                    _manualSpeedInput = value;
+                    if (!_suppressInputDirty)
+                    {
+                        _manualSpeedInputDirty = true;
+                    }
+
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string AutoSpeedInput
+        {
+            get => _autoSpeedInput;
+            set
+            {
+                if (_autoSpeedInput != value)
+                {
+                    _autoSpeedInput = value;
+                    if (!_suppressInputDirty)
+                    {
+                        _autoSpeedInputDirty = true;
+                    }
+
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public bool ShowPositionFields
         {
             get => _showPositionFields;
@@ -671,12 +1164,93 @@ namespace Blood_Alcohol.ViewModels
         public ICommand? GoHomeReleaseCommand { get; set; }
         public ICommand? ManualLocatePressCommand { get; set; }
         public ICommand? ManualLocateReleaseCommand { get; set; }
+        public ICommand? WriteManualSpeedCommand { get; set; }
+        public ICommand? WriteAutoSpeedCommand { get; set; }
+
+        /// <summary>
+        /// 用PLC速度刷新显示，并在未编辑时同步输入框。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="manualSpeed">是否操作手动速度；false表示自动速度。</param>
+        /// <param name="autoSpeed">PLC读取到的自动速度值。</param>
+        /// <remarks>
+        /// 由 RefreshAxisAsync 在轮询到新速度时调用。
+        /// </remarks>
+        public void UpdateSpeedFromPlc(short manualSpeed, short autoSpeed)
+        {
+            string manualText = manualSpeed.ToString(CultureInfo.InvariantCulture);
+            string autoText = autoSpeed.ToString(CultureInfo.InvariantCulture);
+
+            ManualSpeed = manualText;
+            AutoSpeed = autoText;
+
+            _suppressInputDirty = true;
+            try
+            {
+                if (!_manualSpeedInputDirty)
+                {
+                    ManualSpeedInput = manualText;
+                }
+
+                if (!_autoSpeedInputDirty)
+                {
+                    AutoSpeedInput = autoText;
+                }
+            }
+            finally
+            {
+                _suppressInputDirty = false;
+            }
+        }
+
+        /// <summary>
+        /// 速度写入成功后提交输入状态并同步显示。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="manualSpeed">是否操作手动速度；false表示自动速度。</param>
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <remarks>
+        /// 由 WriteAxisSpeedAsync 写入成功后调用。
+        /// </remarks>
+        public void CommitSpeedInput(bool manualSpeed, short value)
+        {
+            string text = value.ToString(CultureInfo.InvariantCulture);
+
+            _suppressInputDirty = true;
+            try
+            {
+                if (manualSpeed)
+                {
+                    _manualSpeedInputDirty = false;
+                    ManualSpeedInput = text;
+                    ManualSpeed = text;
+                }
+                else
+                {
+                    _autoSpeedInputDirty = false;
+                    AutoSpeedInput = text;
+                    AutoSpeed = text;
+                }
+            }
+            finally
+            {
+                _suppressInputDirty = false;
+            }
+        }
     }
 
     public class AxisStatusLampViewModel : BaseViewModel
     {
         private Brush _color = Brushes.Gainsboro;
 
+        /// <summary>
+        /// 初始化状态灯视图模型。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="name">状态灯显示名称。</param>
+        /// <remarks>
+        /// 由 BuildLinearAxis 和 BuildShakeAxis 初始化状态灯时调用。
+        /// </remarks>
         public AxisStatusLampViewModel(string name)
         {
             Name = name;
@@ -698,3 +1272,4 @@ namespace Blood_Alcohol.ViewModels
         }
     }
 }
+

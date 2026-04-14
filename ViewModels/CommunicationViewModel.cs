@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO.Ports;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -13,6 +14,13 @@ using static Blood_Alcohol.Services.CommunicationManager;
 
 namespace Blood_Alcohol.ViewModels
 {
+    /// <summary>
+    /// 通信页日志项模型。
+    /// </summary>
+    /// By:ChengLei
+    /// <remarks>
+    /// 由 CommunicationViewModel.Log 方法创建并绑定到页面日志列表。
+    /// </remarks>
     public class LogItem
     {
         public string Time { get; set; } = string.Empty;
@@ -20,18 +28,33 @@ namespace Blood_Alcohol.ViewModels
         public Brush Color { get; set; } = Brushes.DarkSlateGray;
     }
 
+    /// <summary>
+    /// 通信配置与通信测试页面视图模型。
+    /// </summary>
+    /// By:ChengLei
+    /// <remarks>
+    /// 由 CommunicationView 创建并作为 DataContext，负责485/TCP连接、设备映射和联机测试。
+    /// </remarks>
     public class CommunicationViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
+
+        /// <summary>
+        /// 触发属性变更通知。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="prop">发生变更的属性名。</param>
+        /// <remarks>
+        /// 由本类各属性 setter 调用，驱动界面绑定刷新。
+        /// </remarks>
         private void Raise(string prop) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+        private readonly SemaphoreSlim _tcpReceiveLock = CommunicationManager.TcpReceiveLock;
 
-        // ================= 配置服务 =================
         private readonly ConfigService<CommunicationSettings> _configService;
 
         private CommunicationSettings _settings;
 
-        // ================= TCP设备映射 =================
         private ObservableCollection<TcpDeviceMapping> _tcpDevices = new();
         public ObservableCollection<TcpDeviceMapping> TcpDevices
         {
@@ -52,7 +75,6 @@ namespace Blood_Alcohol.ViewModels
                 "待定"
             };
 
-        // ================= 串口 =================
         public ObservableCollection<string> AvailableComPorts { get; }
             = new ObservableCollection<string>();
 
@@ -92,7 +114,6 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
-        // ================= TCP =================
         private int _tcpPort;
         public int TcpPort
         {
@@ -155,10 +176,18 @@ namespace Blood_Alcohol.ViewModels
         public ICommand TestTemperatureCommand { get; }
         public ICommand TestWeightCommand { get; }
 
-        // ================= 日志 =================
         public ObservableCollection<LogItem> Logs { get; }
             = new ObservableCollection<LogItem>();
 
+        /// <summary>
+        /// 向通信页日志列表追加一条日志。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="msg">日志文本。</param>
+        /// <param name="color">日志颜色，为空时使用默认颜色。</param>
+        /// <remarks>
+        /// 由本类所有通信操作调用；在UI线程中写入并限制最大日志条数。
+        /// </remarks>
         private void Log(string msg, Brush? color = null)
         {
             Application.Current.Dispatcher.Invoke(() =>
@@ -175,7 +204,13 @@ namespace Blood_Alcohol.ViewModels
             });
         }
 
-        // ================= 构造 =================
+        /// <summary>
+        /// 初始化通信视图模型并加载通信配置。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由 CommunicationView 创建时调用，完成命令绑定、状态初始化与通信事件订阅。
+        /// </remarks>
         public CommunicationViewModel()
         {
             _configService = new ConfigService<CommunicationSettings>(CommunicationManager.CommunicationConfigFileName);
@@ -226,7 +261,13 @@ namespace Blood_Alcohol.ViewModels
             };
         }
 
-        // ================= 保存配置 =================
+        /// <summary>
+        /// 保存当前通信配置到本地配置文件。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由“保存配置”按钮调用，同时持久化TCP端口、串口参数与TCP设备映射。
+        /// </remarks>
         public void SaveTcpConfig()
         {
             _settings.TcpDevices = TcpDevices.ToList();
@@ -238,6 +279,16 @@ namespace Blood_Alcohol.ViewModels
 
             Log("配置已保存", Brushes.DarkGoldenrod);
         }
+
+        /// <summary>
+        /// 按设备类型获取对应的TCP端口。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="deviceType">设备类型名称（如温控、天平）。</param>
+        /// <returns>返回配置中的设备端口，未配置时返回空。</returns>
+        /// <remarks>
+        /// 由 TestTemperature 与 TestWeight 调用，用于确定发送目标端口。
+        /// </remarks>
         private int? GetDevicePort(string deviceType)
         {
             var device = TcpDevices
@@ -245,6 +296,14 @@ namespace Blood_Alcohol.ViewModels
 
             return device?.Port;
         }
+
+        /// <summary>
+        /// 同步当前TCP连接端口到设备映射列表。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由构造函数和客户端连接事件调用，用于更新界面设备列表与类型映射。
+        /// </remarks>
         public void SyncTcpDevicesFromClients()
         {
             var connectedPorts =
@@ -268,7 +327,14 @@ namespace Blood_Alcohol.ViewModels
 
             Raise(nameof(TcpDevices));
         }
-        // ================= 功能 =================
+
+        /// <summary>
+        /// 刷新本机可用串口列表并更新当前选择。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由“刷新串口”按钮和构造函数调用。
+        /// </remarks>
         public void RefreshComPorts()
         {
             AvailableComPorts.Clear();
@@ -284,6 +350,15 @@ namespace Blood_Alcohol.ViewModels
 
             Log("串口列表已刷新");
         }
+
+        /// <summary>
+        /// 发送天平读数命令并解析重量值。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回重量测试异步任务。</returns>
+        /// <remarks>
+        /// 由“测试天平”按钮调用；流程包含端口检查、清理旧帧、发送命令与响应校验。
+        /// </remarks>
         public async Task TestWeight()
         {
             try
@@ -298,32 +373,148 @@ namespace Blood_Alcohol.ViewModels
                     return;
                 }
 
-                await CommunicationManager.TcpServer.SendToPort(
-                    port.Value,
-                    CommunicationManager.Balance.GetDotCommand());
+                if (!CommunicationManager.IsTcpRunning)
+                {
+                    Log("TCP服务未启动", Brushes.Red);
+                    return;
+                }
 
-                byte[] dotResponse =
-                    await CommunicationManager.TcpServer.ReceiveOnceFromPortAsync(port.Value);
+                if (!CommunicationManager.TcpServer.GetConnectedPorts().Contains(port.Value))
+                {
+                    Log($"天平端口未连接: {port.Value}", Brushes.Red);
+                    return;
+                }
 
-                await CommunicationManager.TcpServer.SendToPort(
-                    port.Value,
-                    CommunicationManager.Balance.GetWeightCommand());
+                await _tcpReceiveLock.WaitAsync();
+                try
+                {
+                    await DrainStaleTcpFramesAsync(port.Value);
+                    await CommunicationManager.TcpServer.SendToPort(
+                        port.Value,
+                        CommunicationManager.Balance.GetAllCommand());
 
-                byte[] weightResponse =
-                    await CommunicationManager.TcpServer.ReceiveOnceFromPortAsync(port.Value);
+                    byte[] response = await ReceiveValidBalanceAllResponseAsync(
+                        port.Value,
+                        TimeSpan.FromSeconds(5));
 
-                double weight =
-                    CommunicationManager.Balance.ReadWeight(
-                        dotResponse,
-                        weightResponse);
+                    double weight = CommunicationManager.Balance.ReadWeight(response);
+                    Log($"实际重量: {weight:F2}");
+                }
+                finally
+                {
+                    _tcpReceiveLock.Release();
+                }
 
-                Log($"实际重量: {weight:F2}");
             }
             catch (Exception ex)
             {
                 Log($"读取重量失败: {ex.Message}", Brushes.Red);
             }
         }
+
+        /// <summary>
+        /// 在超时时间内接收一次TCP报文。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="port">目标设备端口。</param>
+        /// <param name="timeout">本次接收超时时长。</param>
+        /// <returns>返回接收到的原始报文。</returns>
+        /// <remarks>
+        /// 由 DrainStaleTcpFramesAsync 与 ReceiveValidBalanceAllResponseAsync 调用。
+        /// </remarks>
+        private static async Task<byte[]> ReceiveOnceWithTimeoutAsync(int port, TimeSpan timeout)
+        {
+            using var cts = new CancellationTokenSource(timeout);
+            try
+            {
+                return await CommunicationManager.TcpServer.ReceiveOnceFromPortAsync(port, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                if (cts.IsCancellationRequested)
+                {
+                    throw new TimeoutException($"TCP接收超时（{timeout.TotalSeconds:F0}s）。");
+                }
+
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 清理端口中可能残留的历史TCP报文。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="port">目标设备端口。</param>
+        /// <returns>返回清理动作异步任务。</returns>
+        /// <remarks>
+        /// 由 TestWeight 在发送新命令前调用，降低旧帧干扰解析的风险。
+        /// </remarks>
+        private static async Task DrainStaleTcpFramesAsync(int port)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                try
+                {
+                    _ = await ReceiveOnceWithTimeoutAsync(port, TimeSpan.FromMilliseconds(60));
+                }
+                catch (TimeoutException)
+                {
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 在限定时长内循环接收并筛选天平有效响应。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="port">目标设备端口。</param>
+        /// <param name="timeout">等待有效响应的总超时时长。</param>
+        /// <returns>返回通过校验的天平全量响应报文。</returns>
+        /// <remarks>
+        /// 由 TestWeight 调用，内部依赖 IsBalanceAllResponse 判定报文有效性。
+        /// </remarks>
+        private static async Task<byte[]> ReceiveValidBalanceAllResponseAsync(int port, TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+            while (true)
+            {
+                TimeSpan remain = deadline - DateTime.UtcNow;
+                if (remain <= TimeSpan.Zero)
+                {
+                    throw new TimeoutException($"等待天平重量数据超时（{timeout.TotalSeconds:F0}s）。");
+                }
+
+                byte[] response = await ReceiveOnceWithTimeoutAsync(port, remain);
+                if (IsBalanceAllResponse(response))
+                {
+                    return response;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 判断报文是否符合天平全量读数响应格式。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="response">待校验的原始响应数据。</param>
+        /// <returns>返回是否为可解析的天平响应。</returns>
+        /// <remarks>
+        /// 由 ReceiveValidBalanceAllResponseAsync 调用，过滤非目标报文。
+        /// </remarks>
+        private static bool IsBalanceAllResponse(byte[] response)
+        {
+            return response.Length >= 13 && response[0] == 1 && response[1] == 3 && response[2] >= 8;
+        }
+
+        /// <summary>
+        /// 发送温控读数命令并解析当前温度。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回温度测试异步任务。</returns>
+        /// <remarks>
+        /// 由“测试温度”按钮调用，完成读命令发送与返回解析。
+        /// </remarks>
         public async Task TestTemperature()
         {
             try
@@ -355,6 +546,14 @@ namespace Blood_Alcohol.ViewModels
                 Log($"读取温度失败: {ex.Message}", Brushes.Red);
             }
         }
+
+        /// <summary>
+        /// 切换485串口连接状态。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由“连接/断开”按钮调用，执行连接状态切换并刷新页面状态灯。
+        /// </remarks>
         public void ToggleRs485()
         {
             try
@@ -381,6 +580,13 @@ namespace Blood_Alcohol.ViewModels
             UpdateRs485Status();
         }
 
+        /// <summary>
+        /// 切换TCP服务运行状态。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由“启动服务/停止服务”按钮调用，执行TCP服务启停并刷新页面状态灯。
+        /// </remarks>
         public void ToggleTcp()
         {
             try
@@ -404,6 +610,13 @@ namespace Blood_Alcohol.ViewModels
             UpdateTcpStatus();
         }
 
+        /// <summary>
+        /// 根据当前485连接状态刷新按钮文本与状态颜色。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由 ToggleRs485、构造函数与通信状态变化事件调用。
+        /// </remarks>
         public void UpdateRs485Status()
         {
             Rs485ButtonText =
@@ -413,6 +626,13 @@ namespace Blood_Alcohol.ViewModels
                 CommunicationManager.Is485Open ? Brushes.Green : Brushes.Red;
         }
 
+        /// <summary>
+        /// 根据当前TCP运行状态刷新按钮文本与状态颜色。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由 ToggleTcp、构造函数与通信状态变化事件调用。
+        /// </remarks>
         public void UpdateTcpStatus()
         {
             TcpButtonText =
@@ -422,6 +642,14 @@ namespace Blood_Alcohol.ViewModels
                 CommunicationManager.IsTcpRunning ? Brushes.Green : Brushes.Red;
         }
 
+        /// <summary>
+        /// 确保波特率下拉列表包含指定值。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="baudRate">需要存在于列表中的波特率值。</param>
+        /// <remarks>
+        /// 由 SelectedBaudRate 属性设置时调用，兼容配置中非常规波特率。
+        /// </remarks>
         private void EnsureBaudRateOption(int baudRate)
         {
             if (baudRate <= 0 || AvailableBaudRates.Contains(baudRate))

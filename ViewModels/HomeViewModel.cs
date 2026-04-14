@@ -16,6 +16,13 @@ using Microsoft.Win32;
 
 namespace Blood_Alcohol.ViewModels;
 
+/// <summary>
+/// 首页业务视图模型，负责流程启动、初始化、日志展示与设备状态联动。
+/// </summary>
+/// By:ChengLei
+/// <remarks>
+/// 由 HomeView 创建为 DataContext，统一编排 WorkflowEngine、PLC信号与首页交互命令。
+/// </remarks>
 public class HomeViewModel : BaseViewModel, IDisposable
 {
 	private enum ProcessModeState
@@ -32,6 +39,30 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	// DMSJ：以下为采血管总是PLC地址(占位地址)，待电气确认后替换为正式地址。
 	private const ushort PlcTubeCountRegisterAddress = 9000;
+
+	private const string ProcessParameterConfigFileName = "ProcessParameterConfig.json";
+
+	private const ushort PlcInitZDropNeedleRiseSlowSpeedRegisterAddress = 6000;
+
+	private const ushort PlcInitPipetteAspirateDelayRegisterAddress = 6020;
+
+	private const ushort PlcInitPipetteDispenseDelayRegisterAddress = 6021;
+
+	private const ushort PlcInitTubeShakeHomeDelayRegisterAddress = 6022;
+
+	private const ushort PlcInitTubeShakeWorkDelayRegisterAddress = 6023;
+
+	private const ushort PlcInitTubeShakeTargetCountRegisterAddress = 6024;
+
+	private const ushort PlcInitHeadspaceShakeHomeDelayRegisterAddress = 6026;
+
+	private const ushort PlcInitHeadspaceShakeWorkDelayRegisterAddress = 6027;
+
+	private const ushort PlcInitHeadspaceShakeTargetCountRegisterAddress = 6028;
+
+	private const ushort PlcInitButanolAspirateDelayRegisterAddress = 6030;
+
+	private const ushort PlcInitButanolDispenseDelayRegisterAddress = 6031;
 
 	// DMSJ：初始化按钮地址由电气确认为 M13（线圈地址 13）。
 	private const ushort PlcInitCommandCoilAddress = 13;
@@ -88,6 +119,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private readonly ConfigService<HomeExportPathConfig> _exportPathConfigService = new ConfigService<HomeExportPathConfig>("HomeExportPathConfig.json");
 
+	private readonly ConfigService<ProcessParameterConfig> _processParameterConfigService = new ConfigService<ProcessParameterConfig>(ProcessParameterConfigFileName);
+
 	private LogTool _logTool = new LogTool();
 
 	private readonly string _logSessionId = $"RUN_{DateTime.Now:yyyyMMdd_HHmmss}";
@@ -124,15 +157,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private int _errorCount;
 
-	private string _sampleName = string.Empty;
+	private string _sampleName = "血液";
 
 	private string _sampleVolume = "0";
 
-	private string _butanolName = string.Empty;
+    private string _butanolName = "叔丁醇";
 
-	private string _butanolVolume = "0";
+    private string _butanolVolume = "500";
 
-	private string _scanCode = string.Empty;
+    private string _scanCode = string.Empty;
 
 	private string _headspaceASampleWeight = "0.0";
 
@@ -661,6 +694,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	public ICommand SwitchToManualModeCommand { get; }
 
+	/// <summary>
+	/// 初始化首页视图模型并装配首页命令与数据源。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由 HomeView 初始化时调用，构造完成后会启动必要监控并绑定事件。
+	/// </remarks>
 	public HomeViewModel()
 	{
 		InitCommand = new RelayCommand(delegate
@@ -724,6 +764,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		StartProcessModeMonitor();
 	}
 
+	/// <summary>
+	/// 注册首页核心PLC轮询点位。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造流程调用，用于给首页常用点位提供缓存轮询数据。
+	/// </remarks>
 	private void RegisterCorePlcPollingPoints()
 	{
 		CommunicationManager.PlcPolling.RegisterCoil(PlcAlarmSummaryCoilAddress, AlarmPollInterval);
@@ -734,6 +781,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		CommunicationManager.PlcPolling.Start();
 	}
 
+	/// <summary>
+	/// 注销首页注册的PLC轮询点位。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由 Dispose 调用，防止页面关闭后仍占用轮询资源。
+	/// </remarks>
 	private void UnregisterCorePlcPollingPoints()
 	{
 		CommunicationManager.PlcPolling.UnregisterCoil(PlcAlarmSummaryCoilAddress);
@@ -743,6 +797,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		CommunicationManager.PlcPolling.UnregisterCoil(PlcInjectionModeCoilAddress);
 	}
 
+	/// <summary>
+	/// 切换系统运行模式并同步服务状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="mode">运行模式枚举值。</param>
+	/// <returns>返回模式切换异步任务。</returns>
+	/// <remarks>
+	/// 由模式切换命令触发，切换后会通知 OperationModeService。
+	/// </remarks>
 	private async Task SwitchOperationModeAsync(OperationMode mode)
 	{
 		if (_operationMode == mode)
@@ -769,6 +832,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 响应运行模式变化事件并刷新首页显示。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="mode">运行模式枚举值。</param>
+	/// <remarks>
+	/// 由 OperationModeService.ModeChanged 回调触发。
+	/// </remarks>
 	private void OnOperationModeChanged(OperationMode mode)
 	{
 		RunOnUiThread(delegate
@@ -777,6 +848,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		});
 	}
 
+	/// <summary>
+	/// 应用运行模式到页面状态与提示信息。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="mode">运行模式枚举值。</param>
+	/// <param name="writeLog">是否记录模式切换日志。</param>
+	/// <remarks>
+	/// 由构造函数初始化与 OnOperationModeChanged 调用。
+	/// </remarks>
 	private void ApplyOperationMode(OperationMode mode, bool writeLog)
 	{
 		if (_operationMode != mode)
@@ -793,6 +873,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 初始化日志导出目录配置。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造函数调用，加载上次导出路径或回退默认目录。
+	/// </remarks>
 	private void InitializeExportDirectory()
 	{
 		HomeExportPathConfig homeExportPathConfig = _exportPathConfigService.Load() ?? new HomeExportPathConfig();
@@ -802,6 +889,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		LastExportPath = ExportDirectory;
 	}
 
+	/// <summary>
+	/// 弹出目录选择并更新导出路径。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由导出目录选择按钮调用。
+	/// </remarks>
 	private void SelectExportDirectory()
 	{
 		try
@@ -825,6 +919,16 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 应用并可选保存日志导出目录。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="directoryPath">目标导出目录路径。</param>
+	/// <param name="saveToConfig">是否将目录持久化到配置文件。</param>
+	/// <param name="writeLog">是否记录模式切换日志。</param>
+	/// <remarks>
+	/// 由 InitializeExportDirectory 与 SelectExportDirectory 调用。
+	/// </remarks>
 	private void ApplyExportDirectory(string directoryPath, bool saveToConfig, bool writeLog)
 	{
 		string text = NormalizePathOrEmpty(directoryPath);
@@ -848,6 +952,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 规范化路径文本并转换为可比较格式。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="path">待规范化的路径文本。</param>
+	/// <returns>返回规范化后的路径；无效时返回空字符串。</returns>
+	/// <remarks>
+	/// 由导出目录处理流程调用，统一比较与持久化格式。
+	/// </remarks>
 	private static string NormalizePathOrEmpty(string path)
 	{
 		if (string.IsNullOrWhiteSpace(path))
@@ -864,6 +977,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 获取项目默认日志目录路径。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回默认日志目录绝对路径。</returns>
+	/// <remarks>
+	/// 由导出目录初始化流程调用。
+	/// </remarks>
 	private static string GetDefaultProjectLogsDirectory()
 	{
 		string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
@@ -877,6 +998,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return Path.Combine(baseDirectory, "Logs");
 	}
 
+	/// <summary>
+	/// 触发初始化流程并进行防重入控制。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由首页初始化按钮调用。
+	/// </remarks>
 	private void InitializeSystem()
 	{
 		if (_isInitializing)
@@ -889,6 +1017,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_ = InitializeSystemAsync();
 	}
 
+	/// <summary>
+	/// 执行初始化流程：下发参数、发送初始化命令并等待完成信号。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回初始化执行异步任务。</returns>
+	/// <remarks>
+	/// 由 InitializeSystem 触发，包含完整初始化业务链路。
+	/// </remarks>
 	private async Task InitializeSystemAsync()
 	{
 		try
@@ -914,6 +1050,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 轮询初始化完成位直到成功或超时。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回初始化是否在超时前完成。</returns>
+	/// <remarks>
+	/// 由 InitializeSystemAsync 调用，通过轮询M14判断初始化完成。
+	/// </remarks>
 	private async Task<bool> WaitForInitDoneAsync()
 	{
 		DateTime deadline = DateTime.UtcNow.Add(InitTimeout);
@@ -969,6 +1113,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return false;
 	}
 
+	/// <summary>
+	/// 读取初始化完成线圈状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回初始化完成位当前状态。</returns>
+	/// <remarks>
+	/// 由 WaitForInitDoneAsync 调用。
+	/// </remarks>
 	private async Task<bool> ReadInitDoneFlagAsync()
 	{
 		await _plcLock.WaitAsync();
@@ -989,17 +1141,39 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 触发检测启动流程并处理执行入口。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由首页开始按钮调用。
+	/// </remarks>
 	private void StartDetection()
 	{
 		_ = StartDetectionAsync();
 	}
 
+	/// <summary>
+	/// 刷新开始/停止相关命令可用状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由检测状态变化节点调用，刷新按钮可用性。
+	/// </remarks>
 	private void RefreshDetectionCommandStates()
 	{
 		OnPropertyChanged("IsTubeSelectionEnabled");
 		CommandManager.InvalidateRequerySuggested();
 	}
 
+	/// <summary>
+	/// 执行检测启动前置校验并下发开始脉冲。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回检测启动异步任务。</returns>
+	/// <remarks>
+	/// 由 StartDetection 调用，完成开始前校验与信号下发。
+	/// </remarks>
 	private async Task StartDetectionAsync()
 	{
 		if (_isDetectionStarted || _isStartCommandProcessing)
@@ -1037,6 +1211,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 执行检测停止流程并下发停止信号。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由首页停止按钮或自动停机流程调用。
+	/// </remarks>
 	private void StopDetection()
 	{
 		if (!_isDetectionStarted)
@@ -1053,6 +1234,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		AddLog(HomeLogLevel.Info, HomeLogSource.Process, HomeLogKind.Detection, "检测已停止。");
 	}
 
+	/// <summary>
+	/// 执行急停流程并记录关键日志。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由急停按钮调用，优先保障设备安全停机。
+	/// </remarks>
 	private void EmergencyStop()
 	{
 		_isDetectionStarted = false;
@@ -1065,11 +1253,29 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		AddLog(HomeLogLevel.Error, HomeLogSource.Hardware, HomeLogKind.Operation, "急停触发，已停止当前动作。");
 	}
 
+	/// <summary>
+	/// 统一封装首页操作动作的执行与日志。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="action">需要执行的业务委托。</param>
+	/// <param name="source">日志来源分类。</param>
+	/// <param name="kind">日志业务类别。</param>
+	/// <remarks>
+	/// 由多个按钮命令复用，统一日志和异常处理策略。
+	/// </remarks>
 	private void RunAction(string action, HomeLogSource source, HomeLogKind kind)
 	{
 		AddLog(HomeLogLevel.Info, source, kind, action);
 	}
 
+	/// <summary>
+	/// 处理采血管槽位点击并更新选择状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="slot">被点击的料架槽位对象。</param>
+	/// <remarks>
+	/// 由料架槽位点击命令调用。
+	/// </remarks>
 	private void OnTubeSlotClick(RackSlotItemViewModel? slot)
 	{
 		if (slot != null)
@@ -1086,6 +1292,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 启动报警监控后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由检测启动后调用。
+	/// </remarks>
 	private void StartAlarmMonitor()
 	{
 		StopAlarmMonitor();
@@ -1093,6 +1306,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_alarmMonitorTask = Task.Run(() => AlarmMonitorLoopAsync(_alarmMonitorCts.Token));
 	}
 
+	/// <summary>
+	/// 停止报警监控后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由停止/释放流程调用。
+	/// </remarks>
 	private void StopAlarmMonitor()
 	{
 		_alarmMonitorCts?.Cancel();
@@ -1101,6 +1321,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_alarmMonitorTask = null;
 	}
 
+	/// <summary>
+	/// 启动工艺模式监控后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造或检测流程调用。
+	/// </remarks>
 	private void StartProcessModeMonitor()
 	{
 		StopProcessModeMonitor();
@@ -1108,6 +1335,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_processModeMonitorTask = Task.Run(() => ProcessModeMonitorLoopAsync(_processModeMonitorCts.Token));
 	}
 
+	/// <summary>
+	/// 停止工艺模式监控后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由停止/释放流程调用。
+	/// </remarks>
 	private void StopProcessModeMonitor()
 	{
 		_processModeMonitorCts?.Cancel();
@@ -1116,6 +1350,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_processModeMonitorTask = null;
 	}
 
+	/// <summary>
+	/// 循环轮询工艺模式点位并刷新工艺状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
+	/// <returns>返回工艺模式监控异步任务。</returns>
+	/// <remarks>
+	/// 由 StartProcessModeMonitor 启动的后台任务循环调用。
+	/// </remarks>
 	private async Task ProcessModeMonitorLoopAsync(CancellationToken token)
 	{
 		bool readFaultLogged = false;
@@ -1193,6 +1436,18 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 根据模式线圈组合解析当前工艺模式。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="standby">待机模式信号。</param>
+	/// <param name="pressure">增压模式信号。</param>
+	/// <param name="exhaust">排气模式信号。</param>
+	/// <param name="injection">进样模式信号。</param>
+	/// <returns>返回解析后的工艺模式状态。</returns>
+	/// <remarks>
+	/// 由 ProcessModeMonitorLoopAsync 解析工艺状态时调用。
+	/// </remarks>
 	private static ProcessModeState ResolveProcessModeState(bool standby, bool pressure, bool exhaust, bool injection)
 	{
 		// Priority when multiple bits are high at the same time.
@@ -1220,6 +1475,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return ProcessModeState.Standby;
 	}
 
+	/// <summary>
+	/// 设置当前工艺模式并刷新显示文本。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="mode">运行模式枚举值。</param>
+	/// <remarks>
+	/// 由工艺模式监控流程调用。
+	/// </remarks>
 	private void SetCurrentProcessMode(ProcessModeState mode)
 	{
 		if (_currentProcessMode == mode)
@@ -1236,6 +1499,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		AddLog(HomeLogLevel.Info, HomeLogSource.Process, HomeLogKind.Operation, "流程模式切换为：" + GetProcessModeText(mode) + "。");
 	}
 
+	/// <summary>
+	/// 将工艺模式枚举转换为页面显示文本。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="mode">运行模式枚举值。</param>
+	/// <returns>返回工艺模式显示文本。</returns>
+	/// <remarks>
+	/// 由 SetCurrentProcessMode 与界面展示逻辑调用。
+	/// </remarks>
 	private static string GetProcessModeText(ProcessModeState mode)
 	{
 		return mode switch
@@ -1248,6 +1520,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		};
 	}
 
+	/// <summary>
+	/// 循环检测报警状态并驱动报警联动逻辑。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
+	/// <returns>返回报警监控异步任务。</returns>
+	/// <remarks>
+	/// 由 StartAlarmMonitor 启动，持续监控报警汇总位。
+	/// </remarks>
 	private async Task AlarmMonitorLoopAsync(CancellationToken token)
 	{
 		bool hasLastState = false;
@@ -1395,6 +1676,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return TryReadCoilStateWithLockAsync(PlcAlarmSummaryCoilAddress, token);
 	}
 
+	/// <summary>
+	/// 在报警触发时自动停止检测流程。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由 AlarmMonitorLoopAsync 在报警触发后调用。
+	/// </remarks>
 	private void AutoStopDetectionByAlarm()
 	{
 		_isDetectionStarted = false;
@@ -1406,6 +1694,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		AddLog(HomeLogLevel.Error, HomeLogSource.Hardware, HomeLogKind.Detection, "检测过程中报警汇总(M2=1)，已自动停止检测。");
 	}
 
+	/// <summary>
+	/// 满足前置条件后尝试发送开始脉冲。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回是否成功下发开始脉冲。</returns>
+	/// <remarks>
+	/// 由 StartDetectionAsync 调用。
+	/// </remarks>
 	private async Task<bool> TrySendStartPulseByPreconditionsAsync()
 	{
 		try
@@ -1437,6 +1733,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 确保开始命令位复位为低电平。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回命令位复位异步任务。</returns>
+	/// <remarks>
+	/// 由开始脉冲发送前后调用，避免命令位残留高电平。
+	/// </remarks>
 	private async Task EnsureStartCommandLowAsync()
 	{
 		try
@@ -1481,6 +1785,16 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 在PLC锁保护下读取线圈状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="address">PLC点位地址。</param>
+	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
+	/// <returns>返回线圈状态值。</returns>
+	/// <remarks>
+	/// 由首页多个PLC状态读取流程复用。
+	/// </remarks>
 	private async Task<bool> ReadCoilStateWithLockAsync(ushort address, CancellationToken token = default(CancellationToken))
 	{
 		var read = await TryReadCoilStateWithLockAsync(address, token);
@@ -1492,6 +1806,17 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return read.Value;
 	}
 
+	/// <summary>
+	/// 在PLC锁保护下写入线圈状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="address">PLC点位地址。</param>
+	/// <param name="value">待写入的线圈值。</param>
+	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
+	/// <returns>返回线圈写入异步任务。</returns>
+	/// <remarks>
+	/// 由开始/停止/急停/初始化信号下发流程复用。
+	/// </remarks>
 	private async Task WriteCoilWithLockAsync(ushort address, bool value, CancellationToken token = default(CancellationToken))
 	{
 		await _plcLock.WaitAsync(token);
@@ -1509,6 +1834,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 在UI线程执行指定委托。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="action">需要执行的业务委托。</param>
+	/// <remarks>
+	/// 由后台线程回调更新界面属性时调用。
+	/// </remarks>
 	private static void RunOnUiThread(Action action)
 	{
 		Application current = Application.Current;
@@ -1523,6 +1856,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 判断当前线程是否为UI线程。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回当前是否为UI线程。</returns>
+	/// <remarks>
+	/// 由 RunOnUiThread 进行线程判断时调用。
+	/// </remarks>
 	private static bool IsOnUiThread()
 	{
 		Application current = Application.Current;
@@ -1530,6 +1871,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return dispatcher == null || dispatcher.CheckAccess();
 	}
 
+	/// <summary>
+	/// 启动采血管数量同步任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由检测流程启动时调用。
+	/// </remarks>
 	private void StartTubeCountSync()
 	{
 		StopTubeCountSync();
@@ -1537,6 +1885,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_tubeCountSyncTask = Task.Run(() => SyncTubeCountLoopAsync(_tubeCountSyncCts.Token));
 	}
 
+	/// <summary>
+	/// 停止采血管数量同步任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由停止和释放流程调用。
+	/// </remarks>
 	private void StopTubeCountSync()
 	{
 		_tubeCountSyncCts?.Cancel();
@@ -1545,6 +1900,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_tubeCountSyncTask = null;
 	}
 
+	/// <summary>
+	/// 循环将首页数量设置同步到PLC。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
+	/// <returns>返回数量同步异步任务。</returns>
+	/// <remarks>
+	/// 由 StartTubeCountSync 启动并循环调用 SendTubeCountToPlcAsync。
+	/// </remarks>
 	private async Task SyncTubeCountLoopAsync(CancellationToken token)
 	{
 		while (!token.IsCancellationRequested && _isDetectionStarted)
@@ -1566,6 +1930,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 向PLC下发当前采血管数量寄存器。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
+	/// <returns>返回数量下发异步任务。</returns>
+	/// <remarks>
+	/// 由 SyncTubeCountLoopAsync 周期调用。
+	/// </remarks>
 	private async Task SendTubeCountToPlcAsync(CancellationToken token)
 	{
 		ushort tubeCount = (ushort)Math.Clamp(_selectedTubeCount, 0, 65535);
@@ -1584,10 +1957,19 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 发送初始化启动信号并校验写入结果。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回初始化命令是否发送成功。</returns>
+	/// <remarks>
+	/// 由 InitializeSystemAsync 调用。
+	/// </remarks>
 	private async Task<bool> SendInitSignalToPlcAsync()
 	{
 		try
 		{
+			await SendInitParametersToPlcWithVerifyAsync();
 			await WriteCoilWithLockAsync(PlcInitCommandCoilAddress, value: true);
 			return true;
 		}
@@ -1599,6 +1981,73 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 下发初始化参数并回读校验写入一致性。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回参数下发与校验异步任务。</returns>
+	/// <remarks>
+	/// 由 InitializeSystemAsync 在发送初始化信号前调用。
+	/// </remarks>
+	private async Task SendInitParametersToPlcWithVerifyAsync()
+	{
+		ProcessParameterConfig config = _processParameterConfigService.Load() ?? new ProcessParameterConfig();
+		(ushort Address, int Value, string Name)[] items = new (ushort, int, string)[11]
+		{
+			(PlcInitZDropNeedleRiseSlowSpeedRegisterAddress, config.ZDropNeedleRiseSlowSpeed, "Z轴_丢枪头_上升慢速速度"),
+			(PlcInitPipetteAspirateDelayRegisterAddress, config.PipetteAspirateDelay100ms, "移液枪吸液延时时间"),
+			(PlcInitPipetteDispenseDelayRegisterAddress, config.PipetteDispenseDelay100ms, "移液枪打液延时时间"),
+			(PlcInitTubeShakeHomeDelayRegisterAddress, config.TubeShakeHomeDelay100ms, "采血管摇晃原位延时时间"),
+			(PlcInitTubeShakeWorkDelayRegisterAddress, config.TubeShakeWorkDelay100ms, "采血管摇晃工位延时时间"),
+			(PlcInitTubeShakeTargetCountRegisterAddress, config.TubeShakeTargetCount, "采血管摇晃目标次数"),
+			(PlcInitHeadspaceShakeHomeDelayRegisterAddress, config.HeadspaceShakeHomeDelay100ms, "顶空瓶摇晃原位延时时间"),
+			(PlcInitHeadspaceShakeWorkDelayRegisterAddress, config.HeadspaceShakeWorkDelay100ms, "顶空瓶摇晃工位延时时间"),
+			(PlcInitHeadspaceShakeTargetCountRegisterAddress, config.HeadspaceShakeTargetCount, "顶空瓶摇晃目标次数"),
+			(PlcInitButanolAspirateDelayRegisterAddress, config.ButanolAspirateDelay100ms, "叔丁醇吸液延时时间"),
+			(PlcInitButanolDispenseDelayRegisterAddress, config.ButanolDispenseDelay100ms, "叔丁醇打液延时时间")
+		};
+		await _plcLock.WaitAsync();
+		try
+		{
+			foreach ((ushort Address, int Value, string Name) item in items)
+			{
+				ushort expected = (ushort)Math.Clamp(item.Value, 0, 65535);
+				var write = await CommunicationManager.Plc.TryWriteSingleRegisterAsync(item.Address, expected);
+				if (!write.Success)
+				{
+					throw new InvalidOperationException($"D{item.Address} {item.Name} 写入失败：{write.Error}");
+				}
+				var read = await CommunicationManager.Plc.TryReadHoldingRegistersAsync(item.Address, 1);
+				if (!read.Success)
+				{
+					throw new InvalidOperationException($"D{item.Address} {item.Name} 回读失败：{read.Error}");
+				}
+				if (read.Values.Length == 0)
+				{
+					throw new InvalidOperationException($"D{item.Address} {item.Name} 回读失败：返回长度为0");
+				}
+				ushort actual = read.Values[0];
+				if (actual != expected)
+				{
+					throw new InvalidOperationException($"D{item.Address} {item.Name} 校验失败：期望={expected}，实际={actual}");
+				}
+			}
+		}
+		finally
+		{
+			_plcLock.Release();
+		}
+		AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "初始化参数写入并校验成功（D6000、D6020、D6021、D6022、D6023、D6024、D6026、D6027、D6028、D6030、D6031）。");
+	}
+
+	/// <summary>
+	/// 发送停止信号到PLC。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回停止信号发送异步任务。</returns>
+	/// <remarks>
+	/// 由 StopDetection 调用。
+	/// </remarks>
 	private async Task SendStopSignalToPlcAsync()
 	{
 		try
@@ -1614,6 +2063,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 发送急停信号到PLC。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回急停信号发送异步任务。</returns>
+	/// <remarks>
+	/// 由 EmergencyStop 调用。
+	/// </remarks>
 	private async Task SendEmergencyStopSignalToPlcAsync()
 	{
 		try
@@ -1629,6 +2086,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 应用采血管数量并联动顶空瓶数量规则。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="requestedTubeCount">用户请求的采血管数量。</param>
+	/// <param name="writeLog">是否记录模式切换日志。</param>
+	/// <remarks>
+	/// 由数量选择动作调用，更新业务计数及页面文案。
+	/// </remarks>
 	private void ApplyCount(int requestedTubeCount, bool writeLog)
 	{
 		int num = Math.Clamp(requestedTubeCount, 0, 50);
@@ -1644,6 +2110,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 导出当前首页可见日志到指定目录。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由导出日志按钮调用。
+	/// </remarks>
 	private void ExportLogs()
 	{
 		List<LogCsvRecord> records = VisibleLogs.Select((HomeLogItemViewModel x) => new LogCsvRecord
@@ -1666,6 +2139,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		AddLog(HomeLogLevel.Info, HomeLogSource.System, HomeLogKind.Operation, "日志导出完成：" + text);
 	}
 
+	/// <summary>
+	/// 按旧版格式导出日志文件。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由兼容导出流程调用。
+	/// </remarks>
 	private void ExportLogsLegacy()
 	{
 		List<LogCsvRecord> records = VisibleLogs.Select((HomeLogItemViewModel x) => new LogCsvRecord
@@ -1687,6 +2167,19 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		AddLog(HomeLogLevel.Info, HomeLogSource.System, HomeLogKind.Operation, "日志导出完成：" + LastExportPath);
 	}
 
+	/// <summary>
+	/// 追加首页日志并执行筛选、计数和落盘。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="level">日志级别。</param>
+	/// <param name="source">日志来源分类。</param>
+	/// <param name="kind">日志业务类别。</param>
+	/// <param name="message">日志消息文本。</param>
+	/// <param name="tubeIndex">关联采血管序号（为空表示系统级日志）。</param>
+	/// <param name="persistToFile">是否将日志写入本地文件。</param>
+	/// <remarks>
+	/// 由首页各业务动作和外部日志事件统一调用。
+	/// </remarks>
 	private void AddLog(HomeLogLevel level, HomeLogSource source, HomeLogKind kind, string message, int? tubeIndex = null, bool persistToFile = true)
 	{
 		if (!IsOnUiThread())
@@ -1726,6 +2219,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		RefreshVisibleLogs();
 	}
 
+	/// <summary>
+	/// 接收通信日志并映射到首页日志流。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="log">外部日志消息对象。</param>
+	/// <remarks>
+	/// 由 CommunicationManager 日志事件触发。
+	/// </remarks>
 	private void OnCommunicationLogReceived(CommunicationManager.LogMessage log)
 	{
 		HomeLogLevel level = log.Level switch
@@ -1738,13 +2239,66 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		AddLog(level, HomeLogSource.Hardware, HomeLogKind.Operation, $"[{sourceText}] {log.Message}");
 	}
 
+	/// <summary>
+	/// 接收流程日志并映射到首页日志流。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="log">外部日志消息对象。</param>
+	/// <remarks>
+	/// 由 WorkflowEngine.OnLogGenerated 事件触发。
+	/// </remarks>
 	private void OnWorkflowLogGenerated(WorkflowEngine.WorkflowLogMessage log)
 	{
+		string? scanCode = string.IsNullOrWhiteSpace(log.ScanCode) ? ExtractScanCodeFromWorkflowMessage(log.Message) : log.ScanCode;
+		if (!string.IsNullOrWhiteSpace(scanCode))
+		{
+			RunOnUiThread(delegate
+			{
+				ScanCode = scanCode;
+			});
+		}
 		HomeLogLevel level = ParseHomeLogLevel(log.LevelText);
 		HomeLogKind kind = ParseHomeLogKind(log.LogKind);
-		AddLog(level, HomeLogSource.Process, kind, "流程：" + log.Message);
+		int? tubeIndex = (log.TubeIndex > 0) ? log.TubeIndex : null;
+		AddLog(level, HomeLogSource.Process, kind, "流程：" + log.Message, tubeIndex);
 	}
 
+	/// <summary>
+	/// 从流程日志文本提取条码内容。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="message">日志消息文本。</param>
+	/// <returns>返回提取到的条码文本，未命中时返回空。</returns>
+	/// <remarks>
+	/// 由 OnWorkflowLogGenerated 在扫码日志场景调用。
+	/// </remarks>
+	private static string? ExtractScanCodeFromWorkflowMessage(string message)
+	{
+		if (string.IsNullOrWhiteSpace(message))
+		{
+			return null;
+		}
+		const string prefix = "扫码成功：";
+		int num = message.IndexOf(prefix, StringComparison.Ordinal);
+		if (num < 0)
+		{
+			return null;
+		}
+		int num2 = num + prefix.Length;
+		int num3 = message.IndexOf('，', num2);
+		string text = ((num3 > num2) ? message.Substring(num2, num3 - num2) : message.Substring(num2)).Trim();
+		return string.IsNullOrWhiteSpace(text) ? null : text;
+	}
+
+	/// <summary>
+	/// 将日志级别文本解析为首页级别枚举。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="levelText">待解析的日志级别文本。</param>
+	/// <returns>返回解析后的首页日志级别。</returns>
+	/// <remarks>
+	/// 由 OnCommunicationLogReceived 与 OnWorkflowLogGenerated 调用。
+	/// </remarks>
 	private static HomeLogLevel ParseHomeLogLevel(string levelText)
 	{
 		if (!string.IsNullOrWhiteSpace(levelText))
@@ -1761,6 +2315,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return HomeLogLevel.Info;
 	}
 
+	/// <summary>
+	/// 将日志类别文本解析为首页类别枚举。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="kindText">待解析的日志类别文本。</param>
+	/// <returns>返回解析后的首页日志类别。</returns>
+	/// <remarks>
+	/// 由日志映射流程调用。
+	/// </remarks>
 	private static HomeLogKind ParseHomeLogKind(string kindText)
 	{
 		if (!string.IsNullOrWhiteSpace(kindText) && (kindText.Contains("检测") || kindText.Contains("妫€娴")))
@@ -1770,6 +2333,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return HomeLogKind.Operation;
 	}
 
+	/// <summary>
+	/// 重新统计首页日志级别计数。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由 AddLog 与筛选刷新流程调用。
+	/// </remarks>
 	private void RecalculateCounters()
 	{
 		InfoCount = _allLogs.Count((HomeLogItemViewModel x) => x.Level == HomeLogLevel.Info);
@@ -1777,6 +2347,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		ErrorCount = _allLogs.Count((HomeLogItemViewModel x) => x.Level == HomeLogLevel.Error);
 	}
 
+	/// <summary>
+	/// 按筛选条件刷新首页可见日志集合。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由日志筛选条件变化时调用。
+	/// </remarks>
 	private void RefreshVisibleLogs()
 	{
 		List<HomeLogItemViewModel> list = _allLogs.Where(IsVisible).ToList();
@@ -1787,6 +2364,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 判断日志是否满足当前筛选条件。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="log">外部日志消息对象。</param>
+	/// <returns>返回日志是否应显示。</returns>
+	/// <remarks>
+	/// 由 RefreshVisibleLogs 判定每条日志是否显示。
+	/// </remarks>
 	private bool IsVisible(HomeLogItemViewModel log)
 	{
 		HomeLogSource source = log.Source;
@@ -1837,6 +2423,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		return flag2 && flag3 && flag4;
 	}
 
+	/// <summary>
+	/// 刷新采血管与顶空瓶料架可视状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由数量和状态变化时调用。
+	/// </remarks>
 	private void UpdateRackVisuals()
 	{
 		foreach (RackSlotItemViewModel tubeRackSlot in TubeRackSlots)
@@ -1853,6 +2446,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 构建采血管料架槽位集合。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造流程初始化料架数据时调用。
+	/// </remarks>
 	private void BuildTubeRackSlots()
 	{
 		TubeRackSlots.Clear();
@@ -1867,6 +2467,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 构建顶空瓶料架槽位集合。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造流程初始化料架数据时调用。
+	/// </remarks>
 	private void BuildHeadspaceRackSlots()
 	{
 		HeadspaceRackSlots.Clear();
@@ -1881,6 +2488,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 构建针头状态槽位集合。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造流程初始化针头状态时调用。
+	/// </remarks>
 	private void BuildNeedleHeadSlots()
 	{
 		NeedleHeadSlots.Clear();
@@ -1896,6 +2510,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// 构建首页条件项列表。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造流程初始化条件列表时调用。
+	/// </remarks>
 	private void BuildConditions()
 	{
 		Conditions.Clear();
@@ -1908,6 +2529,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		Conditions.Add(new ConditionItemViewModel("进样时间", "0", "s"));
 	}
 
+	/// <summary>
+	/// 生成首页默认提示日志。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造流程初始化首页日志时调用。
+	/// </remarks>
 	private void BuildDefaultLogs()
 	{
 		_allLogs.Clear();
@@ -1915,6 +2543,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		AddLog(HomeLogLevel.Info, HomeLogSource.Process, HomeLogKind.Operation, "请点击采血管架设定检测总数。", null, persistToFile: false);
 	}
 
+	/// <summary>
+	/// 释放首页资源并注销事件及后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由页面销毁流程调用。
+	/// </remarks>
 	public void Dispose()
 	{
 		if (_disposed)
@@ -1932,6 +2567,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		UnregisterCorePlcPollingPoints();
 	}
 
+	/// <summary>
+	/// 将十六进制颜色文本转换为画刷对象。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="hex">十六进制颜色文本。</param>
+	/// <returns>返回对应颜色画刷。</returns>
+	/// <remarks>
+	/// 由静态颜色字段初始化时调用。
+	/// </remarks>
 	private static Brush BrushFromHex(string hex)
 	{
 		object? brushObject = new BrushConverter().ConvertFromString(hex);
@@ -2054,7 +2698,7 @@ public class HomeLogItemViewModel
 		_ => "普通操作日志"
 	};
 
-	public string TubeText => TubeIndex > 0 ? TubeIndex.ToString() : "-";
+	public string TubeText => TubeIndex > 0 ? TubeIndex.ToString() : "运行";
 }
 
 public enum HomeLogLevel

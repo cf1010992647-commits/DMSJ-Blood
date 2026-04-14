@@ -105,11 +105,11 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
-        public string GlobalShieldButtonText => IsGlobalShieldEnabled ? "鍙栨秷鍏ㄥ眬灞忚斀" : "鍏ㄥ眬灞忚斀鎶ヨ";
-        public string ClearFaultButtonText => SelectedAlarm == null ? "娓呴櫎閫変腑鏁呴殰" : $"娓呴櫎 {SelectedAlarm.Address}";
+        public string GlobalShieldButtonText => IsGlobalShieldEnabled ? "取消全局屏蔽" : "全局屏蔽报警";
+        public string ClearFaultButtonText => SelectedAlarm == null ? "清除选中故障" : $"清除 {SelectedAlarm.Address}";
         public string SelectedAlarmMaskButtonText => SelectedAlarm == null
-            ? "灞忚斀閫変腑鎶ヨ"
-            : (SelectedAlarm.IsMasked ? "瑙ｉ櫎灞忚斀閫変腑" : "灞忚斀閫変腑鎶ヨ");
+            ? "屏蔽选中报警"
+            : (SelectedAlarm.IsMasked ? "解除屏蔽选中" : "屏蔽选中报警");
 
         public int ActiveAlarmCount => AlarmPoints.Count(x => x.IsActive && !x.IsMasked);
         public int MaskedAlarmCount => AlarmPoints.Count(x => x.IsMasked);
@@ -150,7 +150,7 @@ namespace Blood_Alcohol.ViewModels
             StartMonitoring();
         }
 
-        #region 閰嶇疆璇诲啓
+        #region 配置读写
 
         private void ReloadConfig()
         {
@@ -169,7 +169,7 @@ namespace Blood_Alcohol.ViewModels
             }
             catch (Exception ex)
             {
-                StatusMessage = $"{DateTime.Now:HH:mm:ss} 鎶ヨ閰嶇疆鍔犺浇澶辫触: {ex.Message}";
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 报警配置加载失败: {ex.Message}";
             }
         }
 
@@ -195,7 +195,7 @@ namespace Blood_Alcohol.ViewModels
             }
             catch (Exception ex)
             {
-                StatusMessage = $"{DateTime.Now:HH:mm:ss} 鎶ヨ閰嶇疆淇濆瓨澶辫触: {ex.Message}";
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 报警配置保存失败: {ex.Message}";
             }
         }
 
@@ -249,7 +249,7 @@ namespace Blood_Alcohol.ViewModels
                 config.AlarmPoints.Add(new FaultAlarmDefinition
                 {
                     Address = $"M{i}",
-                    Description = $"鍏朵粬鎶ヨ{i}"
+                    Description = $"其他报警{i}"
                 });
             }
 
@@ -258,7 +258,7 @@ namespace Blood_Alcohol.ViewModels
 
         #endregion
 
-        #region 鎶ヨ鐐逛綅缂栬緫
+        #region 报警点位编辑
 
         private void AddAlarmPoint()
         {
@@ -304,7 +304,7 @@ namespace Blood_Alcohol.ViewModels
 
         #endregion
 
-        #region PLC鐩戞帶涓庢搷浣?
+        #region PLC监控与操作
         private bool FilterAlarm(object obj)
         {
             if (obj is not FaultAlarmItemViewModel alarm)
@@ -378,7 +378,7 @@ namespace Blood_Alcohol.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    StatusMessage = $"{DateTime.Now:HH:mm:ss} 鎶ヨ鐩戞帶澶辫触: {ex.Message}";
+                    StatusMessage = $"{DateTime.Now:HH:mm:ss} 报警监控失败: {ex.Message}";
                 }
 
                 try
@@ -454,7 +454,7 @@ namespace Blood_Alcohol.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    SetStatusMessage($"{DateTime.Now:HH:mm:ss} 鎶ヨ鐩戞帶澶辫触: {ex.Message}");
+                    SetStatusMessage($"{DateTime.Now:HH:mm:ss} 报警监控失败: {ex.Message}");
                 }
 
                 try
@@ -656,12 +656,12 @@ namespace Blood_Alcohol.ViewModels
             {
                 alarm.ActiveSince = now;
                 alarm.LastAlarmTime = now;
-                AppendEvent(alarm, "鎶ヨ瑙﹀彂");
+                AppendEvent(alarm, "报警触发");
             }
             else
             {
                 alarm.ActiveSince = null;
-                AppendEvent(alarm, "鎶ヨ鎭㈠");
+                AppendEvent(alarm, "报警恢复");
             }
 
             OnPropertyChanged(nameof(ActiveAlarmCount));
@@ -693,12 +693,12 @@ namespace Blood_Alcohol.ViewModels
                 }
 
                 StatusMessage = $"{DateTime.Now:HH:mm:ss} 已发送清故障: {SelectedAlarm.Address} -> 0。";
-                AppendEvent(SelectedAlarm, "鎵嬪姩娓呴櫎鎶ヨ");
+                AppendEvent(SelectedAlarm, "手动清除报警");
             }
             catch (Exception ex)
             {
-                StatusMessage = $"{DateTime.Now:HH:mm:ss} 娓呴櫎鎶ヨ澶辫触: {ex.Message}";
-                AppendEvent(SelectedAlarm.Address, SelectedAlarm.Description, $"娓呴櫎澶辫触: {ex.Message}");
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 清除报警失败: {ex.Message}";
+                AppendEvent(SelectedAlarm.Address, SelectedAlarm.Description, $"清除失败: {ex.Message}");
             }
         }
 
@@ -728,12 +728,12 @@ namespace Blood_Alcohol.ViewModels
                     ? $"{DateTime.Now:HH:mm:ss} 已开启全局屏蔽(M{GlobalShieldAddress})。"
                     : $"{DateTime.Now:HH:mm:ss} 已关闭全局屏蔽(M{GlobalShieldAddress})。";
 
-                AppendEvent($"M{GlobalShieldAddress}", "鎶ヨ灞忚斀", next ? "寮€鍚叏灞€灞忚斀" : "鍏抽棴鍏ㄥ眬灞忚斀");
+                AppendEvent($"M{GlobalShieldAddress}", "报警屏蔽", next ? "开启全局屏蔽" : "关闭全局屏蔽");
             }
             catch (Exception ex)
             {
-                StatusMessage = $"{DateTime.Now:HH:mm:ss} 鍏ㄥ眬灞忚斀鎿嶄綔澶辫触: {ex.Message}";
-                AppendEvent($"M{GlobalShieldAddress}", "鎶ヨ灞忚斀", $"鍏ㄥ眬灞忚斀鎿嶄綔澶辫触: {ex.Message}");
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 全局屏蔽操作失败: {ex.Message}";
+                AppendEvent($"M{GlobalShieldAddress}", "报警屏蔽", $"全局屏蔽操作失败: {ex.Message}");
             }
         }
 
@@ -752,12 +752,12 @@ namespace Blood_Alcohol.ViewModels
             AppendEvent(
                 SelectedAlarm.Address,
                 SelectedAlarm.Description,
-                SelectedAlarm.IsMasked ? "鏈湴灞忚斀鎶ヨ" : "鍙栨秷鏈湴灞忚斀");
+                SelectedAlarm.IsMasked ? "本地屏蔽报警" : "取消本地屏蔽");
         }
 
         #endregion
 
-        #region 浜嬩欢璁板綍
+        #region 事件记录
 
         private void AppendEvent(FaultAlarmItemViewModel alarm, string action)
         {
@@ -794,14 +794,14 @@ namespace Blood_Alcohol.ViewModels
 
         #endregion
 
-        #region 鍦板潃瑙ｆ瀽
+        #region 地址解析
 
         private static ushort ParsePlcAddress(string address)
         {
             ushort? parsed = TryParsePlcAddress(address);
             if (!parsed.HasValue)
             {
-                throw new Exception($"鏃犳晥PLC鍦板潃: {address}");
+                throw new Exception($"无效PLC地址: {address}");
             }
 
             return parsed.Value;
@@ -852,6 +852,13 @@ namespace Blood_Alcohol.ViewModels
         #endregion
     }
 
+    /// <summary>
+    /// 故障报警项视图模型，承载单个报警点的状态与显示字段。
+    /// </summary>
+    /// By:ChengLei
+    /// <remarks>
+    /// 由 FaultDebugViewModel 维护并绑定到报警列表，用于展示当前状态、时间与屏蔽状态。
+    /// </remarks>
     public class FaultAlarmItemViewModel : BaseViewModel
     {
         private string _address = string.Empty;
@@ -966,7 +973,7 @@ namespace Blood_Alcohol.ViewModels
             {
                 if (!IsActive)
                 {
-                    return "姝ｅ父";
+                    return "正常";
                 }
 
                 return IsMasked ? "报警(已屏蔽)" : "报警中";

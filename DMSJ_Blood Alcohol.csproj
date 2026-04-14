@@ -26,6 +26,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Config\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="NModbus" Version="3.0.81" />
     <PackageReference Include="System.IO.Ports" Version="10.0.5" />
   </ItemGroup>

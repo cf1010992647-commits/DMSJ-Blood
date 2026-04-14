@@ -15,6 +15,7 @@ namespace Blood_Alcohol
             DispatcherUnhandledException += OnDispatcherUnhandledException;
             AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainUnhandledException;
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+            CommunicationManager.OnLogReceived += OnCommunicationLogReceived;
 
             base.OnStartup(e);
 
@@ -43,6 +44,12 @@ namespace Blood_Alcohol
             }
         }
 
+        protected override void OnExit(ExitEventArgs e)
+        {
+            CommunicationManager.OnLogReceived -= OnCommunicationLogReceived;
+            base.OnExit(e);
+        }
+
         private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
             if (TryHandlePlcCommunicationException(e.Exception))
@@ -53,39 +60,97 @@ namespace Blood_Alcohol
 
         private bool TryHandlePlcCommunicationException(Exception ex)
         {
-            if (!ContainsPlcTimeout(ex))
+            if (!ContainsPlcCommunicationException(ex))
             {
                 return false;
             }
 
             CommunicationManager.Log485Message("PLC通讯超时，请检查协议/串口参数/站号/接线。");
-
-            // Throttle popups to avoid blocking during polling loops.
-            DateTime now = DateTime.Now;
-            if ((now - _lastPlcErrorToastAt).TotalSeconds >= 5)
-            {
-                _lastPlcErrorToastAt = now;
-                MessageBox.Show(
-                    "PLC通讯超时：请确认PLC为Modbus RTU从站，串口参数一致(波特率/8N1)，站号一致，485接线正确。",
-                    "PLC通讯异常",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-            }
-
+            ShowPlcCommPopup();
             return true;
         }
 
-        private static bool ContainsPlcTimeout(Exception ex)
+        private void OnCommunicationLogReceived(CommunicationManager.LogMessage log)
         {
-            for (Exception? current = ex; current != null; current = current.InnerException)
+            if (!string.Equals(log.Source, "RS485", StringComparison.OrdinalIgnoreCase))
             {
-                if (current is TimeoutException)
+                return;
+            }
+
+            string message = log.Message ?? string.Empty;
+            bool isCommError =
+                message.Contains("PLC串口读取超时", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("PLC串口写入超时", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("PLC串口读取I/O异常", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("PLC串口写入I/O异常", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("PLC串口未就绪", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("PLC通讯超时", StringComparison.OrdinalIgnoreCase);
+
+            if (!isCommError)
+            {
+                return;
+            }
+
+            ShowPlcCommPopup();
+        }
+
+        private static bool ContainsPlcCommunicationException(Exception ex)
+        {
+            if (ex is TimeoutException)
+            {
+                return true;
+            }
+
+            if (ex is System.IO.IOException)
+            {
+                return true;
+            }
+
+            if (ex is InvalidOperationException ioe)
+            {
+                string msg = ioe.Message ?? string.Empty;
+                if (msg.Contains("PLC通信", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("Serial port", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("串口", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
             }
 
-            return false;
+            if (ex is AggregateException aggregate)
+            {
+                foreach (Exception inner in aggregate.InnerExceptions)
+                {
+                    if (ContainsPlcCommunicationException(inner))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return ex.InnerException != null && ContainsPlcCommunicationException(ex.InnerException);
+        }
+
+        private void ShowPlcCommPopup()
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                _ = Dispatcher.BeginInvoke(new Action(ShowPlcCommPopup));
+                return;
+            }
+
+            DateTime now = DateTime.Now;
+            if ((now - _lastPlcErrorToastAt).TotalSeconds < 5)
+            {
+                return;
+            }
+
+            _lastPlcErrorToastAt = now;
+            MessageBox.Show(
+                "PLC通讯异常：请检查PLC电源/485接线/串口参数，恢复后软件会继续运行。",
+                "PLC通讯异常",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
 }

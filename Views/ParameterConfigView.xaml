@@ -48,8 +48,8 @@
     <Grid Background="White" Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
@@ -60,88 +60,110 @@
                        FontSize="14" />
         </Border>
 
-        <Border Grid.Row="1"
-                Style="{StaticResource CardBorderStyle}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="220" />
-                    <ColumnDefinition Width="160" />
-                    <ColumnDefinition Width="40" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="260" />
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="70" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0"
-                           Grid.Column="0"
-                           Text="加热箱温度"
-                           Style="{StaticResource LabelStyle}" />
-                <TextBox Grid.Row="0"
-                         Grid.Column="1"
-                         Style="{StaticResource InputBoxStyle}"
-                         Text="{Binding HeatingBoxTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
-                <TextBlock Grid.Row="0"
-                           Grid.Column="2"
-                           Style="{StaticResource LabelStyle}"
-                           HorizontalAlignment="Center"
-                           Text="°C" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="加热箱温度" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBoxStyle}" Text="{Binding HeatingBoxTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
 
-                <TextBlock Grid.Row="1"
-                           Grid.Column="0"
-                           Margin="0,10,0,0"
-                           Text="定量环温度"
-                           Style="{StaticResource LabelStyle}" />
-                <TextBox Grid.Row="1"
-                         Grid.Column="1"
-                         Margin="0,10,0,0"
-                         Style="{StaticResource InputBoxStyle}"
-                         Text="{Binding QuantitativeLoopTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
-                <TextBlock Grid.Row="1"
-                           Grid.Column="2"
-                           Margin="0,10,0,0"
-                           Style="{StaticResource LabelStyle}"
-                           HorizontalAlignment="Center"
-                           Text="°C" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,10,0,0" Text="定量环温度" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding QuantitativeLoopTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
 
-                <TextBlock Grid.Row="2"
-                           Grid.Column="0"
-                           Margin="0,10,0,0"
-                           Text="传输线温度"
-                           Style="{StaticResource LabelStyle}" />
-                <TextBox Grid.Row="2"
-                         Grid.Column="1"
-                         Margin="0,10,0,0"
-                         Style="{StaticResource InputBoxStyle}"
-                         Text="{Binding TransferLineTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
-                <TextBlock Grid.Row="2"
-                           Grid.Column="2"
-                           Margin="0,10,0,0"
-                           Style="{StaticResource LabelStyle}"
-                           HorizontalAlignment="Center"
-                           Text="°C" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" Text="传输线温度" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TransferLineTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,10,0,0" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
 
-                <TextBlock Grid.Row="3"
-                           Grid.Column="0"
-                           Margin="0,10,0,0"
-                           Text="摇匀时长"
-                           Style="{StaticResource LabelStyle}" />
-                <TextBox Grid.Row="3"
-                         Grid.Column="1"
-                         Margin="0,10,0,0"
-                         Style="{StaticResource InputBoxStyle}"
-                         Text="{Binding ShakeDurationSeconds, UpdateSourceTrigger=PropertyChanged}" />
-                <TextBlock Grid.Row="3"
-                           Grid.Column="2"
-                           Margin="0,10,0,0"
-                           Style="{StaticResource LabelStyle}"
-                           HorizontalAlignment="Center"
-                           Text="s" />
-            </Grid>
-        </Border>
+                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" Text="摇匀时长" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ShakeDurationSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Margin="0,10,0,0" Text="s" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="320" />
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="70" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Z轴_丢枪头_上升慢速速度 (D6000)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBoxStyle}" Text="{Binding ZDropNeedleRiseSlowSpeed, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="-" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,10,0,0" Text="移液枪吸液延时时间 (D6020)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding PipetteAspirateDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" Text="移液枪打液延时时间 (D6021)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding PipetteDispenseDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" Text="采血管摇晃原位延时时间 (D6022)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TubeShakeHomeDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,10,0,0" Text="采血管摇晃工位延时时间 (D6023)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TubeShakeWorkDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="4" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,10,0,0" Text="采血管摇晃目标次数 (D6024)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="5" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TubeShakeTargetCount, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="5" Grid.Column="2" Margin="0,10,0,0" Text="次" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,10,0,0" Text="顶空瓶摇晃原位延时时间 (D6026)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="6" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding HeadspaceShakeHomeDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="6" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,10,0,0" Text="顶空瓶摇晃工位延时时间 (D6027)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="7" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding HeadspaceShakeWorkDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="7" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,10,0,0" Text="顶空瓶摇晃目标次数 (D6028)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="8" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding HeadspaceShakeTargetCount, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="8" Grid.Column="2" Margin="0,10,0,0" Text="次" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,10,0,0" Text="叔丁醇吸液延时时间 (D6030)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="9" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ButanolAspirateDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="9" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,10,0,0" Text="叔丁醇打液延时时间 (D6031)" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="10" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ButanolDispenseDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="10" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
 
         <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
