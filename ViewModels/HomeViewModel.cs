@@ -37,6 +37,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private const int MaxHeadspaceCount = 100;
 
+	private const int MaxNeedleHeadCount = 50;
+
 	/// <summary>
 	/// 采血管总数写入地址 D230
 	/// </summary>
@@ -342,6 +344,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private static readonly int[] HeadspaceCompletedRegisterOffsets = new int[1] { 18 };
 
+	private const int NeedleHeadUsedCountRegisterOffset = 19;
+
 	private static readonly Brush ActiveSlotFill = BrushFromHex("#005ECC");
 
 	private static readonly Brush ActiveSlotText = Brushes.White;
@@ -354,9 +358,9 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private static readonly Brush CompletedSlotFill = BrushFromHex("#16A34A");
 
-	private static readonly Brush NeedleUsedFill = BrushFromHex("#D1D5DB");
+	private static readonly Brush NeedleUsedFill = Brushes.Black;
 
-	private static readonly Brush NeedleIdleFill = Brushes.WhiteSmoke;
+	private static readonly Brush NeedleIdleFill = Brushes.White;
 
 	private static readonly TimeSpan RackProcessPollInterval = TimeSpan.FromMilliseconds(300);
 
@@ -401,6 +405,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	private readonly HashSet<int> _headspaceRunningSlots = new HashSet<int>();
 
 	private readonly HashSet<int> _headspaceCompletedSlots = new HashSet<int>();
+
+	private int _usedNeedleHeadCount;
 
 	private bool _isInitializing;
 
@@ -1753,11 +1759,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		HashSet<int> tubeCompleted = ExtractSlotsFromRegisters(registers, TubeCompletedRegisterOffsets, MaxTubeCount);
 		HashSet<int> headspaceRunning = ExtractSlotsFromRegisters(registers, HeadspaceRunningRegisterOffsets, MaxHeadspaceCount);
 		HashSet<int> headspaceCompleted = ExtractSlotsFromRegisters(registers, HeadspaceCompletedRegisterOffsets, MaxHeadspaceCount);
+		int usedNeedleHeadCount = ExtractNeedleHeadUsedCount(registers);
 
 		bool changed = ReplaceSlotSet(_tubeRunningSlots, tubeRunning);
 		changed |= ReplaceSlotSet(_tubeCompletedSlots, tubeCompleted);
 		changed |= ReplaceSlotSet(_headspaceRunningSlots, headspaceRunning);
 		changed |= ReplaceSlotSet(_headspaceCompletedSlots, headspaceCompleted);
+		changed |= UpdateNeedleHeadUsedCount(usedNeedleHeadCount);
 		if (changed)
 		{
 			UpdateRackVisuals();
@@ -1793,6 +1801,25 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	}
 
 	/// <summary>
+	/// 从寄存器集合提取当前已使用的移液枪头数量。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="registers">读取到的寄存器集合。</param>
+	/// <returns>返回已使用枪头数量。</returns>
+	/// <remarks>
+	/// 由 ApplyRackProcessRegisters 调用，对应 D252 的料架枪头当前生产号码。
+	/// </remarks>
+	private static int ExtractNeedleHeadUsedCount(IReadOnlyList<ushort> registers)
+	{
+		if (NeedleHeadUsedCountRegisterOffset < 0 || NeedleHeadUsedCountRegisterOffset >= registers.Count)
+		{
+			return 0;
+		}
+
+		return Math.Clamp((int)registers[NeedleHeadUsedCountRegisterOffset], 0, MaxNeedleHeadCount);
+	}
+
+	/// <summary>
 	/// 用新集合替换槽位状态集合并返回是否发生变化。
 	/// </summary>
 	/// By:ChengLei
@@ -1818,6 +1845,27 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	}
 
 	/// <summary>
+	/// 更新当前已使用移液枪头数量并返回是否发生变化。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="usedCount">最新已使用枪头数量。</param>
+	/// <returns>返回数量是否发生变化。</returns>
+	/// <remarks>
+	/// 由 ApplyRackProcessRegisters 调用，用于控制枪头区颜色刷新。
+	/// </remarks>
+	private bool UpdateNeedleHeadUsedCount(int usedCount)
+	{
+		int safeUsedCount = Math.Clamp(usedCount, 0, MaxNeedleHeadCount);
+		if (_usedNeedleHeadCount == safeUsedCount)
+		{
+			return false;
+		}
+
+		_usedNeedleHeadCount = safeUsedCount;
+		return true;
+	}
+
+	/// <summary>
 	/// 清空料架工序状态集合并刷新默认颜色。
 	/// </summary>
 	/// By:ChengLei
@@ -1826,7 +1874,11 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private void ClearRackProcessStates()
 	{
-		if (_tubeRunningSlots.Count == 0 && _tubeCompletedSlots.Count == 0 && _headspaceRunningSlots.Count == 0 && _headspaceCompletedSlots.Count == 0)
+		if (_tubeRunningSlots.Count == 0 &&
+			_tubeCompletedSlots.Count == 0 &&
+			_headspaceRunningSlots.Count == 0 &&
+			_headspaceCompletedSlots.Count == 0 &&
+			_usedNeedleHeadCount == 0)
 		{
 			return;
 		}
@@ -1835,6 +1887,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_tubeCompletedSlots.Clear();
 		_headspaceRunningSlots.Clear();
 		_headspaceCompletedSlots.Clear();
+		_usedNeedleHeadCount = 0;
 		UpdateRackVisuals();
 	}
 
@@ -2481,6 +2534,10 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	private async Task SendInitParametersToPlcWithVerifyAsync()
 	{
 		ProcessParameterConfig config = _processParameterConfigService.Load() ?? new ProcessParameterConfig();
+		RunOnUiThread(delegate
+		{
+			ApplyConditionValues(config);
+		});
 		(ushort Address, int Value, string Name)[] items = new (ushort, int, string)[17]
 		{
 			(PlcInitZDropNeedleRiseSlowSpeedRegisterAddress, config.ZDropNeedleRiseSlowSpeed, "Z轴_丢枪头_上升慢速速度"),
@@ -2997,7 +3054,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	}
 
 	/// <summary>
-	/// 刷新采血管与顶空瓶料架可视状态。
+	/// 刷新采血管、顶空瓶与移液枪头可视状态。
 	/// </summary>
 	/// By:ChengLei
 	/// <remarks>
@@ -3057,6 +3114,12 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			headspaceRackSlot.Fill = ActiveSlotFill;
 			headspaceRackSlot.Foreground = ActiveSlotText;
 		}
+		foreach (RackSlotItemViewModel needleHeadSlot in NeedleHeadSlots)
+		{
+			bool isUsed = needleHeadSlot.Number <= _usedNeedleHeadCount;
+			needleHeadSlot.Fill = isUsed ? NeedleUsedFill : NeedleIdleFill;
+			needleHeadSlot.Foreground = isUsed ? ActiveSlotText : IdleSlotText;
+		}
 	}
 
 	/// <summary>
@@ -3111,16 +3174,82 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	private void BuildNeedleHeadSlots()
 	{
 		NeedleHeadSlots.Clear();
-		for (int i = 1; i <= 80; i++)
+		for (int i = 1; i <= MaxNeedleHeadCount; i++)
 		{
-			bool flag = i <= 30;
 			NeedleHeadSlots.Add(new RackSlotItemViewModel
 			{
 				Number = i,
-				Fill = (flag ? NeedleUsedFill : NeedleIdleFill),
-				Foreground = (flag ? ActiveSlotText : IdleSlotText)
+				Fill = NeedleIdleFill,
+				Foreground = IdleSlotText
 			});
 		}
+	}
+
+	/// <summary>
+	/// 安全读取流程参数配置并在失败时回退默认值。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回可用于首页展示的流程参数配置。</returns>
+	/// <remarks>
+	/// 由首页条件初始化与刷新流程调用，避免配置文件异常影响首页加载。
+	/// </remarks>
+	private ProcessParameterConfig LoadProcessParameterConfigSafely()
+	{
+		try
+		{
+			return _processParameterConfigService.Load() ?? new ProcessParameterConfig();
+		}
+		catch
+		{
+			return new ProcessParameterConfig();
+		}
+	}
+
+	/// <summary>
+	/// 将 100ms 制时间参数格式化为秒显示文本。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="time100ms">以 100ms 为单位的时间值。</param>
+	/// <returns>返回首页条件区域使用的秒数字符串。</returns>
+	/// <remarks>
+	/// 由首页条件构建与刷新流程调用，用于统一展示单位。
+	/// </remarks>
+	private static string FormatConditionSecondsFrom100ms(int time100ms)
+	{
+		double seconds = Math.Max(0, time100ms) / 10.0;
+		return seconds.ToString("0.##");
+	}
+
+	/// <summary>
+	/// 按当前流程参数配置刷新首页条件项显示值。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="config">流程参数配置对象。</param>
+	/// <remarks>
+	/// 由首页条件初始化和初始化参数下发前调用，保持首页展示与参数配置一致。
+	/// </remarks>
+	private void ApplyConditionValues(ProcessParameterConfig config)
+	{
+		if (Conditions.Count != 7)
+		{
+			Conditions.Clear();
+			Conditions.Add(new ConditionItemViewModel("加热箱温度", config.HeatingBoxTemperature.ToString("F1"), "°C"));
+			Conditions.Add(new ConditionItemViewModel("定量环温度", config.QuantitativeLoopTemperature.ToString("F1"), "°C"));
+			Conditions.Add(new ConditionItemViewModel("传输线温度", config.TransferLineTemperature.ToString("F1"), "°C"));
+			Conditions.Add(new ConditionItemViewModel("样品瓶平衡", Math.Max(0, config.ShakeDurationSeconds).ToString(), "s"));
+			Conditions.Add(new ConditionItemViewModel("样品瓶加压", FormatConditionSecondsFrom100ms(config.SampleBottlePressureTime100ms), "s"));
+			Conditions.Add(new ConditionItemViewModel("定量环平衡", FormatConditionSecondsFrom100ms(config.QuantitativeLoopBalanceTime100ms), "s"));
+			Conditions.Add(new ConditionItemViewModel("进样时间", "0", "s"));
+			return;
+		}
+
+		Conditions[0].Value = config.HeatingBoxTemperature.ToString("F1");
+		Conditions[1].Value = config.QuantitativeLoopTemperature.ToString("F1");
+		Conditions[2].Value = config.TransferLineTemperature.ToString("F1");
+		Conditions[3].Value = Math.Max(0, config.ShakeDurationSeconds).ToString();
+		Conditions[4].Value = FormatConditionSecondsFrom100ms(config.SampleBottlePressureTime100ms);
+		Conditions[5].Value = FormatConditionSecondsFrom100ms(config.QuantitativeLoopBalanceTime100ms);
+		Conditions[6].Value = "0";
 	}
 
 	/// <summary>
@@ -3132,14 +3261,21 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private void BuildConditions()
 	{
-		Conditions.Clear();
-		Conditions.Add(new ConditionItemViewModel("加热箱温度", "0.0", "°C"));
-		Conditions.Add(new ConditionItemViewModel("定量环温度", "0.0", "°C"));
-		Conditions.Add(new ConditionItemViewModel("传输线温度", "0.0", "°C"));
-		Conditions.Add(new ConditionItemViewModel("样品瓶平衡", "0", "s"));
-		Conditions.Add(new ConditionItemViewModel("样品瓶加压", "0", "s"));
-		Conditions.Add(new ConditionItemViewModel("定量环平衡", "0", "s"));
-		Conditions.Add(new ConditionItemViewModel("进样时间", "0", "s"));
+		ProcessParameterConfig config = LoadProcessParameterConfigSafely();
+		ApplyConditionValues(config);
+	}
+
+	/// <summary>
+	/// 从最新参数配置刷新首页条件项显示值。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由首页重新显示和初始化参数下发前调用，确保页面展示与配置文件保持一致。
+	/// </remarks>
+	public void RefreshConditionsFromConfig()
+	{
+		ProcessParameterConfig config = LoadProcessParameterConfigSafely();
+		ApplyConditionValues(config);
 	}
 
 	/// <summary>
