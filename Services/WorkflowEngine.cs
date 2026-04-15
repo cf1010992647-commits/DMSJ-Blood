@@ -12,23 +12,98 @@ namespace Blood_Alcohol.Services;
 
 public class WorkflowEngine
 {
+	/// <summary>
+	/// 流程日志结构化消息模型
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由流程引擎推送给首页 用于界面展示和管号轨迹 CSV 追加
+	/// </remarks>
 	public sealed class WorkflowLogMessage
 	{
+		/// <summary>
+		/// 日志时间戳
+		/// </summary>
+		/// By:ChengLei
 		public DateTime Timestamp { get; init; } = DateTime.Now;
 
+		/// <summary>
+		/// 日志消息正文
+		/// </summary>
+		/// By:ChengLei
 		public string Message { get; init; } = string.Empty;
 
+		/// <summary>
+		/// 日志级别文本
+		/// </summary>
+		/// By:ChengLei
 		public string LevelText { get; init; } = "信息";
 
+		/// <summary>
+		/// 日志分类文本
+		/// </summary>
+		/// By:ChengLei
 		public string LogKind { get; init; } = "普通操作日志";
 
+		/// <summary>
+		/// 采血管号 0 表示普通流程日志
+		/// </summary>
+		/// By:ChengLei
 		public int TubeIndex { get; init; }
 
+		/// <summary>
+		/// 当前关联扫码值
+		/// </summary>
+		/// By:ChengLei
 		public string ScanCode { get; init; } = string.Empty;
 
+		/// <summary>
+		/// 称重步骤键
+		/// </summary>
+		/// By:ChengLei
 		public string WeightStepKey { get; init; } = string.Empty;
 
+		/// <summary>
+		/// 称重值 克
+		/// </summary>
+		/// By:ChengLei
 		public double? MeasuredWeight { get; init; }
+
+		/// <summary>
+		/// 批次号文本
+		/// </summary>
+		/// By:ChengLei
+		public string BatchNo { get; init; } = string.Empty;
+
+		/// <summary>
+		/// 顶空瓶标识 A或B
+		/// </summary>
+		/// By:ChengLei
+		public string HeadspaceBottleTag { get; init; } = string.Empty;
+
+		/// <summary>
+		/// 工序名称
+		/// </summary>
+		/// By:ChengLei
+		public string ProcessName { get; init; } = string.Empty;
+
+		/// <summary>
+		/// 事件名称
+		/// </summary>
+		/// By:ChengLei
+		public string EventName { get; init; } = string.Empty;
+
+		/// <summary>
+		/// PLC 值文本
+		/// </summary>
+		/// By:ChengLei
+		public string PlcValue { get; init; } = string.Empty;
+
+		/// <summary>
+		/// 持续时长 秒
+		/// </summary>
+		/// By:ChengLei
+		public double? DurationSeconds { get; init; }
 	}
 
 	private const string WorkflowSignalConfigFileName = "WorkflowSignalConfig.json";
@@ -39,7 +114,7 @@ public class WorkflowEngine
 
 	private readonly ScannerProtocolService _scanner = new ScannerProtocolService();
 
-	private readonly LogTool _logTool = LogTool.Shared;
+	private LogTool _logTool = LogTool.Shared;
 
 	private readonly ConfigService<WorkflowSignalConfig> _workflowSignalConfigService = new ConfigService<WorkflowSignalConfig>("WorkflowSignalConfig.json");
 
@@ -70,8 +145,6 @@ public class WorkflowEngine
 
 	private readonly Dictionary<ushort, bool> _lastCoilState = new Dictionary<ushort, bool>();
 
-	private readonly Dictionary<ushort, ushort> _lastShakeValue = new Dictionary<ushort, ushort>();
-
 	private Lx5vPlc? _plc;
 
 	private CancellationTokenSource? _cts;
@@ -94,11 +167,28 @@ public class WorkflowEngine
 
 	private string _currentScanCode = string.Empty;
 
+	private Func<string?> _batchNoProvider = () => string.Empty;
+
 	public int CurrentStep { get; private set; }
 
 	public bool IsRunning => _isRunning;
 
 	public event Action<WorkflowLogMessage>? OnLogGenerated;
+
+	/// <summary>
+	/// 配置流程日志输出目标与批次上下文提供器
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="logTool">日志写入工具实例</param>
+	/// <param name="batchNoProvider">批次号提供委托</param>
+	/// <remarks>
+	/// 由首页在日志目录变更或初始化时调用 用于统一流程日志落盘位置
+	/// </remarks>
+	public void ConfigureLogOutput(LogTool logTool, Func<string?> batchNoProvider)
+	{
+		_logTool = logTool ?? LogTool.Shared;
+		_batchNoProvider = batchNoProvider ?? (() => string.Empty);
+	}
 
 	/// <summary>
 	/// 启动流程引擎并初始化运行状态。
@@ -114,12 +204,11 @@ public class WorkflowEngine
 			_plc = CommunicationManager.Plc;
 			ReloadRuntimeConfig(force: true);
 			PersistRuntimeConfig();
-				_lastCoilState.Clear();
-				_lastShakeValue.Clear();
-				_tubeSequence = 0;
-				_currentTubeIndex = 0;
-				_currentScanCode = string.Empty;
-				_cts = new CancellationTokenSource();
+			_lastCoilState.Clear();
+			_tubeSequence = 0;
+			_currentTubeIndex = 0;
+			_currentScanCode = string.Empty;
+			_cts = new CancellationTokenSource();
 			_workerTask = Task.Run(() => MonitorEventsLoopAsync(_cts.Token));
 			_isRunning = true;
 			WriteWorkflowLog("流程状态机已启动（并发事件驱动，OK位读取确认）。");
@@ -160,7 +249,7 @@ public class WorkflowEngine
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
 	/// <returns>返回流程监控异步任务。</returns>
 	/// <remarks>
-	/// 由 Start 创建的后台任务调用；循环内依次调用 PollRisingEdgeAndDispatchAsync 和 PollShakeProgressAsync。
+	/// 由 Start 创建的后台任务调用；循环内依次调用 PollRisingEdgeAndDispatchAsync。
 	/// </remarks>
 	private async Task MonitorEventsLoopAsync(CancellationToken token)
 	{
@@ -171,7 +260,6 @@ public class WorkflowEngine
 				EnsurePlcReady();
 				ReloadRuntimeConfig(force: false);
 				await PollRisingEdgeAndDispatchAsync(token);
-				await PollShakeProgressAsync(token);
 			}
 			catch (OperationCanceledException)
 			{
@@ -197,14 +285,14 @@ public class WorkflowEngine
 	private async Task PollRisingEdgeAndDispatchAsync(CancellationToken token)
 	{
 		await DetectRisingAndHandleAsync(_signals.AllowScanCoil, "scan", HandleScanFlowAsync, token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs1PlaceWeightCoil, "hs1_place_weight", (CancellationToken t) => HandleWeightFlowAsync(10, 11, _signals.AllowHs1PlaceWeightCoil, _signals.Hs1PlaceWeightOkCoil, _signals.Hs1PlaceWeightRegister, "顶空1放置", "hs1_place_weight", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs2PlaceWeightCoil, "hs2_place_weight", (CancellationToken t) => HandleWeightFlowAsync(12, 13, _signals.AllowHs2PlaceWeightCoil, _signals.Hs2PlaceWeightOkCoil, _signals.Hs2PlaceWeightRegister, "顶空2放置", "hs2_place_weight", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowTubePlaceWeightCoil, "tube_place_weight", (CancellationToken t) => HandleWeightFlowAsync(14, 16, _signals.AllowTubePlaceWeightCoil, _signals.TubePlaceWeightOkCoil, _signals.TubePlaceWeightRegister, "采血管放置", "tube_place_weight", needWeightToZ: true, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowTubeAfterAspirateWeightCoil, "tube_after_aspirate_weight", (CancellationToken t) => HandleWeightFlowAsync(17, 19, _signals.AllowTubeAfterAspirateWeightCoil, _signals.TubeAfterAspirateWeightOkCoil, _signals.TubeAfterAspirateWeightRegister, "采血管吸液后", "tube_after_aspirate_weight", needWeightToZ: true, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs1AfterBloodWeightCoil, "hs1_after_blood_weight", (CancellationToken t) => HandleWeightFlowAsync(20, 21, _signals.AllowHs1AfterBloodWeightCoil, _signals.Hs1AfterBloodWeightOkCoil, _signals.Hs1AfterBloodWeightRegister, "顶空1加血液后", "hs1_after_blood_weight", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs2AfterBloodWeightCoil, "hs2_after_blood_weight", (CancellationToken t) => HandleWeightFlowAsync(22, 23, _signals.AllowHs2AfterBloodWeightCoil, _signals.Hs2AfterBloodWeightOkCoil, _signals.Hs2AfterBloodWeightRegister, "顶空2加血液后", "hs2_after_blood_weight", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs1AfterButanolWeightCoil, "hs1_after_butanol_weight", (CancellationToken t) => HandleWeightFlowAsync(24, 25, _signals.AllowHs1AfterButanolWeightCoil, _signals.Hs1AfterButanolWeightOkCoil, _signals.Hs1AfterButanolWeightRegister, "顶空1加叔丁醇后", "hs1_after_butanol_weight", needWeightToZ: false, t), token);
-		await DetectRisingAndHandleAsync(_signals.AllowHs2AfterButanolWeightCoil, "hs2_after_butanol_weight", (CancellationToken t) => HandleWeightFlowAsync(26, 27, _signals.AllowHs2AfterButanolWeightCoil, _signals.Hs2AfterButanolWeightOkCoil, _signals.Hs2AfterButanolWeightRegister, "顶空2加叔丁醇后", "hs2_after_butanol_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs1PlaceWeightCoil, "hs1_place_weight", (CancellationToken t) => HandleWeightFlowAsync(10, 11, _signals.AllowHs1PlaceWeightCoil, _signals.Hs1PlaceWeightOkCoil, "顶空1放置", "hs1_place_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs2PlaceWeightCoil, "hs2_place_weight", (CancellationToken t) => HandleWeightFlowAsync(12, 13, _signals.AllowHs2PlaceWeightCoil, _signals.Hs2PlaceWeightOkCoil, "顶空2放置", "hs2_place_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowTubePlaceWeightCoil, "tube_place_weight", (CancellationToken t) => HandleWeightFlowAsync(14, 16, _signals.AllowTubePlaceWeightCoil, _signals.TubePlaceWeightOkCoil, "采血管放置", "tube_place_weight", needWeightToZ: true, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowTubeAfterAspirateWeightCoil, "tube_after_aspirate_weight", (CancellationToken t) => HandleWeightFlowAsync(17, 19, _signals.AllowTubeAfterAspirateWeightCoil, _signals.TubeAfterAspirateWeightOkCoil,  "采血管吸液后", "tube_after_aspirate_weight", needWeightToZ: true, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs1AfterBloodWeightCoil, "hs1_after_blood_weight", (CancellationToken t) => HandleWeightFlowAsync(20, 21, _signals.AllowHs1AfterBloodWeightCoil, _signals.Hs1AfterBloodWeightOkCoil,  "顶空1加血液后", "hs1_after_blood_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs2AfterBloodWeightCoil, "hs2_after_blood_weight", (CancellationToken t) => HandleWeightFlowAsync(22, 23, _signals.AllowHs2AfterBloodWeightCoil, _signals.Hs2AfterBloodWeightOkCoil,  "顶空2加血液后", "hs2_after_blood_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs1AfterButanolWeightCoil, "hs1_after_butanol_weight", (CancellationToken t) => HandleWeightFlowAsync(24, 25, _signals.AllowHs1AfterButanolWeightCoil, _signals.Hs1AfterButanolWeightOkCoil,  "顶空1加叔丁醇后", "hs1_after_butanol_weight", needWeightToZ: false, t), token);
+		await DetectRisingAndHandleAsync(_signals.AllowHs2AfterButanolWeightCoil, "hs2_after_butanol_weight", (CancellationToken t) => HandleWeightFlowAsync(26, 27, _signals.AllowHs2AfterButanolWeightCoil, _signals.Hs2AfterButanolWeightOkCoil,  "顶空2加叔丁醇后", "hs2_after_butanol_weight", needWeightToZ: false, t), token);
 	}
 
 	/// <summary>
@@ -273,48 +361,7 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
-	/// 轮询摇匀进度并输出阶段日志。
-	/// </summary>
-	/// By:ChengLei
-	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
-	/// <returns>返回摇匀进度轮询异步任务。</returns>
-	/// <remarks>
-	/// 由 MonitorEventsLoopAsync 在每个轮询周期调用。
-	/// </remarks>
-	private async Task PollShakeProgressAsync(CancellationToken token)
-	{
-		await TryLogShakeProgressAsync(_signals.AllowShakeTubeCoil, _signals.ShakeTubeTimeRegister, "步骤7 采血管摇匀", token);
-		await TryLogShakeProgressAsync(_signals.AllowShakeHs1Coil, _signals.ShakeHs1TimeRegister, "步骤8 顶空1摇匀", token);
-		await TryLogShakeProgressAsync(_signals.AllowShakeHs2Coil, _signals.ShakeHs2TimeRegister, "步骤9 顶空2摇匀", token);
-	}
-
-	/// <summary>
-	/// 按允许位读取摇匀时长并在变化时写日志。
-	/// </summary>
-	/// By:ChengLei
-	/// <param name="allowCoil">允许运行的触发线圈地址。</param>
-	/// <param name="timeRegister">摇匀时长寄存器地址。</param>
-	/// <param name="label">日志显示标签。</param>
-	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
-	/// <returns>返回摇匀进度记录异步任务。</returns>
-	/// <remarks>
-	/// 由 PollShakeProgressAsync 分别针对采血管、顶空1、顶空2调用。
-	/// </remarks>
-	private async Task TryLogShakeProgressAsync(ushort allowCoil, ushort timeRegister, string label, CancellationToken token)
-	{
-		if (await ReadCoilAsync(allowCoil, token))
-		{
-			ushort value = await ReadRegisterAsync(timeRegister, token);
-			if (!_lastShakeValue.TryGetValue(timeRegister, out var last) || last != value)
-			{
-				_lastShakeValue[timeRegister] = value;
-				WriteWorkflowLog($"{label} 当前时长={value}s", "信息", "检测日志", GetCurrentTubeIndex());
-			}
-		}
-	}
-
-	/// <summary>
-	/// 处理扫码流程：扫码、等待扫码OK、清零天平、下发摇匀时长。
+	/// 处理扫码流程：扫码、等待扫码OK、清零天平。
 	/// </summary>
 	/// By:ChengLei
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
@@ -335,16 +382,13 @@ public class WorkflowEngine
 				code = $"UNKNOWN_{DateTime.Now:HHmmss}";
 			}
 			_currentScanCode = code.Trim();
-			WriteWorkflowLog($"步骤3 扫码成功：{code}，映射 {code}A/{code}B", "信息", "检测日志", tubeIndex, _currentScanCode);
+			WriteWorkflowLog($"步骤3 扫码成功：{code}，映射 {code}A/{code}B", "信息", "检测日志", tubeIndex, _currentScanCode, processName: "扫码", eventName: "扫码成功");
 			CurrentStep = 4;
 			await WaitForCoilTrueAsync(_signals.ScanOkCoil, "扫码OK", token);
-			WriteWorkflowLog($"步骤4 扫码OK=1：M{_signals.ScanOkCoil}", "信息", "检测日志", tubeIndex);
+			WriteWorkflowLog($"步骤4 扫码OK=1：M{_signals.ScanOkCoil}", "信息", "检测日志", tubeIndex, processName: "扫码", eventName: "扫码确认", plcValue: $"M{_signals.ScanOkCoil}=1");
 			CurrentStep = 5;
 			await ZeroBalanceAsync(token);
-			WriteWorkflowLog("步骤5 天平清零已执行。", "信息", "检测日志", tubeIndex);
-			CurrentStep = 6;
-			await WriteRegisterAsync(_signals.ShakeDurationRegister, ClampToUshort(_processParameters.ShakeDurationSeconds), token);
-			WriteWorkflowLog($"步骤6 摇匀时长已下发：D{_signals.ShakeDurationRegister}={_processParameters.ShakeDurationSeconds}s", "信息", "检测日志", tubeIndex);
+			WriteWorkflowLog("步骤5 天平清零已执行。", "信息", "检测日志", tubeIndex, processName: "天平清零", eventName: "清零完成");
 		}
 		finally
 		{
@@ -369,7 +413,7 @@ public class WorkflowEngine
 	/// <remarks>
 	/// 由 PollRisingEdgeAndDispatchAsync 针对各类称重触发位调用。
 	/// </remarks>
-	private async Task HandleWeightFlowAsync(int stepReadWeight, int stepWaitOk, ushort allowCoil, ushort okCoil, ushort weightRegister, string stepLabel, string weightStepKey, bool needWeightToZ, CancellationToken token)
+	private async Task HandleWeightFlowAsync(int stepReadWeight, int stepWaitOk, ushort allowCoil, ushort okCoil, string stepLabel, string weightStepKey, bool needWeightToZ, CancellationToken token)
 	{
 		await _weightLock.WaitAsync(token);
 		try
@@ -378,22 +422,19 @@ public class WorkflowEngine
 			CurrentStep = stepReadWeight;
 			await WaitForCoilTrueAsync(allowCoil, stepLabel + "允称重", token);
 			double weight = await ReadWeightAsync(token);
+			string headspaceBottleTag = ResolveHeadspaceBottleTag(weightStepKey);
 			if (needWeightToZ)
 			{
 				int zRaw = ComputeZRawFromWeight(weight);
-				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，换算Z={zRaw}（吸液步骤，下发Z坐标）", "信息", "检测日志", tubeIndex, scanCode: null, weightStepKey: weightStepKey, measuredWeight: weight);
+				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，换算Z={zRaw}（吸液步骤，下发Z坐标）", "信息", "检测日志", tubeIndex, scanCode: null, weightStepKey: weightStepKey, measuredWeight: weight, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "称重完成", plcValue: weight.ToString("F3"));
 				int stepWeightToZ = (CurrentStep = ((stepReadWeight == 14) ? 15 : 18));
 				await WriteInt32AtAddressAsync(_signals.ZAbsolutePositionLowRegister, zRaw, token);
-				WriteWorkflowLog($"步骤{stepWeightToZ} 重量->Z下发：D{_signals.ZAbsolutePositionLowRegister}/D{_signals.ZAbsolutePositionLowRegister + 1}={zRaw}", "信息", "检测日志", tubeIndex);
+				WriteWorkflowLog($"步骤{stepWeightToZ} 重量->Z下发：D{_signals.ZAbsolutePositionLowRegister}/D{_signals.ZAbsolutePositionLowRegister + 1}={zRaw}", "信息", "检测日志", tubeIndex, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "Z坐标下发", plcValue: zRaw.ToString());
 				await Task.Delay(100, token);
-			}
-			else
-			{
-				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，仅记录显示（不下发PLC，D{weightRegister}仅作配置占位）", "信息", "检测日志", tubeIndex, scanCode: null, weightStepKey: weightStepKey, measuredWeight: weight);
 			}
 			CurrentStep = stepWaitOk;
 			await WaitForCoilTrueAsync(okCoil, stepLabel + "OK", token);
-			WriteWorkflowLog($"步骤{stepWaitOk} {stepLabel}OK=1：M{okCoil}", "信息", "检测日志", tubeIndex);
+			WriteWorkflowLog($"步骤{stepWaitOk} {stepLabel}OK=1：M{okCoil}", "信息", "检测日志", tubeIndex, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "步骤确认", plcValue: $"M{okCoil}=1");
 		}
 		finally
 		{
@@ -716,35 +757,6 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
-	/// 写入单个PLC保持寄存器。
-	/// </summary>
-	/// By:ChengLei
-	/// <param name="address">PLC地址。</param>
-	/// <param name="value">待写入或待转换的数值。</param>
-	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
-	/// <returns>返回寄存器写入异步任务。</returns>
-	/// <remarks>
-	/// 由扫码流程下发摇匀时长时调用。
-	/// </remarks>
-	private async Task WriteRegisterAsync(ushort address, ushort value, CancellationToken token)
-	{
-		EnsurePlcReady();
-		await _plcLock.WaitAsync(token);
-		try
-		{
-			(bool Success, string Error) write = await _plc!.TryWriteSingleRegisterAsync(address, value);
-			if (!write.Success)
-			{
-				throw new InvalidOperationException(write.Error);
-			}
-		}
-		finally
-		{
-			_plcLock.Release();
-		}
-	}
-
-	/// <summary>
 	/// 把32位值拆分后写入连续两个寄存器。
 	/// </summary>
 	/// By:ChengLei
@@ -829,28 +841,6 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
-	/// 将数值裁剪并四舍五入为ushort。
-	/// </summary>
-	/// By:ChengLei
-	/// <param name="value">待写入或待转换的数值。</param>
-	/// <returns>返回裁剪后的ushort值。</returns>
-	/// <remarks>
-	/// 由 HandleScanFlowAsync 下发摇匀时长前调用。
-	/// </remarks>
-	private static ushort ClampToUshort(double value)
-	{
-		if (value <= 0.0)
-		{
-			return 0;
-		}
-		if (value >= 65535.0)
-		{
-			return ushort.MaxValue;
-		}
-		return (ushort)Math.Round(value, MidpointRounding.AwayFromZero);
-	}
-
-	/// <summary>
 	/// 校验PLC对象是否已就绪。
 	/// </summary>
 	/// By:ChengLei
@@ -928,6 +918,49 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
+	/// 根据流程步骤键解析对应的顶空瓶标识
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="weightStepKey">流程步骤键</param>
+	/// <returns>返回 A B 或空字符串</returns>
+	/// <remarks>
+	/// 由称重与摇匀结构化日志组装流程调用
+	/// </remarks>
+	private static string ResolveHeadspaceBottleTag(string? weightStepKey)
+	{
+		if (string.IsNullOrWhiteSpace(weightStepKey))
+		{
+			return string.Empty;
+		}
+
+		if (weightStepKey.Contains("hs1", StringComparison.OrdinalIgnoreCase))
+		{
+			return "A";
+		}
+
+		if (weightStepKey.Contains("hs2", StringComparison.OrdinalIgnoreCase))
+		{
+			return "B";
+		}
+
+		return string.Empty;
+	}
+
+	/// <summary>
+	/// 解析当前流程应使用的批次号文本
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回当前批次号 未设置时返回占位批次名</returns>
+	/// <remarks>
+	/// 由流程日志落盘与事件推送统一获取批次上下文时调用
+	/// </remarks>
+	private string ResolveBatchNo()
+	{
+		string? batchNo = _batchNoProvider();
+		return string.IsNullOrWhiteSpace(batchNo) ? "批次_未开始" : batchNo.Trim();
+	}
+
+	/// <summary>
 	/// 写入流程日志并推送到界面订阅事件。
 	/// </summary>
 	/// By:ChengLei
@@ -938,16 +971,21 @@ public class WorkflowEngine
 	/// <param name="scanCode">可选扫码值，空时使用当前流程扫码值。</param>
 	/// <param name="weightStepKey">可选称重步骤标识，空值表示非称重日志。</param>
 	/// <param name="measuredWeight">可选称重值（g），空值表示非称重日志。</param>
+	/// <param name="headspaceBottleTag">可选顶空瓶标识 A或B 空值表示采血管主线。</param>
+	/// <param name="processName">可选工序名称。</param>
+	/// <param name="eventName">可选事件名称。</param>
+	/// <param name="plcValue">可选 PLC 值或关键值文本。</param>
+	/// <param name="durationSeconds">可选持续时长 秒。</param>
 	/// <remarks>
 	/// 由流程各步骤调用，并通过 OnLogGenerated 推送到首页日志。
 	/// </remarks>
-	private void WriteWorkflowLog(string message, string levelText = "信息", string logKind = "普通操作日志", int? tubeIndex = null, string? scanCode = null, string? weightStepKey = null, double? measuredWeight = null)
+	private void WriteWorkflowLog(string message, string levelText = "信息", string logKind = "普通操作日志", int? tubeIndex = null, string? scanCode = null, string? weightStepKey = null, double? measuredWeight = null, string? headspaceBottleTag = null, string? processName = null, string? eventName = null, string? plcValue = null, double? durationSeconds = null)
 	{
 		DateTime now = DateTime.Now;
-		string batchNo = now.ToString("yyyyMMdd");
+		string batchNo = ResolveBatchNo();
 		int num = NormalizeTubeIndex(tubeIndex);
-		string text = string.IsNullOrWhiteSpace(scanCode) ? _currentScanCode : scanCode.Trim();
-		_logTool.WriteLog("WorkflowEngine", logKind, levelText, message, batchNo, 0, num, now);
+		string text = string.IsNullOrWhiteSpace(scanCode) ? string.Empty : scanCode.Trim();
+		_logTool.WriteLog("WorkflowEngine", logKind, levelText, message, batchNo, num, now);
 		try
 		{
 			this.OnLogGenerated?.Invoke(new WorkflowLogMessage
@@ -959,7 +997,13 @@ public class WorkflowEngine
 				TubeIndex = num,
 				ScanCode = text,
 				WeightStepKey = weightStepKey ?? string.Empty,
-				MeasuredWeight = measuredWeight
+				MeasuredWeight = measuredWeight,
+				BatchNo = batchNo,
+				HeadspaceBottleTag = headspaceBottleTag ?? string.Empty,
+				ProcessName = processName ?? string.Empty,
+				EventName = eventName ?? string.Empty,
+				PlcValue = plcValue ?? string.Empty,
+				DurationSeconds = durationSeconds
 			});
 		}
 		catch

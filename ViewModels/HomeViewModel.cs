@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -346,6 +348,10 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private const int NeedleHeadUsedCountRegisterOffset = 19;
 
+	private const int TubeShakeCurrentProductionRegisterOffset = 1;
+
+	private const int HeadspaceShakeCurrentProductionRegisterOffset = 2;
+
 	private static readonly Brush ActiveSlotFill = BrushFromHex("#005ECC");
 
 	private static readonly Brush ActiveSlotText = Brushes.White;
@@ -366,15 +372,17 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private const string ExportPathConfigFileName = "HomeExportPathConfig.json";
 
+	private const string BatchCounterConfigFileName = "HomeLogBatchCounterConfig.json";
+
 	private readonly ConfigService<HomeExportPathConfig> _exportPathConfigService = new ConfigService<HomeExportPathConfig>("HomeExportPathConfig.json");
+
+	private readonly ConfigService<HomeLogBatchCounterConfig> _batchCounterConfigService = new ConfigService<HomeLogBatchCounterConfig>(BatchCounterConfigFileName);
 
 	private readonly ConfigService<ProcessParameterConfig> _processParameterConfigService = new ConfigService<ProcessParameterConfig>(ProcessParameterConfigFileName);
 
 	private readonly ConfigService<WeightToZCalibrationConfig> _weightToZConfigService = new ConfigService<WeightToZCalibrationConfig>(WeightToZConfigFileName);
 
 	private LogTool _logTool = new LogTool();
-
-	private readonly string _logSessionId = $"RUN_{DateTime.Now:yyyyMMdd_HHmmss}";
 
 	private readonly List<HomeLogItemViewModel> _allLogs = new List<HomeLogItemViewModel>();
 
@@ -406,7 +414,17 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private readonly HashSet<int> _headspaceCompletedSlots = new HashSet<int>();
 
+	private readonly Dictionary<int, TubeContext> _tubeContexts = new Dictionary<int, TubeContext>();
+
+	private readonly ConcurrentQueue<TubeProcessEvent> _tubeProcessEvents = new ConcurrentQueue<TubeProcessEvent>();
+
+	private readonly SemaphoreSlim _tubeProcessEventSignal = new SemaphoreSlim(0);
+
 	private int _usedNeedleHeadCount;
+
+	private int _lastTubeShakeProductionNumber;
+
+	private int _lastHeadspaceShakeProductionNumber;
 
 	private bool _isInitializing;
 
@@ -450,9 +468,17 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private string _exportDirectory = string.Empty;
 
+	private string _currentBatchNo = string.Empty;
+
 	private int _selectedTubeCount;
 
 	private int _selectedHeadspaceCount;
+
+	private int _selectedDetailTubeIndex;
+
+	private CancellationTokenSource? _tubeProcessEventCts;
+
+	private Task? _tubeProcessEventTask;
 
 	private bool _showSystemLogs = true;
 
@@ -1027,6 +1053,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		RegisterCorePlcPollingPoints();
 		CommunicationManager.OnLogReceived += OnCommunicationLogReceived;
 		_workflowEngine.OnLogGenerated += OnWorkflowLogGenerated;
+		StartTubeProcessEventLoop();
 		StartAlarmMonitor();
 		StartProcessModeMonitor();
 		StartRackProcessMonitor();
@@ -1207,6 +1234,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		Directory.CreateDirectory(text);
 		ExportDirectory = text;
 		_logTool = new LogTool(text);
+		_workflowEngine.ConfigureLogOutput(_logTool, GetCurrentBatchNoForLogging);
 		if (saveToConfig)
 		{
 			_exportPathConfigService.Save(new HomeExportPathConfig
@@ -1464,12 +1492,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			}
 			else if (await TrySendStartPulseByPreconditionsAsync())
 			{
+				ClearTubeProcessRuntimeState();
+				_currentBatchNo = AllocateNextBatchNo();
 				_isDetectionStarted = true;
 				RefreshDetectionCommandStates();
 				_workflowEngine.Start();
 				StartTubeCountSync();
 				CountRuleText = "检测已开始：只能增加采血管数量，不能减少。";
-				AddLog(HomeLogLevel.Info, HomeLogSource.Process, HomeLogKind.Detection, $"开始检测：采血管{_selectedTubeCount}，顶空瓶{_selectedHeadspaceCount}。");
+				AddLog(HomeLogLevel.Info, HomeLogSource.Process, HomeLogKind.Detection, $"开始检测：{_currentBatchNo}，采血管{_selectedTubeCount}，顶空瓶{_selectedHeadspaceCount}。");
 			}
 		}
 		finally
@@ -1496,6 +1526,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_isDetectionStarted = false;
 		RefreshDetectionCommandStates();
 		StopTubeCountSync();
+		ClearTubeProcessRuntimeState();
 		ClearRackProcessStates();
 		_workflowEngine.Stop();
 		_ = SendStopSignalToPlcAsync();
@@ -1515,6 +1546,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_isDetectionStarted = false;
 		RefreshDetectionCommandStates();
 		StopTubeCountSync();
+		ClearTubeProcessRuntimeState();
 		ClearRackProcessStates();
 		_workflowEngine.Stop();
 		_ = SendEmergencyStopSignalToPlcAsync();
@@ -1553,13 +1585,279 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			int number = slot.Number;
 			if (_isDetectionStarted)
 			{
-				AddLog(HomeLogLevel.Warning, HomeLogSource.Process, HomeLogKind.Detection, $"检测中禁止减少数量：当前{_selectedTubeCount}，请求{number}。", number);
+				_selectedDetailTubeIndex = number;
+				RefreshSelectedTubeDetails();
 			}
 			else
 			{
+				_selectedDetailTubeIndex = number;
 				ApplyCount(number, writeLog: false);
+				RefreshSelectedTubeDetails();
 			}
 		}
+	}
+
+	/// <summary>
+	/// 启动采血管事件串行处理后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由构造流程调用，用于统一串行处理流程日志、寄存器事件和单管详情刷新。
+	/// </remarks>
+	private void StartTubeProcessEventLoop()
+	{
+		StopTubeProcessEventLoop();
+		_tubeProcessEventCts = new CancellationTokenSource();
+		_tubeProcessEventTask = Task.Run(() => TubeProcessEventLoopAsync(_tubeProcessEventCts.Token));
+	}
+
+	/// <summary>
+	/// 停止采血管事件串行处理后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由停止检测和释放流程调用，防止后台消费者泄漏。
+	/// </remarks>
+	private void StopTubeProcessEventLoop()
+	{
+		_tubeProcessEventCts?.Cancel();
+		_tubeProcessEventCts?.Dispose();
+		_tubeProcessEventCts = null;
+		_tubeProcessEventTask = null;
+	}
+
+	/// <summary>
+	/// 往采血管事件队列追加一条待处理事件。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="tubeEvent">待处理事件。</param>
+	/// <remarks>
+	/// 由流程日志与料架工序监控统一调用，后续由单线程消费者串行处理。
+	/// </remarks>
+	private void EnqueueTubeProcessEvent(TubeProcessEvent tubeEvent)
+	{
+		if (tubeEvent == null || tubeEvent.TubeIndex <= 0)
+		{
+			return;
+		}
+
+		_tubeProcessEvents.Enqueue(tubeEvent);
+		_tubeProcessEventSignal.Release();
+	}
+
+	/// <summary>
+	/// 串行消费采血管事件并更新上下文。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌，用于停止后台消费者。</param>
+	/// <returns>返回后台循环任务。</returns>
+	/// <remarks>
+	/// 由 StartTubeProcessEventLoop 启动，保证同一批次内所有归属更新按事件顺序执行。
+	/// </remarks>
+	private async Task TubeProcessEventLoopAsync(CancellationToken token)
+	{
+		while (!token.IsCancellationRequested)
+		{
+			try
+			{
+				await _tubeProcessEventSignal.WaitAsync(token);
+				while (_tubeProcessEvents.TryDequeue(out TubeProcessEvent? tubeEvent))
+				{
+					ProcessTubeProcessEvent(tubeEvent);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				break;
+			}
+		}
+	}
+
+	/// <summary>
+	/// 处理单条采血管事件并同步上下文、日志和 CSV。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="tubeEvent">待处理事件。</param>
+	/// <remarks>
+	/// 由 TubeProcessEventLoopAsync 串行调用，确保上下文归属不受并发干扰。
+	/// </remarks>
+	private void ProcessTubeProcessEvent(TubeProcessEvent tubeEvent)
+	{
+		TubeContext context = GetOrCreateTubeContext(tubeEvent.TubeIndex);
+		ApplyTubeEventToContext(context, tubeEvent);
+		if (_selectedDetailTubeIndex <= 0)
+		{
+			_selectedDetailTubeIndex = tubeEvent.TubeIndex;
+		}
+
+		AppendTubeTraceRecord(tubeEvent.Timestamp, tubeEvent.BatchNo, context, ResolveHeadspaceCode(context, tubeEvent), tubeEvent.ProcessName, tubeEvent.EventName, tubeEvent.PlcValue, tubeEvent.DurationSeconds, tubeEvent.Note);
+		AddLog(tubeEvent.HomeLogLevel, tubeEvent.HomeLogSource, tubeEvent.HomeLogKind, tubeEvent.HomeLogMessage, tubeEvent.TubeIndex, tubeEvent.PersistHomeLogToFile);
+		RefreshSelectedTubeDetails();
+	}
+
+	/// <summary>
+	/// 获取指定采血管序号对应的上下文，不存在时自动创建占位上下文。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="tubeIndex">采血管序号。</param>
+	/// <returns>返回对应上下文对象。</returns>
+	/// <remarks>
+	/// 由事件串行处理流程调用，所有未识别事件也会落入自己的占位上下文。
+	/// </remarks>
+	private TubeContext GetOrCreateTubeContext(int tubeIndex)
+	{
+		if (!_tubeContexts.TryGetValue(tubeIndex, out TubeContext? context))
+		{
+			context = new TubeContext
+			{
+				TubeIndex = tubeIndex
+			};
+			_tubeContexts[tubeIndex] = context;
+		}
+
+		return context;
+	}
+
+	/// <summary>
+	/// 将事件应用到采血管上下文。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="context">待更新上下文。</param>
+	/// <param name="tubeEvent">事件对象。</param>
+	/// <remarks>
+	/// 由 ProcessTubeProcessEvent 调用，统一维护编码、A/B重量、体积和最近工序信息。
+	/// </remarks>
+	private void ApplyTubeEventToContext(TubeContext context, TubeProcessEvent tubeEvent)
+	{
+		if (!string.IsNullOrWhiteSpace(tubeEvent.ScanCode))
+		{
+			string scanCode = tubeEvent.ScanCode.Trim();
+			context.TubeCode = scanCode;
+			context.HeadspaceACode = scanCode + "+A";
+			context.HeadspaceBCode = scanCode + "+B";
+			context.IsRecognized = true;
+			context.IsPlaceholder = false;
+		}
+
+		context.LatestProcessName = tubeEvent.ProcessName;
+		context.LatestEventName = tubeEvent.EventName;
+		context.LastUpdatedAt = tubeEvent.Timestamp;
+		context.IsCompleted = string.Equals(tubeEvent.EventName, "完成", StringComparison.Ordinal);
+		ApplyWeightToTubeContext(context, tubeEvent);
+	}
+
+	/// <summary>
+	/// 根据称重事件刷新采血管上下文中的重量和体积数据。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="context">待更新上下文。</param>
+	/// <param name="tubeEvent">包含称重信息的事件。</param>
+	/// <remarks>
+	/// 由 ApplyTubeEventToContext 调用，仅处理已携带称重值的流程事件。
+	/// </remarks>
+	private void ApplyWeightToTubeContext(TubeContext context, TubeProcessEvent tubeEvent)
+	{
+		if (!tubeEvent.MeasuredWeight.HasValue)
+		{
+			return;
+		}
+
+		string weightText = tubeEvent.MeasuredWeight.Value.ToString("F3", CultureInfo.InvariantCulture);
+		switch (tubeEvent.WeightStepKey)
+		{
+			case "hs1_after_blood_weight":
+				context.HeadspaceASampleWeight = weightText;
+				break;
+			case "hs1_after_butanol_weight":
+				context.HeadspaceAButanolWeight = weightText;
+				break;
+			case "hs2_after_blood_weight":
+				context.HeadspaceBSampleWeight = weightText;
+				break;
+			case "hs2_after_butanol_weight":
+				context.HeadspaceBButanolWeight = weightText;
+				break;
+		}
+
+		if (IsTubeWeightStep(tubeEvent.WeightStepKey) && TryBuildSampleVolumeText(tubeEvent.MeasuredWeight.Value, out string sampleVolume))
+		{
+			context.SampleVolume = sampleVolume;
+		}
+	}
+
+	/// <summary>
+	/// 根据当前选中的采血管上下文刷新首页详情显示。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由采血管选择和事件串行处理流程调用，首页详情始终只显示选中采血管的数据。
+	/// </remarks>
+	private void RefreshSelectedTubeDetails()
+	{
+		if (!IsOnUiThread())
+		{
+			RunOnUiThread(RefreshSelectedTubeDetails);
+			return;
+		}
+
+		if (_selectedDetailTubeIndex > 0 && _tubeContexts.TryGetValue(_selectedDetailTubeIndex, out TubeContext? context))
+		{
+			ScanCode = context.TubeCode;
+			SampleVolume = context.SampleVolume;
+			HeadspaceASampleWeight = context.HeadspaceASampleWeight;
+			HeadspaceAButanolWeight = context.HeadspaceAButanolWeight;
+			HeadspaceBSampleWeight = context.HeadspaceBSampleWeight;
+			HeadspaceBButanolWeight = context.HeadspaceBButanolWeight;
+			return;
+		}
+
+		ScanCode = "未识别";
+		SampleVolume = "0";
+		HeadspaceASampleWeight = "0.0";
+		HeadspaceAButanolWeight = "0.0";
+		HeadspaceBSampleWeight = "0.0";
+		HeadspaceBButanolWeight = "0.0";
+	}
+
+	/// <summary>
+	/// 根据称重值换算首页体积显示文本。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="measuredWeight">称重值 克。</param>
+	/// <param name="sampleVolume">输出体积显示文本。</param>
+	/// <returns>返回是否换算成功。</returns>
+	/// <remarks>
+	/// 由 ApplyWeightToTubeContext 调用，统一复用重量转微升系数配置。
+	/// </remarks>
+	private bool TryBuildSampleVolumeText(double measuredWeight, out string sampleVolume)
+	{
+		sampleVolume = "0";
+		if (!TryGetMicroliterPerWeight(out double microliterPerWeight))
+		{
+			return false;
+		}
+
+		double microliter = Math.Max(0.0, measuredWeight * microliterPerWeight);
+		sampleVolume = microliter.ToString("F1", CultureInfo.InvariantCulture);
+		return true;
+	}
+
+	/// <summary>
+	/// 清理当前批次的采血管上下文和事件队列状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由开始新批次 停止检测 和 急停流程调用，避免旧批次上下文串入新批次。
+	/// </remarks>
+	private void ClearTubeProcessRuntimeState()
+	{
+		_tubeContexts.Clear();
+		_selectedDetailTubeIndex = 0;
+		while (_tubeProcessEvents.TryDequeue(out _))
+		{
+		}
+
+		RefreshSelectedTubeDetails();
 	}
 
 	/// <summary>
@@ -1760,6 +2058,10 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		HashSet<int> headspaceRunning = ExtractSlotsFromRegisters(registers, HeadspaceRunningRegisterOffsets, MaxHeadspaceCount);
 		HashSet<int> headspaceCompleted = ExtractSlotsFromRegisters(registers, HeadspaceCompletedRegisterOffsets, MaxHeadspaceCount);
 		int usedNeedleHeadCount = ExtractNeedleHeadUsedCount(registers);
+		int tubeShakeProductionNumber = ExtractProductionNumber(registers, TubeShakeCurrentProductionRegisterOffset, MaxTubeCount);
+		int headspaceShakeProductionNumber = ExtractProductionNumber(registers, HeadspaceShakeCurrentProductionRegisterOffset, MaxHeadspaceCount);
+
+		RecordShakeProductionChanges(tubeShakeProductionNumber, headspaceShakeProductionNumber);
 
 		bool changed = ReplaceSlotSet(_tubeRunningSlots, tubeRunning);
 		changed |= ReplaceSlotSet(_tubeCompletedSlots, tubeCompleted);
@@ -1770,6 +2072,41 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		{
 			UpdateRackVisuals();
 		}
+	}
+
+	/// <summary>
+	/// 获取当前日志使用的批次号文本
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回当前批次号 未开始时返回占位批次名</returns>
+	/// <remarks>
+	/// 由首页日志与流程日志统一获取当前批次上下文时调用
+	/// </remarks>
+	private string GetCurrentBatchNoForLogging()
+	{
+		return string.IsNullOrWhiteSpace(_currentBatchNo) ? "批次_未开始" : _currentBatchNo;
+	}
+
+	/// <summary>
+	/// 为新一轮成功启动的检测流程分配批次号
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回当天新的批次号文本</returns>
+	/// <remarks>
+	/// 仅在开始检测成功后调用 校验失败不会占用批次序号
+	/// </remarks>
+	private string AllocateNextBatchNo()
+	{
+		string today = DateTime.Now.ToString("yyyy-MM-dd");
+		HomeLogBatchCounterConfig config = _batchCounterConfigService.Load() ?? new HomeLogBatchCounterConfig();
+		int nextNumber = string.Equals(config.LastBatchDate, today, StringComparison.Ordinal)
+			? Math.Max(0, config.LastBatchNumber) + 1
+			: 1;
+
+		config.LastBatchDate = today;
+		config.LastBatchNumber = nextNumber;
+		_batchCounterConfigService.Save(config);
+		return $"批次_{nextNumber:000}";
 	}
 
 	/// <summary>
@@ -1817,6 +2154,160 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 
 		return Math.Clamp((int)registers[NeedleHeadUsedCountRegisterOffset], 0, MaxNeedleHeadCount);
+	}
+
+	/// <summary>
+	/// 从寄存器集合提取指定工序的当前生产号。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="registers">读取到的寄存器集合。</param>
+	/// <param name="offset">对应 D233 起始区间的偏移。</param>
+	/// <param name="maxNumber">允许的最大生产号。</param>
+	/// <returns>返回归一化后的当前生产号，无效时返回 0。</returns>
+	/// <remarks>
+	/// 由 ApplyRackProcessRegisters 在摇晃工序日志提取时调用。
+	/// </remarks>
+	private static int ExtractProductionNumber(IReadOnlyList<ushort> registers, int offset, int maxNumber)
+	{
+		if (offset < 0 || offset >= registers.Count)
+		{
+			return 0;
+		}
+
+		return Math.Clamp((int)registers[offset], 0, maxNumber);
+	}
+
+	/// <summary>
+	/// 根据摇晃当前生产号变化记录首页日志和单管轨迹。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="tubeShakeProductionNumber">采血管摇晃当前生产号。</param>
+	/// <param name="headspaceShakeProductionNumber">顶空瓶摇晃当前生产号。</param>
+	/// <remarks>
+	/// 由 ApplyRackProcessRegisters 调用，仅在编号变化时写入日志和 CSV。
+	/// </remarks>
+	private void RecordShakeProductionChanges(int tubeShakeProductionNumber, int headspaceShakeProductionNumber)
+	{
+		RecordTubeShakeProductionChange(tubeShakeProductionNumber);
+		RecordHeadspaceShakeProductionChange(headspaceShakeProductionNumber);
+	}
+
+	/// <summary>
+	/// 记录采血管摇晃当前生产号变化。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="tubeShakeProductionNumber">采血管摇晃当前生产号。</param>
+	/// <remarks>
+	/// 由 RecordShakeProductionChanges 调用，变化为正数时写入对应管号日志。
+	/// </remarks>
+	private void RecordTubeShakeProductionChange(int tubeShakeProductionNumber)
+	{
+		if (_lastTubeShakeProductionNumber == tubeShakeProductionNumber)
+		{
+			return;
+		}
+
+		_lastTubeShakeProductionNumber = tubeShakeProductionNumber;
+		if (!_isDetectionStarted || tubeShakeProductionNumber <= 0)
+		{
+			return;
+		}
+
+		string message = $"采血管摇晃当前生产号={tubeShakeProductionNumber}。";
+		EnqueueTubeProcessEvent(new TubeProcessEvent
+		{
+			Timestamp = DateTime.Now,
+			BatchNo = GetCurrentBatchNoForLogging(),
+			TubeIndex = tubeShakeProductionNumber,
+			ProcessName = "采血管摇匀",
+			EventName = "摇晃编号",
+			PlcValue = tubeShakeProductionNumber.ToString(CultureInfo.InvariantCulture),
+			Note = message,
+			HomeLogLevel = HomeLogLevel.Info,
+			HomeLogSource = HomeLogSource.Process,
+			HomeLogKind = HomeLogKind.Detection,
+			HomeLogMessage = message,
+			PersistHomeLogToFile = true
+		});
+	}
+
+	/// <summary>
+	/// 记录顶空瓶摇晃当前生产号变化。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="headspaceShakeProductionNumber">顶空瓶摇晃当前生产号。</param>
+	/// <remarks>
+	/// 由 RecordShakeProductionChanges 调用，按奇偶号映射到同一采血管的 A/B 顶空瓶。
+	/// </remarks>
+	private void RecordHeadspaceShakeProductionChange(int headspaceShakeProductionNumber)
+	{
+		if (_lastHeadspaceShakeProductionNumber == headspaceShakeProductionNumber)
+		{
+			return;
+		}
+
+		_lastHeadspaceShakeProductionNumber = headspaceShakeProductionNumber;
+		if (!_isDetectionStarted || headspaceShakeProductionNumber <= 0)
+		{
+			return;
+		}
+
+		int tubeIndex = (headspaceShakeProductionNumber + 1) / 2;
+		string headspaceBottleTag = ((headspaceShakeProductionNumber % 2 != 0) ? "A" : "B");
+		string message = $"顶空瓶摇晃当前生产号={headspaceShakeProductionNumber}，对应采血管{tubeIndex}{headspaceBottleTag}。";
+		EnqueueTubeProcessEvent(new TubeProcessEvent
+		{
+			Timestamp = DateTime.Now,
+			BatchNo = GetCurrentBatchNoForLogging(),
+			TubeIndex = tubeIndex,
+			HeadspaceBottleTag = headspaceBottleTag,
+			ProcessName = "顶空瓶摇匀",
+			EventName = "摇晃编号",
+			PlcValue = headspaceShakeProductionNumber.ToString(CultureInfo.InvariantCulture),
+			Note = message,
+			HomeLogLevel = HomeLogLevel.Info,
+			HomeLogSource = HomeLogSource.Process,
+			HomeLogKind = HomeLogKind.Detection,
+			HomeLogMessage = message,
+			PersistHomeLogToFile = true
+		});
+	}
+
+	/// <summary>
+	/// 追加一条单管轨迹 CSV 记录。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="timestamp">记录时间。</param>
+	/// <param name="tubeIndex">采血管号。</param>
+	/// <param name="headspaceBottleTag">顶空瓶标识。</param>
+	/// <param name="processName">工序名称。</param>
+	/// <param name="eventName">事件名称。</param>
+	/// <param name="plcValue">PLC值文本。</param>
+	/// <param name="durationSeconds">持续时长秒。</param>
+	/// <param name="note">备注文本。</param>
+	/// <remarks>
+	/// 由摇晃当前生产号变化和流程结构化日志追加流程统一复用。
+	/// </remarks>
+	private void AppendTubeTraceRecord(DateTime timestamp, string batchNo, TubeContext context, string headspaceCode, string processName, string eventName, string plcValue, double? durationSeconds, string note)
+	{
+		if (context == null || context.TubeIndex <= 0)
+		{
+			return;
+		}
+
+		_logTool.AppendTubeTraceCsv(new TubeTraceCsvRecord
+		{
+			Timestamp = timestamp,
+			BatchNo = string.IsNullOrWhiteSpace(batchNo) ? GetCurrentBatchNoForLogging() : batchNo,
+			TubeIndex = context.TubeIndex,
+			TubeCode = context.TubeCode,
+			HeadspaceCode = headspaceCode,
+			ProcessName = processName,
+			EventName = eventName,
+			PlcValue = plcValue,
+			DurationSeconds = durationSeconds,
+			Note = note
+		});
 	}
 
 	/// <summary>
@@ -1878,7 +2369,9 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			_tubeCompletedSlots.Count == 0 &&
 			_headspaceRunningSlots.Count == 0 &&
 			_headspaceCompletedSlots.Count == 0 &&
-			_usedNeedleHeadCount == 0)
+			_usedNeedleHeadCount == 0 &&
+			_lastTubeShakeProductionNumber == 0 &&
+			_lastHeadspaceShakeProductionNumber == 0)
 		{
 			return;
 		}
@@ -1888,6 +2381,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		_headspaceRunningSlots.Clear();
 		_headspaceCompletedSlots.Clear();
 		_usedNeedleHeadCount = 0;
+		_lastTubeShakeProductionNumber = 0;
+		_lastHeadspaceShakeProductionNumber = 0;
 		UpdateRackVisuals();
 	}
 
@@ -2680,7 +3175,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			SourceText = x.SourceText,
 			KindText = x.KindText
 		}).ToList();
-		IReadOnlyList<string> readOnlyList = _logTool.ExportCsvByTube(records, _logSessionId, _selectedTubeCount, DateTime.Now);
+		IReadOnlyList<string> readOnlyList = _logTool.ExportCsvByTube(records, GetCurrentBatchNoForLogging(), DateTime.Now);
 		if (readOnlyList.Count == 0)
 		{
 			AddLog(HomeLogLevel.Warning, HomeLogSource.System, HomeLogKind.Operation, "没有可导出的日志。");
@@ -2709,7 +3204,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			SourceText = x.SourceText,
 			KindText = x.KindText
 		}).ToList();
-		IReadOnlyList<string> readOnlyList = _logTool.ExportCsvByTube(records, _logSessionId, _selectedTubeCount, DateTime.Now);
+		IReadOnlyList<string> readOnlyList = _logTool.ExportCsvByTube(records, GetCurrentBatchNoForLogging(), DateTime.Now);
 		if (readOnlyList.Count == 0)
 		{
 			AddLog(HomeLogLevel.Warning, HomeLogSource.System, HomeLogKind.Operation, "没有可导出的日志。");
@@ -2765,7 +3260,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 		if (persistToFile)
 		{
-			_logTool.WriteLog(homeLogItemViewModel.SourceText, homeLogItemViewModel.KindText, homeLogItemViewModel.LevelText, "采血管:" + homeLogItemViewModel.TubeText + " " + homeLogItemViewModel.Message, _logSessionId, _selectedTubeCount, homeLogItemViewModel.TubeIndex, homeLogItemViewModel.Timestamp);
+			_logTool.WriteLog(homeLogItemViewModel.SourceText, homeLogItemViewModel.KindText, homeLogItemViewModel.LevelText, "采血管:" + homeLogItemViewModel.TubeText + " " + homeLogItemViewModel.Message, GetCurrentBatchNoForLogging(), homeLogItemViewModel.TubeIndex, homeLogItemViewModel.Timestamp);
 		}
 		RecalculateCounters();
 		RefreshVisibleLogs();
@@ -2802,51 +3297,87 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	private void OnWorkflowLogGenerated(WorkflowEngine.WorkflowLogMessage log)
 	{
 		string? scanCode = string.IsNullOrWhiteSpace(log.ScanCode) ? ExtractScanCodeFromWorkflowMessage(log.Message) : log.ScanCode;
-		if (!string.IsNullOrWhiteSpace(scanCode))
-		{
-			RunOnUiThread(delegate
-			{
-				ScanCode = scanCode;
-			});
-		}
-		TryUpdateSampleVolumeFromWorkflowWeight(log);
 		HomeLogLevel level = ParseHomeLogLevel(log.LevelText);
 		HomeLogKind kind = ParseHomeLogKind(log.LogKind);
-		int? tubeIndex = (log.TubeIndex > 0) ? log.TubeIndex : null;
-		AddLog(level, HomeLogSource.Process, kind, "流程：" + log.Message, tubeIndex);
+		if (log.TubeIndex > 0)
+		{
+			EnqueueTubeProcessEvent(new TubeProcessEvent
+			{
+				Timestamp = log.Timestamp,
+				BatchNo = string.IsNullOrWhiteSpace(log.BatchNo) ? GetCurrentBatchNoForLogging() : log.BatchNo,
+				TubeIndex = log.TubeIndex,
+				HeadspaceBottleTag = log.HeadspaceBottleTag,
+				ScanCode = scanCode ?? string.Empty,
+				ProcessName = string.IsNullOrWhiteSpace(log.ProcessName) ? "流程日志" : log.ProcessName,
+				EventName = string.IsNullOrWhiteSpace(log.EventName) ? "记录" : log.EventName,
+				PlcValue = log.PlcValue,
+				DurationSeconds = log.DurationSeconds,
+				Note = log.Message,
+				MeasuredWeight = log.MeasuredWeight,
+				WeightStepKey = log.WeightStepKey,
+				HomeLogLevel = level,
+				HomeLogSource = HomeLogSource.Process,
+				HomeLogKind = kind,
+				HomeLogMessage = "流程：" + log.Message,
+				PersistHomeLogToFile = false
+			});
+			return;
+		}
+
+		AddLog(level, HomeLogSource.Process, kind, "流程：" + log.Message, null, persistToFile: false);
 	}
 
 	/// <summary>
-	/// 根据流程称重事件刷新采血管体积显示。
+	/// 判断流程称重步骤是否属于顶空瓶A事件。
 	/// </summary>
 	/// By:ChengLei
-	/// <param name="log">流程日志事件对象。</param>
+	/// <param name="weightStepKey">流程步骤键。</param>
+	/// <returns>返回是否属于顶空瓶A。</returns>
 	/// <remarks>
-	/// 由 OnWorkflowLogGenerated 调用，仅处理采血管放置和采血管吸液后的称重事件。
+	/// 由上下文归属与 CSV 顶空瓶编码解析流程调用。
 	/// </remarks>
-	private void TryUpdateSampleVolumeFromWorkflowWeight(WorkflowEngine.WorkflowLogMessage log)
+	private static bool IsHeadspaceAWeightStep(string? weightStepKey)
 	{
-		if (!log.MeasuredWeight.HasValue || !IsTubeWeightStep(log.WeightStepKey))
+		return !string.IsNullOrWhiteSpace(weightStepKey) && weightStepKey.Contains("hs1", StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// 判断流程称重步骤是否属于顶空瓶B事件。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="weightStepKey">流程步骤键。</param>
+	/// <returns>返回是否属于顶空瓶B。</returns>
+	/// <remarks>
+	/// 由上下文归属与 CSV 顶空瓶编码解析流程调用。
+	/// </remarks>
+	private static bool IsHeadspaceBWeightStep(string? weightStepKey)
+	{
+		return !string.IsNullOrWhiteSpace(weightStepKey) && weightStepKey.Contains("hs2", StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// 根据事件内容解析顶空瓶编码。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="context">当前采血管上下文。</param>
+	/// <param name="tubeEvent">当前事件对象。</param>
+	/// <returns>返回顶空瓶编码，非顶空瓶事件返回空。</returns>
+	/// <remarks>
+	/// 由 AppendTubeTraceRecord 调用，优先使用显式 A/B 标识，其次回退到称重步骤键推断。
+	/// </remarks>
+	private static string ResolveHeadspaceCode(TubeContext context, TubeProcessEvent tubeEvent)
+	{
+		if (string.Equals(tubeEvent.HeadspaceBottleTag, "A", StringComparison.OrdinalIgnoreCase) || IsHeadspaceAWeightStep(tubeEvent.WeightStepKey))
 		{
-			return;
+			return context.HeadspaceACode;
 		}
 
-		if (!TryGetMicroliterPerWeight(out double microliterPerWeight))
+		if (string.Equals(tubeEvent.HeadspaceBottleTag, "B", StringComparison.OrdinalIgnoreCase) || IsHeadspaceBWeightStep(tubeEvent.WeightStepKey))
 		{
-			if (!_sampleVolumeCoefficientWarningLogged)
-			{
-				_sampleVolumeCoefficientWarningLogged = true;
-				AddLog(HomeLogLevel.Warning, HomeLogSource.Process, HomeLogKind.Operation, "未找到有效重量转微升系数，无法刷新采血管体积显示。请先在重量到Z标定页面完成微升系数标定并保存。");
-			}
-			return;
+			return context.HeadspaceBCode;
 		}
 
-		_sampleVolumeCoefficientWarningLogged = false;
-		double microliter = Math.Max(0.0, log.MeasuredWeight.Value * microliterPerWeight);
-		RunOnUiThread(delegate
-		{
-			SampleVolume = microliter.ToString("F1");
-		});
+		return string.Empty;
 	}
 
 	/// <summary>
@@ -3311,6 +3842,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		CommunicationManager.OnLogReceived -= OnCommunicationLogReceived;
 		_workflowEngine.OnLogGenerated -= OnWorkflowLogGenerated;
 		StopTubeCountSync();
+		StopTubeProcessEventLoop();
 		StopAlarmMonitor();
 		StopProcessModeMonitor();
 		StopRackProcessMonitor();
