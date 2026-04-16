@@ -1,6 +1,7 @@
 using Blood_Alcohol.Communication.Serial;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,6 +40,7 @@ namespace Blood_Alcohol.Services
         private readonly Lx5vPlc _plc;
         private readonly SemaphoreSlim _plcLock;
         private readonly Func<bool> _isOnline;
+        private static readonly TimeSpan StopTimeout = TimeSpan.FromMilliseconds(1200);
 
         private CancellationTokenSource? _cts;
         private Task? _workerTask;
@@ -135,6 +137,20 @@ namespace Blood_Alcohol.Services
 
         public void Stop()
         {
+            StopAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// 异步停止 PLC 轮询服务并等待后台任务退出。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="token">取消令牌，用于中断停机等待。</param>
+        /// <returns>返回异步停机任务。</returns>
+        /// <remarks>
+        /// 由应用退出和 Dispose 调用，取消轮询后最多等待限定时间。
+        /// </remarks>
+        public async Task StopAsync(CancellationToken token = default)
+        {
             CancellationTokenSource? cts;
             Task? worker;
             lock (_syncRoot)
@@ -153,9 +169,26 @@ namespace Blood_Alcohol.Services
             cts.Cancel();
             try
             {
-                worker?.Wait(1200);
+                if (worker != null)
+                {
+                    await worker.WaitAsync(StopTimeout, token).ConfigureAwait(false);
+                }
             }
-            catch (AggregateException) { }
+            catch (TimeoutException)
+            {
+                Trace.TraceWarning($"PLC轮询服务停止超时（{StopTimeout.TotalMilliseconds:F0}ms）。");
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                Trace.TraceWarning("PLC轮询服务停机等待被取消。");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceWarning($"PLC轮询服务停止异常：{ex.Message}");
+            }
             finally
             {
                 cts.Dispose();

@@ -7,10 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Threading;
 using Blood_Alcohol.Logs;
 using Blood_Alcohol.Models;
 using Blood_Alcohol.Services;
@@ -370,6 +368,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private static readonly TimeSpan RackProcessPollInterval = TimeSpan.FromMilliseconds(300);
 
+	private static readonly TimeSpan BackgroundStopTimeout = TimeSpan.FromSeconds(2);
+
 	private const string ExportPathConfigFileName = "HomeExportPathConfig.json";
 
 	private const string BatchCounterConfigFileName = "HomeLogBatchCounterConfig.json";
@@ -386,7 +386,9 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private readonly List<HomeLogItemViewModel> _allLogs = new List<HomeLogItemViewModel>();
 
-	private readonly WorkflowEngine _workflowEngine = new WorkflowEngine();
+	private readonly WorkflowEngine _workflowEngine;
+
+	private readonly IUiDispatcher _uiDispatcher;
 
 	private readonly SemaphoreSlim _plcLock = CommunicationManager.PlcAccessLock;
 
@@ -995,7 +997,23 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 由 HomeView 初始化时调用，构造完成后会启动必要监控并绑定事件。
 	/// </remarks>
 	public HomeViewModel()
+		: this(new WorkflowEngine(), new WpfUiDispatcher())
 	{
+	}
+
+	/// <summary>
+	/// 初始化首页视图模型并注入核心依赖。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="workflowEngine">流程引擎实例。</param>
+	/// <param name="uiDispatcher">UI线程调度器。</param>
+	/// <remarks>
+	/// 由测试或未来组合根调用，默认构造函数仍使用生产依赖。
+	/// </remarks>
+	public HomeViewModel(WorkflowEngine workflowEngine, IUiDispatcher uiDispatcher)
+	{
+		_workflowEngine = workflowEngine ?? throw new ArgumentNullException(nameof(workflowEngine));
+		_uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
 		InitCommand = new RelayCommand(delegate
 		{
 			InitializeSystem();
@@ -1006,7 +1024,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}, (object? _) => !_isDetectionStarted && !_isStartCommandProcessing);
 		StopCommand = new RelayCommand(delegate
 		{
-			StopDetection();
+			_ = StopDetectionAsync();
 		}, (object? _) => _isDetectionStarted);
 		SaveCommand = new RelayCommand(delegate
 		{
@@ -1018,7 +1036,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		});
 		DemoCommand = new RelayCommand(delegate
 		{
-			EmergencyStop();
+			_ = EmergencyStopAsync();
 		});
 		TubeRackClickCommand = new RelayCommand(delegate(object? p)
 		{
@@ -1032,14 +1050,14 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		{
 			ExportLogs();
 		});
-		SwitchToAutoModeCommand = new RelayCommand(delegate(object? _)
-		{
-			_ = SwitchOperationModeAsync(OperationMode.Auto);
-		}, (object? _) => IsManualMode);
-		SwitchToManualModeCommand = new RelayCommand(delegate(object? _)
-		{
-			_ = SwitchOperationModeAsync(OperationMode.Manual);
-		}, (object? _) => IsAutoMode);
+		SwitchToAutoModeCommand = new AsyncRelayCommand(
+			() => SwitchOperationModeAsync(OperationMode.Auto),
+			() => IsManualMode,
+			ex => AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "档位切换失败：" + ex.Message));
+		SwitchToManualModeCommand = new AsyncRelayCommand(
+			() => SwitchOperationModeAsync(OperationMode.Manual),
+			() => IsAutoMode,
+			ex => AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "档位切换失败：" + ex.Message));
 		InitializeExportDirectory();
 		OperationModeService.ModeChanged += OnOperationModeChanged;
 		ApplyOperationMode(OperationModeService.CurrentMode, writeLog: false);
@@ -1502,6 +1520,21 @@ public class HomeViewModel : BaseViewModel, IDisposable
 				AddLog(HomeLogLevel.Info, HomeLogSource.Process, HomeLogKind.Detection, $"开始检测：{_currentBatchNo}，采血管{_selectedTubeCount}，顶空瓶{_selectedHeadspaceCount}。");
 			}
 		}
+		catch (Exception ex)
+		{
+			_isDetectionStarted = false;
+			RefreshDetectionCommandStates();
+			try
+			{
+				await EnsureStartCommandLowAsync();
+			}
+			catch (Exception stopEx)
+			{
+				AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "启动失败后复位 M5=0 失败：" + stopEx.Message);
+			}
+
+			AddLog(HomeLogLevel.Error, HomeLogSource.Process, HomeLogKind.Detection, "检测启动失败：" + ex.Message);
+		}
 		finally
 		{
 			_isStartCommandProcessing = false;
@@ -1513,10 +1546,11 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 执行检测停止流程并下发停止信号。
 	/// </summary>
 	/// By:ChengLei
+	/// <returns>返回检测停止任务。</returns>
 	/// <remarks>
 	/// 由首页停止按钮或自动停机流程调用。
 	/// </remarks>
-	private void StopDetection()
+	private async Task StopDetectionAsync()
 	{
 		if (!_isDetectionStarted)
 		{
@@ -1525,10 +1559,10 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		}
 		_isDetectionStarted = false;
 		RefreshDetectionCommandStates();
-		StopTubeCountSync();
+		await StopTubeCountSyncAsync().ConfigureAwait(true);
 		ClearTubeProcessRuntimeState();
 		ClearRackProcessStates();
-		_workflowEngine.Stop();
+		await _workflowEngine.StopAsync().ConfigureAwait(true);
 		_ = SendStopSignalToPlcAsync();
 		CountRuleText = "检测已停止：可重新选择采血管数量。";
 		AddLog(HomeLogLevel.Info, HomeLogSource.Process, HomeLogKind.Detection, "检测已停止。");
@@ -1538,17 +1572,18 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 执行急停流程并记录关键日志。
 	/// </summary>
 	/// By:ChengLei
+	/// <returns>返回急停处理任务。</returns>
 	/// <remarks>
 	/// 由急停按钮调用，优先保障设备安全停机。
 	/// </remarks>
-	private void EmergencyStop()
+	private async Task EmergencyStopAsync()
 	{
 		_isDetectionStarted = false;
 		RefreshDetectionCommandStates();
-		StopTubeCountSync();
+		await StopTubeCountSyncAsync().ConfigureAwait(true);
 		ClearTubeProcessRuntimeState();
 		ClearRackProcessStates();
-		_workflowEngine.Stop();
+		await _workflowEngine.StopAsync().ConfigureAwait(true);
 		_ = SendEmergencyStopSignalToPlcAsync();
 		_ = SendStopSignalToPlcAsync();
 		CountRuleText = "急停已触发：请排查后复位。";
@@ -1606,7 +1641,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private void StartTubeProcessEventLoop()
 	{
-		StopTubeProcessEventLoop();
+		StopTubeProcessEventLoopAsync().GetAwaiter().GetResult();
 		_tubeProcessEventCts = new CancellationTokenSource();
 		_tubeProcessEventTask = Task.Run(() => TubeProcessEventLoopAsync(_tubeProcessEventCts.Token));
 	}
@@ -1615,13 +1650,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 停止采血管事件串行处理后台任务。
 	/// </summary>
 	/// By:ChengLei
+	/// <returns>返回异步停止任务。</returns>
 	/// <remarks>
 	/// 由停止检测和释放流程调用，防止后台消费者泄漏。
 	/// </remarks>
-	private void StopTubeProcessEventLoop()
+	private async Task StopTubeProcessEventLoopAsync()
 	{
-		_tubeProcessEventCts?.Cancel();
-		_tubeProcessEventCts?.Dispose();
+		CancellationTokenSource? cts = _tubeProcessEventCts;
+		Task? task = _tubeProcessEventTask;
+		await StopBackgroundTaskAsync("采血管事件处理", cts, task).ConfigureAwait(false);
 		_tubeProcessEventCts = null;
 		_tubeProcessEventTask = null;
 	}
@@ -1869,7 +1906,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private void StartAlarmMonitor()
 	{
-		StopAlarmMonitor();
+		StopAlarmMonitorAsync().GetAwaiter().GetResult();
 		_alarmMonitorCts = new CancellationTokenSource();
 		_alarmMonitorTask = Task.Run(() => AlarmMonitorLoopAsync(_alarmMonitorCts.Token));
 	}
@@ -1878,13 +1915,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 停止报警监控后台任务。
 	/// </summary>
 	/// By:ChengLei
+	/// <returns>返回异步停止任务。</returns>
 	/// <remarks>
 	/// 由停止/释放流程调用。
 	/// </remarks>
-	private void StopAlarmMonitor()
+	private async Task StopAlarmMonitorAsync()
 	{
-		_alarmMonitorCts?.Cancel();
-		_alarmMonitorCts?.Dispose();
+		CancellationTokenSource? cts = _alarmMonitorCts;
+		Task? task = _alarmMonitorTask;
+		await StopBackgroundTaskAsync("报警监控", cts, task).ConfigureAwait(false);
 		_alarmMonitorCts = null;
 		_alarmMonitorTask = null;
 	}
@@ -1898,7 +1937,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private void StartProcessModeMonitor()
 	{
-		StopProcessModeMonitor();
+		StopProcessModeMonitorAsync().GetAwaiter().GetResult();
 		_processModeMonitorCts = new CancellationTokenSource();
 		_processModeMonitorTask = Task.Run(() => ProcessModeMonitorLoopAsync(_processModeMonitorCts.Token));
 	}
@@ -1907,13 +1946,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 停止工艺模式监控后台任务。
 	/// </summary>
 	/// By:ChengLei
+	/// <returns>返回异步停止任务。</returns>
 	/// <remarks>
 	/// 由停止/释放流程调用。
 	/// </remarks>
-	private void StopProcessModeMonitor()
+	private async Task StopProcessModeMonitorAsync()
 	{
-		_processModeMonitorCts?.Cancel();
-		_processModeMonitorCts?.Dispose();
+		CancellationTokenSource? cts = _processModeMonitorCts;
+		Task? task = _processModeMonitorTask;
+		await StopBackgroundTaskAsync("工艺模式监控", cts, task).ConfigureAwait(false);
 		_processModeMonitorCts = null;
 		_processModeMonitorTask = null;
 	}
@@ -1927,7 +1968,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private void StartRackProcessMonitor()
 	{
-		StopRackProcessMonitor();
+		StopRackProcessMonitorAsync().GetAwaiter().GetResult();
 		_rackProcessMonitorCts = new CancellationTokenSource();
 		_rackProcessMonitorTask = Task.Run(() => RackProcessMonitorLoopAsync(_rackProcessMonitorCts.Token));
 	}
@@ -1936,13 +1977,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 停止料架工序状态监控后台任务。
 	/// </summary>
 	/// By:ChengLei
+	/// <returns>返回异步停止任务。</returns>
 	/// <remarks>
 	/// 由 Dispose 调用，避免页面关闭后仍持续读取PLC寄存器。
 	/// </remarks>
-	private void StopRackProcessMonitor()
+	private async Task StopRackProcessMonitorAsync()
 	{
-		_rackProcessMonitorCts?.Cancel();
-		_rackProcessMonitorCts?.Dispose();
+		CancellationTokenSource? cts = _rackProcessMonitorCts;
+		Task? task = _rackProcessMonitorTask;
+		await StopBackgroundTaskAsync("料架工序监控", cts, task).ConfigureAwait(false);
 		_rackProcessMonitorCts = null;
 		_rackProcessMonitorTask = null;
 	}
@@ -2647,7 +2690,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 							CountRuleText = "报警中：请先排查并清除报警，再开始检测。";
 							if (_isDetectionStarted)
 							{
-								AutoStopDetectionByAlarm();
+								_ = AutoStopDetectionByAlarmAsync();
 							}
 						});
 					}
@@ -2660,7 +2703,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 						CountRuleText = "报警中：请先排查并清除报警，再开始检测。";
 						if (_isDetectionStarted)
 						{
-							AutoStopDetectionByAlarm();
+							_ = AutoStopDetectionByAlarmAsync();
 						}
 					});
 				}
@@ -2716,16 +2759,17 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 在报警触发时自动停止检测流程。
 	/// </summary>
 	/// By:ChengLei
+	/// <returns>返回自动停机任务。</returns>
 	/// <remarks>
 	/// 由 AlarmMonitorLoopAsync 在报警触发后调用。
 	/// </remarks>
-	private void AutoStopDetectionByAlarm()
+	private async Task AutoStopDetectionByAlarmAsync()
 	{
 		_isDetectionStarted = false;
 		RefreshDetectionCommandStates();
-		StopTubeCountSync();
+		await StopTubeCountSyncAsync().ConfigureAwait(true);
 		ClearRackProcessStates();
-		_workflowEngine.Stop();
+		await _workflowEngine.StopAsync().ConfigureAwait(true);
 		_ = SendStopSignalToPlcAsync();
 		CountRuleText = "报警触发：检测已自动停止，请排查后复位。";
 		AddLog(HomeLogLevel.Error, HomeLogSource.Hardware, HomeLogKind.Detection, "检测过程中报警汇总(M2=1)，已自动停止检测。");
@@ -2879,18 +2923,9 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// <remarks>
 	/// 由后台线程回调更新界面属性时调用。
 	/// </remarks>
-	private static void RunOnUiThread(Action action)
+	private void RunOnUiThread(Action action)
 	{
-		Application current = Application.Current;
-		Dispatcher? dispatcher = current?.Dispatcher;
-		if (dispatcher == null || dispatcher.CheckAccess())
-		{
-			action();
-		}
-		else
-		{
-			dispatcher.BeginInvoke((Delegate)action, Array.Empty<object>());
-		}
+		_uiDispatcher.BeginInvoke(action);
 	}
 
 	/// <summary>
@@ -2901,11 +2936,9 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// <remarks>
 	/// 由 RunOnUiThread 进行线程判断时调用。
 	/// </remarks>
-	private static bool IsOnUiThread()
+	private bool IsOnUiThread()
 	{
-		Application current = Application.Current;
-		Dispatcher? dispatcher = current?.Dispatcher;
-		return dispatcher == null || dispatcher.CheckAccess();
+		return _uiDispatcher.CheckAccess();
 	}
 
 	/// <summary>
@@ -2917,7 +2950,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private void StartTubeCountSync()
 	{
-		StopTubeCountSync();
+		StopTubeCountSyncAsync().GetAwaiter().GetResult();
 		_tubeCountSyncCts = new CancellationTokenSource();
 		_tubeCountSyncTask = Task.Run(() => SyncTubeCountLoopAsync(_tubeCountSyncCts.Token));
 	}
@@ -2926,15 +2959,54 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 停止采血管数量同步任务。
 	/// </summary>
 	/// By:ChengLei
+	/// <returns>返回异步停止任务。</returns>
 	/// <remarks>
 	/// 由停止和释放流程调用。
 	/// </remarks>
-	private void StopTubeCountSync()
+	private async Task StopTubeCountSyncAsync()
 	{
-		_tubeCountSyncCts?.Cancel();
-		_tubeCountSyncCts?.Dispose();
+		CancellationTokenSource? cts = _tubeCountSyncCts;
+		Task? task = _tubeCountSyncTask;
+		await StopBackgroundTaskAsync("采血管数量同步", cts, task).ConfigureAwait(false);
 		_tubeCountSyncCts = null;
 		_tubeCountSyncTask = null;
+	}
+
+	/// <summary>
+	/// 取消并等待首页后台任务退出。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="taskName">后台任务名称，用于日志记录。</param>
+	/// <param name="cts">后台任务对应的取消源。</param>
+	/// <param name="task">需要等待退出的后台任务。</param>
+	/// <returns>返回异步停止任务。</returns>
+	/// <remarks>
+	/// 由各 StopAsync 方法复用，所有等待均设置最大超时避免退出卡死。
+	/// </remarks>
+	private async Task StopBackgroundTaskAsync(string taskName, CancellationTokenSource? cts, Task? task)
+	{
+		cts?.Cancel();
+
+		if (task != null && !task.IsCompleted)
+		{
+			try
+			{
+				await task.WaitAsync(BackgroundStopTimeout).ConfigureAwait(false);
+			}
+			catch (TimeoutException)
+			{
+				AddLog(HomeLogLevel.Warning, HomeLogSource.System, HomeLogKind.Operation, $"{taskName}停止超时（{BackgroundStopTimeout.TotalSeconds:F0}s）。");
+			}
+			catch (OperationCanceledException)
+			{
+			}
+			catch (Exception ex)
+			{
+				AddLog(HomeLogLevel.Warning, HomeLogSource.System, HomeLogKind.Operation, $"{taskName}停止异常：{ex.Message}");
+			}
+		}
+
+		cts?.Dispose();
 	}
 
 	/// <summary>
@@ -3832,6 +3904,19 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	public void Dispose()
 	{
+		DisposeAsync().GetAwaiter().GetResult();
+	}
+
+	/// <summary>
+	/// 异步释放首页资源并等待后台任务退出。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回异步释放任务。</returns>
+	/// <remarks>
+	/// 由应用退出流程调用，按首页后台任务、流程引擎、事件订阅顺序清理。
+	/// </remarks>
+	public async Task DisposeAsync()
+	{
 		if (_disposed)
 		{
 			return;
@@ -3841,11 +3926,12 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		OperationModeService.ModeChanged -= OnOperationModeChanged;
 		CommunicationManager.OnLogReceived -= OnCommunicationLogReceived;
 		_workflowEngine.OnLogGenerated -= OnWorkflowLogGenerated;
-		StopTubeCountSync();
-		StopTubeProcessEventLoop();
-		StopAlarmMonitor();
-		StopProcessModeMonitor();
-		StopRackProcessMonitor();
+		await StopTubeCountSyncAsync().ConfigureAwait(false);
+		await StopTubeProcessEventLoopAsync().ConfigureAwait(false);
+		await StopAlarmMonitorAsync().ConfigureAwait(false);
+		await StopProcessModeMonitorAsync().ConfigureAwait(false);
+		await StopRackProcessMonitorAsync().ConfigureAwait(false);
+		await _workflowEngine.StopAsync().ConfigureAwait(false);
 		UnregisterCorePlcPollingPoints();
 	}
 
@@ -3981,26 +4067,5 @@ public class HomeLogItemViewModel
 	};
 
 	public string TubeText => TubeIndex > 0 ? TubeIndex.ToString() : "运行";
-}
-
-public enum HomeLogLevel
-{
-	Info,
-	Warning,
-	Error
-}
-
-public enum HomeLogSource
-{
-	System,
-	Process,
-	Debug,
-	Hardware
-}
-
-public enum HomeLogKind
-{
-	Operation,
-	Detection
 }
 

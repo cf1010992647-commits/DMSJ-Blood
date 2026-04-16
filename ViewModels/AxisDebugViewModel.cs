@@ -19,11 +19,12 @@ namespace Blood_Alcohol.ViewModels
     /// <remarks>
     /// 负责轴状态监控与调试命令下发。
     /// </remarks>
-    public sealed class AxisDebugViewModel : BaseViewModel, IDisposable
+    public sealed class AxisDebugViewModel : BaseViewModel, IMonitoringLifecycle, IDisposable
     {
         private const string AxisAddressConfigFileName = "AxisDebugAddressConfig.json";
         private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
         private static readonly TimeSpan CoilCacheMaxAge = TimeSpan.FromMilliseconds(800);
+        private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
         private static readonly Brush LampOnBrush = Brushes.LimeGreen;
         private static readonly Brush LampOffBrush = Brushes.Gainsboro;
@@ -33,9 +34,10 @@ namespace Blood_Alcohol.ViewModels
         private readonly AxisDebugAddressConfig _axisAddressConfig;
         private readonly AxisBinding[] _axes;
         private readonly HashSet<ushort> _registeredPollingCoils = new();
-        private readonly CancellationTokenSource _pollCts = new();
-        private readonly Task _pollTask;
+        private CancellationTokenSource? _pollCts;
+        private Task? _pollTask;
         private bool _disposed;
+        private bool _isMonitoring;
         private volatile bool _isAxisCommandBusy;
 
         public AxisControlCardViewModel XAxis { get; }
@@ -62,7 +64,7 @@ namespace Blood_Alcohol.ViewModels
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 由 AxisDebugView 创建 DataContext 时调用，并启动 PollAxisLoopAsync。
+        /// 由 AxisDebugView 创建 DataContext 时调用，仅加载配置和卡片状态对象。
         /// </remarks>
         public AxisDebugViewModel()
         {
@@ -78,9 +80,6 @@ namespace Blood_Alcohol.ViewModels
             ZAxis = zAxis.Card;
             ShakeAxis = shakeAxis.Card;
             _axes = new[] { xAxis, yAxis, zAxis, shakeAxis };
-            RegisterAxisPollingPoints();
-
-            _pollTask = Task.Run(() => PollAxisLoopAsync(_pollCts.Token));
         }
 
         /// <summary>
@@ -291,19 +290,56 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private void BindAxisCommands(AxisBinding axis)
         {
-            axis.Card.JogPlusPressCommand = new RelayCommand(_ => _ = WriteAxisCommandLevelAsync(axis, AxisCommand.JogPlus, true));
-            axis.Card.JogPlusReleaseCommand = new RelayCommand(_ => _ = WriteAxisCommandLevelAsync(axis, AxisCommand.JogPlus, false));
+            axis.Card.JogPlusPressCommand = CreateAxisAsyncCommand(
+                () => WriteAxisCommandLevelAsync(axis, AxisCommand.JogPlus, true),
+                "点动正向按下");
+            axis.Card.JogPlusReleaseCommand = CreateAxisAsyncCommand(
+                () => WriteAxisCommandLevelAsync(axis, AxisCommand.JogPlus, false),
+                "点动正向释放");
 
-            axis.Card.JogMinusPressCommand = new RelayCommand(_ => _ = WriteAxisCommandLevelAsync(axis, AxisCommand.JogMinus, true));
-            axis.Card.JogMinusReleaseCommand = new RelayCommand(_ => _ = WriteAxisCommandLevelAsync(axis, AxisCommand.JogMinus, false));
+            axis.Card.JogMinusPressCommand = CreateAxisAsyncCommand(
+                () => WriteAxisCommandLevelAsync(axis, AxisCommand.JogMinus, true),
+                "点动反向按下");
+            axis.Card.JogMinusReleaseCommand = CreateAxisAsyncCommand(
+                () => WriteAxisCommandLevelAsync(axis, AxisCommand.JogMinus, false),
+                "点动反向释放");
 
-            axis.Card.GoHomePressCommand = new RelayCommand(_ => _ = WriteAxisCommandLevelAsync(axis, AxisCommand.GoHome, true));
-            axis.Card.GoHomeReleaseCommand = new RelayCommand(_ => _ = WriteAxisCommandLevelAsync(axis, AxisCommand.GoHome, false));
+            axis.Card.GoHomePressCommand = CreateAxisAsyncCommand(
+                () => WriteAxisCommandLevelAsync(axis, AxisCommand.GoHome, true),
+                "回原点按下");
+            axis.Card.GoHomeReleaseCommand = CreateAxisAsyncCommand(
+                () => WriteAxisCommandLevelAsync(axis, AxisCommand.GoHome, false),
+                "回原点释放");
 
-            axis.Card.ManualLocatePressCommand = new RelayCommand(_ => _ = ExecuteManualLocateAsync(axis, true));
-            axis.Card.ManualLocateReleaseCommand = new RelayCommand(_ => _ = ExecuteManualLocateAsync(axis, false));
-            axis.Card.WriteManualSpeedCommand = new RelayCommand(_ => _ = WriteAxisSpeedAsync(axis, true));
-            axis.Card.WriteAutoSpeedCommand = new RelayCommand(_ => _ = WriteAxisSpeedAsync(axis, false));
+            axis.Card.ManualLocatePressCommand = CreateAxisAsyncCommand(
+                () => ExecuteManualLocateAsync(axis, true),
+                "手动定位按下");
+            axis.Card.ManualLocateReleaseCommand = CreateAxisAsyncCommand(
+                () => ExecuteManualLocateAsync(axis, false),
+                "手动定位释放");
+            axis.Card.WriteManualSpeedCommand = CreateAxisAsyncCommand(
+                () => WriteAxisSpeedAsync(axis, true),
+                "手动速度下发");
+            axis.Card.WriteAutoSpeedCommand = CreateAxisAsyncCommand(
+                () => WriteAxisSpeedAsync(axis, false),
+                "自动速度下发");
+        }
+
+        /// <summary>
+        /// 创建轴调试异步命令。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="executeAsync">命令执行异步委托。</param>
+        /// <param name="commandName">命令名称，用于异常状态提示。</param>
+        /// <returns>返回带执行互斥的异步命令。</returns>
+        /// <remarks>
+        /// 由 BindAxisCommands 调用，统一替代 RelayCommand 中的 fire-and-forget 异步调用。
+        /// </remarks>
+        private ICommand CreateAxisAsyncCommand(Func<Task> executeAsync, string commandName)
+        {
+            return new AsyncRelayCommand(
+                executeAsync,
+                onError: ex => SetActionMessage($"{commandName}命令异常: {ex.Message}"));
         }
 
         /// <summary>
@@ -933,6 +969,39 @@ namespace Blood_Alcohol.ViewModels
         }
 
         /// <summary>
+        /// 激活轴状态监控循环。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由视图 Loaded 调用，重复调用不会创建多个轮询任务。
+        /// </remarks>
+        public void ActivateMonitoring()
+        {
+            if (_disposed || _isMonitoring)
+            {
+                return;
+            }
+
+            RegisterAxisPollingPoints();
+            _pollCts = new CancellationTokenSource();
+            _pollTask = Task.Run(() => PollAxisLoopAsync(_pollCts.Token));
+            _isMonitoring = true;
+        }
+
+        /// <summary>
+        /// 停用轴状态监控循环。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由视图 Unloaded 调用，只停止轮询并保留已加载配置和卡片状态对象。
+        /// </remarks>
+        public void DeactivateMonitoring()
+        {
+            StopPollingAsync().GetAwaiter().GetResult();
+            UnregisterAxisPollingPoints();
+        }
+
+        /// <summary>
         /// 释放轮询资源并停止后台任务。
         /// </summary>
         /// By:ChengLei
@@ -947,9 +1016,52 @@ namespace Blood_Alcohol.ViewModels
             }
 
             _disposed = true;
-            _pollCts.Cancel();
-            _pollCts.Dispose();
-            UnregisterAxisPollingPoints();
+            DeactivateMonitoring();
+        }
+
+        /// <summary>
+        /// 异步停止轴状态轮询并等待后台任务退出。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回异步停止任务。</returns>
+        /// <remarks>
+        /// 由 Dispose 调用，取消轮询后最多等待限定时间。
+        /// </remarks>
+        private async Task StopPollingAsync()
+        {
+            CancellationTokenSource? cts = _pollCts;
+            Task? pollTask = _pollTask;
+            cts?.Cancel();
+
+            if (pollTask == null)
+            {
+                _isMonitoring = false;
+                return;
+            }
+
+            if (!pollTask.IsCompleted)
+            {
+                try
+                {
+                    await pollTask.WaitAsync(StopTimeout).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    SetActionMessage($"轴状态监控停止超时（{StopTimeout.TotalSeconds:F0}s）。");
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    SetActionMessage($"轴状态监控停止异常: {ex.Message}");
+                }
+            }
+
+            _pollTask = null;
+            _pollCts = null;
+            cts?.Dispose();
+            _isMonitoring = false;
         }
 
         private sealed class AxisBinding

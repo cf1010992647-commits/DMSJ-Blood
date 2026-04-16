@@ -55,9 +55,15 @@ namespace Blood_Alcohol.ViewModels
             _plc = CommunicationManager.Plc;
             _plcLock = CommunicationManager.PlcAccessLock;
 
-            ReadCurrentWeightCommand = new RelayCommand(_ => _ = ReadCurrentWeightAsync());
-            ReadCurrentZCommand = new RelayCommand(_ => _ = ReadCurrentZAsync());
-            AcquireAndComputeCoefficientCommand = new RelayCommand(_ => _ = AcquireAndComputeCoefficientAsync());
+            ReadCurrentWeightCommand = new AsyncRelayCommand(
+                ReadCurrentWeightAsync,
+                onError: ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 获取当前重量命令异常：{ex.Message}");
+            ReadCurrentZCommand = new AsyncRelayCommand(
+                ReadCurrentZAsync,
+                onError: ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 获取当前Z命令异常：{ex.Message}");
+            AcquireAndComputeCoefficientCommand = new AsyncRelayCommand(
+                AcquireAndComputeCoefficientAsync,
+                onError: ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 一键采集命令异常：{ex.Message}");
             ComputeCoefficientCommand = new RelayCommand(_ => ComputeCoefficientFromCurrent(), _ => CanComputeCoefficient());
             ComputeMicroliterCoefficientCommand = new RelayCommand(_ => ComputeMicroliterCoefficientFromCurrent(), _ => CanComputeMicroliterCoefficient());
             SaveConfigCommand = new RelayCommand(_ => SaveConfig());
@@ -522,14 +528,14 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private async Task<double> ReadBalanceWeightAsync(CancellationToken token)
         {
-            int port = CommunicationManager.GetPort("天平");
-            EnsureTcpPortConnected(port, "天平");
+            string deviceKey = CommunicationManager.GetDeviceKey("天平");
+            EnsureTcpDeviceConnected(deviceKey, "天平");
             await _tcpReceiveLock.WaitAsync(token);
             try
             {
-                await DrainStaleTcpFramesAsync(port, token);
-                await CommunicationManager.TcpServer.SendToPort(port, CommunicationManager.Balance.GetAllCommand());
-                byte[] response = await ReceiveValidBalanceAllResponseAsync(port, TimeSpan.FromSeconds(5), token);
+                await DrainStaleTcpFramesAsync(deviceKey, token);
+                await CommunicationManager.TcpServer.SendToDeviceAsync(deviceKey, CommunicationManager.Balance.GetAllCommand());
+                byte[] response = await ReceiveValidBalanceAllResponseAsync(deviceKey, TimeSpan.FromSeconds(5), token);
                 return CommunicationManager.Balance.ReadWeight(response);
             }
             finally
@@ -547,16 +553,16 @@ namespace Blood_Alcohol.ViewModels
         /// <remarks>
         /// 由 ReadBalanceWeightAsync 调用。
         /// </remarks>
-        private static void EnsureTcpPortConnected(int port, string deviceName)
+        private static void EnsureTcpDeviceConnected(string deviceKey, string deviceName)
         {
             if (!CommunicationManager.IsTcpRunning)
             {
                 throw new InvalidOperationException("TCP 服务未启动。");
             }
 
-            if (!CommunicationManager.TcpServer.GetConnectedPorts().Contains(port))
+            if (!CommunicationManager.TcpServer.IsDeviceConnected(deviceKey))
             {
-                throw new InvalidOperationException($"{deviceName} 端口未连接：{port}");
+                throw new InvalidOperationException($"{deviceName} TCP客户端未连接（DeviceKey={deviceKey}）。");
             }
         }
 
@@ -571,13 +577,13 @@ namespace Blood_Alcohol.ViewModels
         /// <remarks>
         /// 由缓存清理与有效报文接收流程调用。
         /// </remarks>
-        private static async Task<byte[]> ReceiveOnceWithTimeoutAsync(int port, TimeSpan timeout, CancellationToken token)
+        private static async Task<byte[]> ReceiveOnceWithTimeoutAsync(string deviceKey, TimeSpan timeout, CancellationToken token)
         {
             using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
             timeoutCts.CancelAfter(timeout);
             try
             {
-                return await CommunicationManager.TcpServer.ReceiveOnceFromPortAsync(port, timeoutCts.Token);
+                return await CommunicationManager.TcpServer.ReceiveOnceFromDeviceAsync(deviceKey, timeoutCts.Token);
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested && timeoutCts.IsCancellationRequested)
             {
@@ -595,13 +601,13 @@ namespace Blood_Alcohol.ViewModels
         /// <remarks>
         /// 由 ReadBalanceWeightAsync 在发送新命令前调用。
         /// </remarks>
-        private static async Task DrainStaleTcpFramesAsync(int port, CancellationToken token)
+        private static async Task DrainStaleTcpFramesAsync(string deviceKey, CancellationToken token)
         {
             for (int i = 0; i < 4; i++)
             {
                 try
                 {
-                    _ = await ReceiveOnceWithTimeoutAsync(port, TimeSpan.FromMilliseconds(60), token);
+                    _ = await ReceiveOnceWithTimeoutAsync(deviceKey, TimeSpan.FromMilliseconds(60), token);
                 }
                 catch (TimeoutException)
                 {
@@ -621,7 +627,7 @@ namespace Blood_Alcohol.ViewModels
         /// <remarks>
         /// 由 ReadBalanceWeightAsync 调用。
         /// </remarks>
-        private static async Task<byte[]> ReceiveValidBalanceAllResponseAsync(int port, TimeSpan timeout, CancellationToken token)
+        private static async Task<byte[]> ReceiveValidBalanceAllResponseAsync(string deviceKey, TimeSpan timeout, CancellationToken token)
         {
             DateTime deadline = DateTime.UtcNow + timeout;
             while (true)
@@ -632,7 +638,7 @@ namespace Blood_Alcohol.ViewModels
                     throw new TimeoutException($"等待天平重量数据超时（{timeout.TotalSeconds:F0}s）。");
                 }
 
-                byte[] response = await ReceiveOnceWithTimeoutAsync(port, remain, token);
+                byte[] response = await ReceiveOnceWithTimeoutAsync(deviceKey, remain, token);
                 if (IsBalanceAllResponse(response))
                 {
                     return response;

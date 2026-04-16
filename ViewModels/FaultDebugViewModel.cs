@@ -14,12 +14,13 @@ using System.Windows.Threading;
 
 namespace Blood_Alcohol.ViewModels
 {
-    public class FaultDebugViewModel : BaseViewModel, IDisposable
+    public class FaultDebugViewModel : BaseViewModel, IMonitoringLifecycle, IDisposable
     {
         private const string FaultDebugConfigFileName = "FaultDebugConfig.json";
         private const ushort MaxCoilsPerBatch = 120;
         private static readonly TimeSpan MonitorInterval = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan CoilCacheMaxAge = TimeSpan.FromMilliseconds(1200);
+        private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
         private readonly Lx5vPlc _plc;
         private readonly SemaphoreSlim _plcLock;
@@ -28,6 +29,7 @@ namespace Blood_Alcohol.ViewModels
         private readonly HashSet<ushort> _registeredPollingCoils = new();
 
         private CancellationTokenSource? _cts;
+        private Task? _monitorTask;
         private bool _isMonitoring;
         private FaultAlarmItemViewModel? _selectedAlarm;
         private bool _showActiveOnly;
@@ -137,8 +139,13 @@ namespace Blood_Alcohol.ViewModels
             AlarmPointsView = CollectionViewSource.GetDefaultView(AlarmPoints);
             AlarmPointsView.Filter = FilterAlarm;
 
-            ClearFaultCommand = new RelayCommand(_ => _ = ClearFaultAsync(), _ => SelectedAlarm != null);
-            ToggleGlobalShieldCommand = new RelayCommand(_ => _ = ToggleGlobalShieldAsync());
+            ClearFaultCommand = new AsyncRelayCommand(
+                ClearFaultAsync,
+                () => SelectedAlarm != null,
+                ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 清故障命令异常: {ex.Message}");
+            ToggleGlobalShieldCommand = new AsyncRelayCommand(
+                ToggleGlobalShieldAsync,
+                onError: ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 全局屏蔽命令异常: {ex.Message}");
             ToggleSelectedMaskCommand = new RelayCommand(_ => ToggleSelectedMask(), _ => SelectedAlarm != null);
             ClearEventLogCommand = new RelayCommand(_ => AlarmEvents.Clear());
             AddAlarmPointCommand = new RelayCommand(_ => AddAlarmPoint());
@@ -147,7 +154,6 @@ namespace Blood_Alcohol.ViewModels
             ReloadConfigCommand = new RelayCommand(_ => ReloadConfig());
 
             ReloadConfig();
-            StartMonitoring();
         }
 
         #region 配置读写
@@ -315,7 +321,14 @@ namespace Blood_Alcohol.ViewModels
             return !ShowActiveOnly || alarm.IsActive;
         }
 
-        private void StartMonitoring()
+        /// <summary>
+        /// 激活故障监控循环。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由视图 Loaded 调用，重复调用不会创建多个监控任务。
+        /// </remarks>
+        public void ActivateMonitoring()
         {
             if (_isMonitoring)
             {
@@ -323,22 +336,99 @@ namespace Blood_Alcohol.ViewModels
             }
 
             _isMonitoring = true;
+            SyncPollingPoints();
             _cts = new CancellationTokenSource();
-            Task.Run(() => MonitorAsyncV2(_cts.Token));
+            _monitorTask = Task.Run(() => MonitorAsyncV2(_cts.Token));
         }
 
-        private void StopMonitoring()
-        {
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = null;
-            _isMonitoring = false;
-        }
-
-        public void Dispose()
+        /// <summary>
+        /// 停用故障监控循环。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由视图 Unloaded 调用，只停止监控并注销轮询点位，不释放页面配置。
+        /// </remarks>
+        public void DeactivateMonitoring()
         {
             StopMonitoring();
+        }
+
+        /// <summary>
+        /// 同步停止故障监控循环。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由 DeactivateMonitoring 调用，内部转为异步停止并等待任务退出。
+        /// </remarks>
+        private void StopMonitoring()
+        {
+            StopMonitoringAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// 异步停止故障监控循环并等待后台任务退出。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回异步停止任务。</returns>
+        /// <remarks>
+        /// 由 Dispose 或内部生命周期控制调用，取消后最多等待限定时间。
+        /// </remarks>
+        public async Task StopMonitoringAsync()
+        {
+            CancellationTokenSource? cts = _cts;
+            Task? monitorTask = _monitorTask;
+            cts?.Cancel();
+
+            if (monitorTask != null && !monitorTask.IsCompleted)
+            {
+                await WaitMonitorTaskExitAsync(monitorTask).ConfigureAwait(false);
+            }
+
+            _cts = null;
+            _monitorTask = null;
+            cts?.Dispose();
+            _isMonitoring = false;
             UnregisterPollingPoints();
+        }
+
+        /// <summary>
+        /// 等待故障监控任务在限定时间内退出。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="monitorTask">需要等待的监控任务。</param>
+        /// <returns>返回等待任务。</returns>
+        /// <remarks>
+        /// 由 StopMonitoringAsync 调用，超时时记录页面状态消息。
+        /// </remarks>
+        private async Task WaitMonitorTaskExitAsync(Task monitorTask)
+        {
+            try
+            {
+                await monitorTask.WaitAsync(StopTimeout).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 故障监控停止超时。";
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 故障监控停止异常: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 释放故障监控资源并注销轮询点位。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由宿主窗口关闭流程调用，不在普通 Unloaded 时释放页面对象。
+        /// </remarks>
+        public void Dispose()
+        {
+            StopMonitoringAsync().GetAwaiter().GetResult();
         }
 
         private async Task MonitorAsync(CancellationToken token)
@@ -610,6 +700,11 @@ namespace Blood_Alcohol.ViewModels
 
         private void SyncPollingPoints()
         {
+            if (!_isMonitoring)
+            {
+                return;
+            }
+
             HashSet<ushort> desired = AlarmPoints
                 .Select(x => TryParsePlcAddress(x.Address))
                 .Where(x => x.HasValue)

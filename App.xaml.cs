@@ -1,7 +1,12 @@
+using Blood_Alcohol.Models;
 using Blood_Alcohol.Services;
+using Blood_Alcohol.ViewModels;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace Blood_Alcohol
@@ -20,11 +25,58 @@ namespace Blood_Alcohol
             base.OnStartup(e);
 
             CommunicationManager.LoadSettings();
+            ValidateStartupConfigurations();
             CommunicationManager.AutoConnect();
 
             MainWindow window = new MainWindow();
             MainWindow = window;
             window.Show();
+        }
+
+        /// <summary>
+        /// 校验启动阶段关键配置。
+        /// </summary>
+        /// <remarks>
+        /// 启动时仅记录配置错误；高风险流程启动由 WorkflowEngine 再次校验并阻断。
+        /// </remarks>
+        private static void ValidateStartupConfigurations()
+        {
+            var errors = new List<string>();
+
+            AddPrefixedValidationErrors(
+                errors,
+                "流程信号配置",
+                new ConfigService<WorkflowSignalConfig>("WorkflowSignalConfig.json").Load().Validate());
+            AddPrefixedValidationErrors(
+                errors,
+                "轴调试地址配置",
+                new ConfigService<AxisDebugAddressConfig>("AxisDebugAddressConfig.json").Load().Validate());
+            AddPrefixedValidationErrors(
+                errors,
+                "工艺参数配置",
+                new ConfigService<ProcessParameterConfig>("ProcessParameterConfig.json").Load().Validate());
+
+            foreach (string error in errors)
+            {
+                CommunicationManager.LogConfigurationMessage("配置非法：" + error, CommunicationManager.LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// 添加带配置名称前缀的校验错误。
+        /// </summary>
+        /// <param name="target">目标错误列表。</param>
+        /// <param name="prefix">配置名称前缀。</param>
+        /// <param name="errors">原始错误列表。</param>
+        private static void AddPrefixedValidationErrors(
+            List<string> target,
+            string prefix,
+            IEnumerable<string> errors)
+        {
+            foreach (string error in errors)
+            {
+                target.Add($"{prefix}：{error}");
+            }
         }
 
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -46,8 +98,104 @@ namespace Blood_Alcohol
 
         protected override void OnExit(ExitEventArgs e)
         {
+            ShutdownApplicationAsync().GetAwaiter().GetResult();
             CommunicationManager.OnLogReceived -= OnCommunicationLogReceived;
             base.OnExit(e);
+        }
+
+        /// <summary>
+        /// 按固定顺序关闭页面后台任务和通信资源。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回应用关闭任务。</returns>
+        /// <remarks>
+        /// 由 OnExit 调用，先停页面和流程，再停 TCP、PLC 轮询和 RS485。
+        /// </remarks>
+        private async Task ShutdownApplicationAsync()
+        {
+            await StopPageViewModelsAsync().ConfigureAwait(false);
+            CommunicationManager.StopTcp();
+            await CommunicationManager.PlcPolling.StopAsync().ConfigureAwait(false);
+            CommunicationManager.DisconnectRs485();
+        }
+
+        /// <summary>
+        /// 停止主窗口中已经创建的页面视图模型。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回页面停止任务。</returns>
+        /// <remarks>
+        /// 由 ShutdownApplicationAsync 调用，确保首页流程和调试页后台轮询先退出。
+        /// </remarks>
+        private async Task StopPageViewModelsAsync()
+        {
+            if (MainWindow == null)
+            {
+                return;
+            }
+
+            HashSet<object> visited = new HashSet<object>();
+            List<object> dataContexts = EnumerateDataContexts(MainWindow)
+                .Where(x => visited.Add(x))
+                .ToList();
+            foreach (object dataContext in dataContexts)
+            {
+                if (dataContext is HomeViewModel homeViewModel)
+                {
+                    await homeViewModel.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (dataContext is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 枚举窗口可视树和逻辑树中的数据上下文。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="root">需要遍历的根节点。</param>
+        /// <returns>返回已发现的数据上下文集合。</returns>
+        /// <remarks>
+        /// 由 StopPageViewModelsAsync 调用，用于找到已经创建的页面视图模型。
+        /// </remarks>
+        private static IEnumerable<object> EnumerateDataContexts(DependencyObject root)
+        {
+            if (root is FrameworkElement element && element.DataContext != null)
+            {
+                yield return element.DataContext;
+            }
+
+            foreach (object child in LogicalTreeHelper.GetChildren(root))
+            {
+                if (child is DependencyObject dependencyChild)
+                {
+                    foreach (object dataContext in EnumerateDataContexts(dependencyChild))
+                    {
+                        yield return dataContext;
+                    }
+                }
+            }
+
+            int visualChildrenCount;
+            try
+            {
+                visualChildrenCount = VisualTreeHelper.GetChildrenCount(root);
+            }
+            catch (InvalidOperationException)
+            {
+                visualChildrenCount = 0;
+            }
+
+            for (int index = 0; index < visualChildrenCount; index++)
+            {
+                DependencyObject visualChild = VisualTreeHelper.GetChild(root, index);
+                foreach (object dataContext in EnumerateDataContexts(visualChild))
+                {
+                    yield return dataContext;
+                }
+            }
         }
 
         private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)

@@ -1,6 +1,7 @@
 ﻿using Blood_Alcohol.Models;
 using Blood_Alcohol.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO.Ports;
@@ -65,15 +66,6 @@ namespace Blood_Alcohol.ViewModels
                 Raise(nameof(TcpDevices));
             }
         }
-
-        public ObservableCollection<string> DeviceTypes { get; set; }
-            = new ObservableCollection<string>
-            {
-                "温控",
-                "扫码枪",
-                "天平",
-                "待定"
-            };
 
         public ObservableCollection<string> AvailableComPorts { get; }
             = new ObservableCollection<string>();
@@ -225,11 +217,10 @@ namespace Blood_Alcohol.ViewModels
 
             TcpDevices = new ObservableCollection<TcpDeviceMapping>();
 
-            SyncTcpDevicesFromClients();
-
             TcpPort = _settings.TcpPort;
             SelectedComPort = _settings.ComPort;
             SelectedBaudRate = _settings.BaudRate;
+            RefreshTcpDeviceDisplay();
 
             RefreshComPorts();
             UpdateRs485Status();
@@ -256,7 +247,7 @@ namespace Blood_Alcohol.ViewModels
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     Log($"[TCP] {msg}");
-                    SyncTcpDevicesFromClients();
+                    RefreshTcpDeviceDisplay();
                 });
             };
         }
@@ -266,62 +257,94 @@ namespace Blood_Alcohol.ViewModels
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 由“保存配置”按钮调用，同时持久化TCP端口、串口参数与TCP设备映射。
+        /// 由通信页保存动作调用，同时保存 TCP 监听端口、串口参数和设备 IP 端口映射。
         /// </remarks>
         public void SaveTcpConfig()
         {
-            _settings.TcpDevices = TcpDevices.ToList();
             _settings.TcpPort = TcpPort;
             _settings.ComPort = SelectedComPort;
             _settings.BaudRate = SelectedBaudRate;
-
-            _configService.Save(_settings);
+            _settings.TcpDevices = BuildTcpDeviceMappingsForSave();
+            CommunicationManager.Settings = _settings;
+            CommunicationManager.SaveSettings();
 
             Log("配置已保存", Brushes.DarkGoldenrod);
         }
 
         /// <summary>
-        /// 按设备类型获取对应的TCP端口。
+        /// 生成用于保存的 TCP 设备映射列表。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回清理空白值后的 TCP 设备映射列表。</returns>
+        /// <remarks>
+        /// 由 SaveTcpConfig 调用，把界面编辑结果写回配置并将空 IP 文本规范为空值。
+        /// </remarks>
+        private List<TcpDeviceMapping> BuildTcpDeviceMappingsForSave()
+        {
+            return TcpDevices
+                .Where(x => x.Port > 0 || !string.IsNullOrWhiteSpace(x.DeviceType) || !string.IsNullOrWhiteSpace(x.DeviceKey) || !string.IsNullOrWhiteSpace(x.ClientIp))
+                .Select(x => new TcpDeviceMapping
+                {
+                    Port = x.Port,
+                    DeviceType = string.IsNullOrWhiteSpace(x.DeviceType) ? "待定" : x.DeviceType.Trim(),
+                    DeviceKey = string.IsNullOrWhiteSpace(x.DeviceKey)
+                        ? (string.IsNullOrWhiteSpace(x.DeviceType) ? "待定" : x.DeviceType.Trim())
+                        : x.DeviceKey.Trim(),
+                    ClientIp = NormalizeOptionalText(x.ClientIp)
+                })
+                .ToList();
+        }
+
+        /// <summary>
+        /// 规范可选文本配置值。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="value">界面输入的文本。</param>
+        /// <returns>返回去除空白后的文本，空白输入返回空值。</returns>
+        /// <remarks>
+        /// 用于避免配置文件中保存无意义的空字符串。
+        /// </remarks>
+        private static string? NormalizeOptionalText(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        /// <summary>
+        /// 按设备类型获取对应的TCP设备映射。
         /// </summary>
         /// By:ChengLei
         /// <param name="deviceType">设备类型名称（如温控、天平）。</param>
-        /// <returns>返回配置中的设备端口，未配置时返回空。</returns>
+        /// <returns>返回配置中的设备映射，未配置时返回空。</returns>
         /// <remarks>
         /// 由 TestTemperature 与 TestWeight 调用，用于确定发送目标端口。
         /// </remarks>
-        private int? GetDevicePort(string deviceType)
+        private TcpDeviceMapping? GetDeviceMapping(string deviceType)
         {
             var device = TcpDevices
                 .FirstOrDefault(x => x.DeviceType == deviceType);
 
-            return device?.Port;
+            return device;
         }
 
         /// <summary>
-        /// 同步当前TCP连接端口到设备映射列表。
+        /// 刷新 TCP 设备映射编辑列表。
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 由构造函数和客户端连接事件调用，用于更新界面设备列表与类型映射。
+        /// 由构造函数和客户端连接事件调用，用于展示并编辑配置中的 DeviceKey 绑定信息。
         /// </remarks>
-        public void SyncTcpDevicesFromClients()
+        public void RefreshTcpDeviceDisplay()
         {
-            var connectedPorts =
-                CommunicationManager.TcpServer.GetConnectedPorts();
-
-            var configDevices = _settings.TcpDevices;
-
             TcpDevices.Clear();
 
-            foreach (var port in connectedPorts)
+            foreach (TcpDeviceMapping device in _settings.TcpDevices)
             {
-                var existing = configDevices
-                    .FirstOrDefault(x => x.Port == port);
-
                 TcpDevices.Add(new TcpDeviceMapping
                 {
-                    Port = port,
-                    DeviceType = existing?.DeviceType ?? "待定"
+                    Port = device.Port,
+                    DeviceType = device.DeviceType,
+                    DeviceKey = device.DeviceKey,
+                    ClientIp = device.ClientIp
                 });
             }
 
@@ -365,9 +388,9 @@ namespace Blood_Alcohol.ViewModels
             {
                 Log("开始读取重量...");
 
-                var port = GetDevicePort("天平");
+                var mapping = GetDeviceMapping("天平");
 
-                if (port == null)
+                if (mapping == null)
                 {
                     Log("未找到天平设备端口配置", Brushes.Red);
                     return;
@@ -379,22 +402,22 @@ namespace Blood_Alcohol.ViewModels
                     return;
                 }
 
-                if (!CommunicationManager.TcpServer.GetConnectedPorts().Contains(port.Value))
+                if (!CommunicationManager.TcpServer.IsDeviceConnected(mapping.DeviceKey))
                 {
-                    Log($"天平端口未连接: {port.Value}", Brushes.Red);
+                    Log($"天平未连接: {mapping.DeviceKey}", Brushes.Red);
                     return;
                 }
 
                 await _tcpReceiveLock.WaitAsync();
                 try
                 {
-                    await DrainStaleTcpFramesAsync(port.Value);
-                    await CommunicationManager.TcpServer.SendToPort(
-                        port.Value,
+                    await DrainStaleTcpFramesAsync(mapping.DeviceKey);
+                    await CommunicationManager.TcpServer.SendToDeviceAsync(
+                        mapping.DeviceKey,
                         CommunicationManager.Balance.GetAllCommand());
 
                     byte[] response = await ReceiveValidBalanceAllResponseAsync(
-                        port.Value,
+                        mapping.DeviceKey,
                         TimeSpan.FromSeconds(5));
 
                     double weight = CommunicationManager.Balance.ReadWeight(response);
@@ -416,18 +439,18 @@ namespace Blood_Alcohol.ViewModels
         /// 在超时时间内接收一次TCP报文。
         /// </summary>
         /// By:ChengLei
-        /// <param name="port">目标设备端口。</param>
+        /// <param name="deviceKey">逻辑设备键。</param>
         /// <param name="timeout">本次接收超时时长。</param>
         /// <returns>返回接收到的原始报文。</returns>
         /// <remarks>
         /// 由 DrainStaleTcpFramesAsync 与 ReceiveValidBalanceAllResponseAsync 调用。
         /// </remarks>
-        private static async Task<byte[]> ReceiveOnceWithTimeoutAsync(int port, TimeSpan timeout)
+        private static async Task<byte[]> ReceiveOnceWithTimeoutAsync(string deviceKey, TimeSpan timeout)
         {
             using var cts = new CancellationTokenSource(timeout);
             try
             {
-                return await CommunicationManager.TcpServer.ReceiveOnceFromPortAsync(port, cts.Token);
+                return await CommunicationManager.TcpServer.ReceiveOnceFromDeviceAsync(deviceKey, cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -444,18 +467,18 @@ namespace Blood_Alcohol.ViewModels
         /// 清理端口中可能残留的历史TCP报文。
         /// </summary>
         /// By:ChengLei
-        /// <param name="port">目标设备端口。</param>
+        /// <param name="deviceKey">逻辑设备键。</param>
         /// <returns>返回清理动作异步任务。</returns>
         /// <remarks>
         /// 由 TestWeight 在发送新命令前调用，降低旧帧干扰解析的风险。
         /// </remarks>
-        private static async Task DrainStaleTcpFramesAsync(int port)
+        private static async Task DrainStaleTcpFramesAsync(string deviceKey)
         {
             for (int i = 0; i < 4; i++)
             {
                 try
                 {
-                    _ = await ReceiveOnceWithTimeoutAsync(port, TimeSpan.FromMilliseconds(60));
+                    _ = await ReceiveOnceWithTimeoutAsync(deviceKey, TimeSpan.FromMilliseconds(60));
                 }
                 catch (TimeoutException)
                 {
@@ -468,13 +491,13 @@ namespace Blood_Alcohol.ViewModels
         /// 在限定时长内循环接收并筛选天平有效响应。
         /// </summary>
         /// By:ChengLei
-        /// <param name="port">目标设备端口。</param>
+        /// <param name="deviceKey">逻辑设备键。</param>
         /// <param name="timeout">等待有效响应的总超时时长。</param>
         /// <returns>返回通过校验的天平全量响应报文。</returns>
         /// <remarks>
         /// 由 TestWeight 调用，内部依赖 IsBalanceAllResponse 判定报文有效性。
         /// </remarks>
-        private static async Task<byte[]> ReceiveValidBalanceAllResponseAsync(int port, TimeSpan timeout)
+        private static async Task<byte[]> ReceiveValidBalanceAllResponseAsync(string deviceKey, TimeSpan timeout)
         {
             DateTime deadline = DateTime.UtcNow + timeout;
             while (true)
@@ -485,7 +508,7 @@ namespace Blood_Alcohol.ViewModels
                     throw new TimeoutException($"等待天平重量数据超时（{timeout.TotalSeconds:F0}s）。");
                 }
 
-                byte[] response = await ReceiveOnceWithTimeoutAsync(port, remain);
+                byte[] response = await ReceiveOnceWithTimeoutAsync(deviceKey, remain);
                 if (IsBalanceAllResponse(response))
                 {
                     return response;
@@ -521,9 +544,9 @@ namespace Blood_Alcohol.ViewModels
             {
                 Log("开始读取温度...");
 
-                var port = GetDevicePort("温控");
+                var mapping = GetDeviceMapping("温控");
 
-                if (port == null)
+                if (mapping == null)
                 {
                     Log("未找到温控设备端口配置", Brushes.Red);
                     return;
@@ -531,10 +554,10 @@ namespace Blood_Alcohol.ViewModels
 
                 byte[] cmd = CommunicationManager.Shimaden.ReadSV();
 
-                await CommunicationManager.TcpServer.SendToPort(port.Value, cmd);
+                await CommunicationManager.TcpServer.SendToDeviceAsync(mapping.DeviceKey, cmd);
 
                 byte[] response =
-                    await CommunicationManager.TcpServer.ReceiveOnceFromPortAsync(port.Value);
+                    await CommunicationManager.TcpServer.ReceiveOnceFromDeviceAsync(mapping.DeviceKey);
 
                 double temp =
                     CommunicationManager.Shimaden.ParseTemperature(response);

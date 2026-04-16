@@ -145,6 +145,8 @@ public class WorkflowEngine
 
 	private readonly Dictionary<ushort, bool> _lastCoilState = new Dictionary<ushort, bool>();
 
+	private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(3);
+
 	private Lx5vPlc? _plc;
 
 	private CancellationTokenSource? _cts;
@@ -152,8 +154,6 @@ public class WorkflowEngine
 	private Task? _workerTask;
 
 	private volatile bool _isRunning;
-
-	private DateTime _lastConfigReload = DateTime.MinValue;
 
 	private WorkflowSignalConfig _signals = new WorkflowSignalConfig();
 
@@ -202,8 +202,20 @@ public class WorkflowEngine
 		if (!_isRunning)
 		{
 			_plc = CommunicationManager.Plc;
-			ReloadRuntimeConfig(force: true);
-			PersistRuntimeConfig();
+			WorkflowRuntimeSnapshot snapshot = LoadRuntimeSnapshot();
+			List<string> configErrors = ValidateRuntimeSnapshot(snapshot);
+			if (configErrors.Count > 0)
+			{
+				foreach (string error in configErrors)
+				{
+					WriteWorkflowLog("流程配置非法：" + error, "错误", "检测日志");
+				}
+
+				throw new InvalidOperationException("流程配置非法，已阻止检测启动。");
+			}
+
+			ApplyRuntimeSnapshot(snapshot);
+			PersistRuntimeConfig(snapshot);
 			_lastCoilState.Clear();
 			_tubeSequence = 0;
 			_currentTubeIndex = 0;
@@ -211,7 +223,7 @@ public class WorkflowEngine
 			_cts = new CancellationTokenSource();
 			_workerTask = Task.Run(() => MonitorEventsLoopAsync(_cts.Token));
 			_isRunning = true;
-			WriteWorkflowLog("流程状态机已启动（并发事件驱动，OK位读取确认）。");
+			WriteWorkflowLog($"流程状态机已启动（配置快照：{snapshot.LoadedAt:yyyy-MM-dd HH:mm:ss}，并发事件驱动，OK位读取确认）。");
 		}
 	}
 
@@ -224,22 +236,87 @@ public class WorkflowEngine
 	/// </remarks>
 	public void Stop()
 	{
-		if (!_isRunning)
+		StopAsync().GetAwaiter().GetResult();
+	}
+
+	/// <summary>
+	/// 异步停止流程引擎并等待后台监控任务退出。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌，用于中断停机等待。</param>
+	/// <returns>返回异步停机任务。</returns>
+	/// <remarks>
+	/// 由首页释放和应用退出流程调用，取消后台任务后最多等待限定时间。
+	/// </remarks>
+	public async Task StopAsync(CancellationToken token = default)
+	{
+		CancellationTokenSource? cts = _cts;
+		Task? workerTask = _workerTask;
+		if (!_isRunning && cts == null && workerTask == null)
 		{
 			return;
 		}
+
 		try
 		{
-			_cts?.Cancel();
+			cts?.Cancel();
 		}
-		catch
+		catch (ObjectDisposedException)
 		{
 		}
-		finally
+
+		_isRunning = false;
+
+		if (workerTask != null && !workerTask.IsCompleted && workerTask.Id != Task.CurrentId)
 		{
-			_isRunning = false;
+			await WaitWorkerExitAsync(workerTask, token).ConfigureAwait(false);
 		}
+
+		if (ReferenceEquals(_cts, cts))
+		{
+			_cts = null;
+		}
+
+		if (ReferenceEquals(_workerTask, workerTask))
+		{
+			_workerTask = null;
+		}
+
+		cts?.Dispose();
 		WriteWorkflowLog("流程状态机已停止。");
+	}
+
+	/// <summary>
+	/// 等待流程后台任务在限定时间内退出。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="workerTask">需要等待的后台任务。</param>
+	/// <param name="token">取消令牌，用于中断停机等待。</param>
+	/// <returns>返回等待任务。</returns>
+	/// <remarks>
+	/// 由 StopAsync 调用，超时只记录日志并继续执行关闭流程。
+	/// </remarks>
+	private async Task WaitWorkerExitAsync(Task workerTask, CancellationToken token)
+	{
+		try
+		{
+			await workerTask.WaitAsync(StopTimeout, token).ConfigureAwait(false);
+		}
+		catch (TimeoutException)
+		{
+			WriteWorkflowLog($"流程状态机后台任务停止超时（{StopTimeout.TotalSeconds:F0}s）。");
+		}
+		catch (OperationCanceledException) when (token.IsCancellationRequested)
+		{
+			WriteWorkflowLog("流程状态机停机等待被取消。");
+		}
+		catch (OperationCanceledException)
+		{
+		}
+		catch (Exception ex)
+		{
+			WriteWorkflowLog($"流程状态机后台任务停止异常：{ex.Message}");
+		}
 	}
 
 	/// <summary>
@@ -258,7 +335,6 @@ public class WorkflowEngine
 			try
 			{
 				EnsurePlcReady();
-				ReloadRuntimeConfig(force: false);
 				await PollRisingEdgeAndDispatchAsync(token);
 			}
 			catch (OperationCanceledException)
@@ -443,7 +519,7 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
-	/// 从扫码枪端口读取并解析条码。
+	/// 从扫码枪设备读取并解析条码。
 	/// </summary>
 	/// By:ChengLei
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
@@ -453,12 +529,12 @@ public class WorkflowEngine
 	/// </remarks>
 	private async Task<string> ReadScanCodeAsync(CancellationToken token)
 	{
-		int port = CommunicationManager.GetPort("扫码枪");
-		EnsureTcpPortConnected(port, "扫码枪");
+		string deviceKey = CommunicationManager.GetDeviceKey("扫码枪");
+		EnsureTcpDeviceConnected(deviceKey, "扫码枪");
 		await _tcpReceiveLock.WaitAsync(token);
 		try
 		{
-			byte[] response = await ReceiveOnceWithTimeoutAsync(port, TimeSpan.FromSeconds(8.0), token);
+			byte[] response = await ReceiveOnceWithTimeoutAsync(deviceKey, TimeSpan.FromSeconds(8.0), token);
 			return _scanner.ParseCode(response).Trim();
 		}
 		finally
@@ -478,15 +554,15 @@ public class WorkflowEngine
 	/// </remarks>
 	private async Task ZeroBalanceAsync(CancellationToken token)
 	{
-		int port = CommunicationManager.GetPort("天平");
-		EnsureTcpPortConnected(port, "天平");
+		string deviceKey = CommunicationManager.GetDeviceKey("天平");
+		EnsureTcpDeviceConnected(deviceKey, "天平");
 		await _tcpReceiveLock.WaitAsync(token);
 		try
 		{
-			await CommunicationManager.TcpServer.SendToPort(port, CommunicationManager.Balance.GetZeroCommand());
+			await CommunicationManager.TcpServer.SendToDeviceAsync(deviceKey, CommunicationManager.Balance.GetZeroCommand());
 			try
 			{
-				_ = await ReceiveOnceWithTimeoutAsync(port, TimeSpan.FromMilliseconds(800.0), token);
+				_ = await ReceiveOnceWithTimeoutAsync(deviceKey, TimeSpan.FromMilliseconds(800.0), token);
 			}
 			catch (TimeoutException)
 			{
@@ -510,14 +586,14 @@ public class WorkflowEngine
 	/// </remarks>
 	private async Task<double> ReadWeightAsync(CancellationToken token)
 	{
-		int port = CommunicationManager.GetPort("天平");
-		EnsureTcpPortConnected(port, "天平");
+		string deviceKey = CommunicationManager.GetDeviceKey("天平");
+		EnsureTcpDeviceConnected(deviceKey, "天平");
 		await _tcpReceiveLock.WaitAsync(token);
 		try
 		{
-			await DrainStaleTcpFramesAsync(port, token);
-			await CommunicationManager.TcpServer.SendToPort(port, CommunicationManager.Balance.GetAllCommand());
-			byte[] response = await ReceiveValidBalanceAllResponseAsync(port, TimeSpan.FromSeconds(5.0), token);
+			await DrainStaleTcpFramesAsync(deviceKey, token);
+			await CommunicationManager.TcpServer.SendToDeviceAsync(deviceKey, CommunicationManager.Balance.GetAllCommand());
+			byte[] response = await ReceiveValidBalanceAllResponseAsync(deviceKey, TimeSpan.FromSeconds(5.0), token);
 			return CommunicationManager.Balance.ReadWeight(response);
 		}
 		finally
@@ -530,19 +606,19 @@ public class WorkflowEngine
 	/// 清理天平端口历史缓存帧，避免旧包干扰。
 	/// </summary>
 	/// By:ChengLei
-	/// <param name="port">目标TCP端口。</param>
+	/// <param name="deviceKey">逻辑设备键。</param>
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
 	/// <returns>返回缓存清理异步任务。</returns>
 	/// <remarks>
 	/// 由 ReadWeightAsync 在发送读重量命令前调用。
 	/// </remarks>
-	private async Task DrainStaleTcpFramesAsync(int port, CancellationToken token)
+	private async Task DrainStaleTcpFramesAsync(string deviceKey, CancellationToken token)
 	{
 		for (int i = 0; i < 4; i++)
 		{
 			try
 			{
-				_ = await ReceiveOnceWithTimeoutAsync(port, TimeSpan.FromMilliseconds(60.0), token);
+				_ = await ReceiveOnceWithTimeoutAsync(deviceKey, TimeSpan.FromMilliseconds(60.0), token);
 			}
 			catch (TimeoutException)
 			{
@@ -555,14 +631,14 @@ public class WorkflowEngine
 	/// 循环接收直到拿到有效天平全量回包。
 	/// </summary>
 	/// By:ChengLei
-	/// <param name="port">目标TCP端口。</param>
+	/// <param name="deviceKey">逻辑设备键。</param>
 	/// <param name="timeout">超时时间。</param>
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
 	/// <returns>返回有效天平回包字节数组。</returns>
 	/// <remarks>
 	/// 由 ReadWeightAsync 调用，用于过滤无效回包。
 	/// </remarks>
-	private async Task<byte[]> ReceiveValidBalanceAllResponseAsync(int port, TimeSpan timeout, CancellationToken token)
+	private async Task<byte[]> ReceiveValidBalanceAllResponseAsync(string deviceKey, TimeSpan timeout, CancellationToken token)
 	{
 		DateTime deadline = DateTime.UtcNow + timeout;
 		while (true)
@@ -573,48 +649,34 @@ public class WorkflowEngine
 				throw new TimeoutException($"等待天平重量数据超时（{timeout.TotalSeconds:F0}s）。");
 			}
 
-			byte[] response = await ReceiveOnceWithTimeoutAsync(port, remain, token);
-			if (IsBalanceAllResponse(response))
+			byte[] response = await ReceiveOnceWithTimeoutAsync(deviceKey, remain, token);
+			if (CommunicationManager.Balance.TryValidateAllResponse(response, out string errorMessage))
 			{
 				return response;
 			}
 
-			WriteWorkflowLog($"天平回包无效，已忽略（len={response.Length}）。", "警告", "检测日志", GetCurrentTubeIndex());
+			WriteWorkflowLog($"天平回包无效，已忽略（len={response.Length}，reason={errorMessage}）。", "警告", "检测日志", GetCurrentTubeIndex());
 		}
 	}
 
 	/// <summary>
-	/// 判断回包是否满足天平全量读协议格式。
+	/// 在指定超时时间内从设备接收单帧数据。
 	/// </summary>
 	/// By:ChengLei
-	/// <param name="response">待校验的回包字节数组。</param>
-	/// <returns>返回是否为有效天平全量回包。</returns>
-	/// <remarks>
-	/// 由 ReceiveValidBalanceAllResponseAsync 校验每次收到的回包。
-	/// </remarks>
-	private static bool IsBalanceAllResponse(byte[] response)
-	{
-		return response.Length >= 13 && response[0] == 1 && response[1] == 3 && response[2] >= 8;
-	}
-
-	/// <summary>
-	/// 在指定超时时间内从端口接收单帧数据。
-	/// </summary>
-	/// By:ChengLei
-	/// <param name="port">目标TCP端口。</param>
+	/// <param name="deviceKey">逻辑设备键。</param>
 	/// <param name="timeout">超时时间。</param>
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
 	/// <returns>返回单帧接收结果字节数组。</returns>
 	/// <remarks>
 	/// 由扫码、天平清零、重量读取流程复用调用。
 	/// </remarks>
-	private async Task<byte[]> ReceiveOnceWithTimeoutAsync(int port, TimeSpan timeout, CancellationToken token)
+	private async Task<byte[]> ReceiveOnceWithTimeoutAsync(string deviceKey, TimeSpan timeout, CancellationToken token)
 	{
 		using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
 		timeoutCts.CancelAfter(timeout);
 		try
 		{
-			return await CommunicationManager.TcpServer.ReceiveOnceFromPortAsync(port, timeoutCts.Token);
+			return await CommunicationManager.TcpServer.ReceiveOnceFromDeviceAsync(deviceKey, timeoutCts.Token);
 		}
 		catch (OperationCanceledException) when (!token.IsCancellationRequested && timeoutCts.IsCancellationRequested)
 		{
@@ -792,22 +854,71 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
-	/// 按刷新窗口重载运行时配置。
+	/// 加载流程运行时配置快照。
 	/// </summary>
 	/// By:ChengLei
-	/// <param name="force">是否强制重载配置。</param>
+	/// <returns>返回当前批次使用的运行时配置快照。</returns>
 	/// <remarks>
-	/// 由 Start 强制调用一次，随后由 MonitorEventsLoopAsync 周期调用。
+	/// 由 Start 调用一次，运行中不再重载配置，修改会在下一批 Start 生效。
 	/// </remarks>
-	private void ReloadRuntimeConfig(bool force)
+	private WorkflowRuntimeSnapshot LoadRuntimeSnapshot()
 	{
-		if (force || !((DateTime.Now - _lastConfigReload).TotalSeconds < 2.0))
+		return new WorkflowRuntimeSnapshot(
+			_workflowSignalConfigService.Load() ?? new WorkflowSignalConfig(),
+			_processParameterConfigService.Load() ?? new ProcessParameterConfig(),
+			_weightToZConfigService.Load() ?? new WeightToZCalibrationConfig(),
+			DateTime.Now);
+	}
+
+	/// <summary>
+	/// 校验当前批次运行时配置快照。
+	/// </summary>
+	/// <param name="snapshot">当前批次使用的运行时配置快照。</param>
+	/// <returns>返回配置错误列表，列表为空表示校验通过。</returns>
+	private static List<string> ValidateRuntimeSnapshot(WorkflowRuntimeSnapshot snapshot)
+	{
+		var errors = new List<string>();
+
+		AddPrefixedValidationErrors(errors, "流程信号配置", snapshot.Signals.Validate());
+		AddPrefixedValidationErrors(errors, "工艺参数配置", snapshot.Parameters.Validate());
+		if (!CommunicationManager.ValidateCurrentSettingsAndLog())
 		{
-			_signals = _workflowSignalConfigService.Load() ?? new WorkflowSignalConfig();
-			_processParameters = _processParameterConfigService.Load() ?? new ProcessParameterConfig();
-			_weightToZ = _weightToZConfigService.Load() ?? new WeightToZCalibrationConfig();
-			_lastConfigReload = DateTime.Now;
+			AddPrefixedValidationErrors(errors, "通信配置", CommunicationManager.ConfigurationErrors);
 		}
+
+		return errors;
+	}
+
+	/// <summary>
+	/// 添加带配置名称前缀的校验错误。
+	/// </summary>
+	/// <param name="target">目标错误列表。</param>
+	/// <param name="prefix">配置名称前缀。</param>
+	/// <param name="errors">原始错误列表。</param>
+	private static void AddPrefixedValidationErrors(
+		List<string> target,
+		string prefix,
+		IEnumerable<string> errors)
+	{
+		foreach (string error in errors)
+		{
+			target.Add($"{prefix}：{error}");
+		}
+	}
+
+	/// <summary>
+	/// 应用流程运行时配置快照。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="snapshot">当前批次使用的运行时配置快照。</param>
+	/// <remarks>
+	/// 由 Start 调用，把快照写入字段供本批次后续流程固定使用。
+	/// </remarks>
+	private void ApplyRuntimeSnapshot(WorkflowRuntimeSnapshot snapshot)
+	{
+		_signals = snapshot.Signals;
+		_processParameters = snapshot.Parameters;
+		_weightToZ = snapshot.WeightToZ;
 	}
 
 	/// <summary>
@@ -815,13 +926,13 @@ public class WorkflowEngine
 	/// </summary>
 	/// By:ChengLei
 	/// <remarks>
-	/// 由 Start 启动时调用，用于确保配置文件存在并落盘。
+	/// 由 Start 启动时调用，用于确保当前快照对应的配置文件存在并落盘。
 	/// </remarks>
-	private void PersistRuntimeConfig()
+	private void PersistRuntimeConfig(WorkflowRuntimeSnapshot snapshot)
 	{
-		_workflowSignalConfigService.Save(_signals);
-		_processParameterConfigService.Save(_processParameters);
-		_weightToZConfigService.Save(_weightToZ);
+		_workflowSignalConfigService.Save(snapshot.Signals);
+		_processParameterConfigService.Save(snapshot.Parameters);
+		_weightToZConfigService.Save(snapshot.WeightToZ);
 	}
 
 	/// <summary>
@@ -856,19 +967,19 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
-	/// 校验指定设备端口是否存在TCP连接。
+	/// 校验指定逻辑设备是否存在TCP连接。
 	/// </summary>
 	/// By:ChengLei
-	/// <param name="port">目标TCP端口。</param>
+	/// <param name="deviceKey">逻辑设备键。</param>
 	/// <param name="deviceName">设备名称，用于异常提示。</param>
 	/// <remarks>
 	/// 由扫码和天平通信方法调用，统一校验连接状态。
 	/// </remarks>
-	private static void EnsureTcpPortConnected(int port, string deviceName)
+	private static void EnsureTcpDeviceConnected(string deviceKey, string deviceName)
 	{
-		if (!CommunicationManager.TcpServer.GetConnectedPorts().Contains(port))
+		if (!CommunicationManager.TcpServer.IsDeviceConnected(deviceKey))
 		{
-			throw new InvalidOperationException($"{deviceName} TCP客户端未连接（端口 {port}）。");
+			throw new InvalidOperationException($"{deviceName} TCP客户端未连接（DeviceKey={deviceKey}）。");
 		}
 	}
 

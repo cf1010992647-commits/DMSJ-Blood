@@ -21,13 +21,14 @@ namespace Blood_Alcohol.ViewModels
     /// <remarks>
     /// 由 PointMonitorView 创建为 DataContext，运行时维护点位列表与监控后台任务。
     /// </remarks>
-    public class PointMonitorViewModel : BaseViewModel, IDisposable
+    public class PointMonitorViewModel : BaseViewModel, IMonitoringLifecycle, IDisposable
     {
         private const string PointMonitorConfigFileName = "PointMonitorConfig.json";
         private const ushort MaxCoilsPerBatch = 120;
         private const ushort MaxRegistersPerBatch = 120;
         private static readonly TimeSpan MonitorInterval = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan CoilCacheMaxAge = TimeSpan.FromMilliseconds(1200);
+        private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
         private readonly Lx5vPlc _plc;
         private readonly Dispatcher _dispatcher;
@@ -36,6 +37,7 @@ namespace Blood_Alcohol.ViewModels
         private readonly HashSet<ushort> _registeredPollingCoils = new();
 
         private CancellationTokenSource? _cts;
+        private Task? _monitorTask;
         private bool _isMonitoring;
         private PlcPoint? _selectedPoint;
         private string _statusMessage = "点位监控已加载。";
@@ -94,25 +96,15 @@ namespace Blood_Alcohol.ViewModels
             _plc = CommunicationManager.Plc;
             _configService = new ConfigService<PointMonitorConfig>(PointMonitorConfigFileName);
 
-            TogglePointCommand = new RelayCommand(
-                execute: parameter =>
-                {
-                    if (parameter is PlcPoint point)
-                    {
-                        _ = WritePointAsync(point, true);
-                    }
-                },
-                canExecute: parameter => parameter is PlcPoint);
+            TogglePointCommand = new AsyncRelayCommand<PlcPoint>(
+                point => WritePointAsync(point, true),
+                point => point != null,
+                ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 写点位置位命令异常: {ex.Message}");
 
-            TogglePointOffCommand = new RelayCommand(
-                execute: parameter =>
-                {
-                    if (parameter is PlcPoint point)
-                    {
-                        _ = WritePointAsync(point, false);
-                    }
-                },
-                canExecute: parameter => parameter is PlcPoint);
+            TogglePointOffCommand = new AsyncRelayCommand<PlcPoint>(
+                point => WritePointAsync(point, false),
+                point => point != null,
+                ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 写点位复位命令异常: {ex.Message}");
 
             AddPointCommand = new RelayCommand(_ => AddPoint());
             DeletePointCommand = new RelayCommand(_ => DeletePoint(), _ => SelectedPoint != null);
@@ -120,7 +112,6 @@ namespace Blood_Alcohol.ViewModels
             ReloadConfigCommand = new RelayCommand(_ => ReloadConfig());
 
             ReloadConfig();
-            StartMonitoring();
         }
 
         #region 配置读写
@@ -345,13 +336,13 @@ namespace Blood_Alcohol.ViewModels
         #region PLC实时监控
 
         /// <summary>
-        /// 启动后台点位监控循环。
+        /// 激活后台点位监控循环。
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 由构造函数调用，也可由外部生命周期控制调用。
+        /// 由视图 Loaded 调用，重复调用不会创建多个监控任务。
         /// </remarks>
-        public void StartMonitoring()
+        public void ActivateMonitoring()
         {
             if (_isMonitoring)
             {
@@ -359,8 +350,21 @@ namespace Blood_Alcohol.ViewModels
             }
 
             _isMonitoring = true;
+            SyncPollingPoints();
             _cts = new CancellationTokenSource();
-            Task.Run(() => MonitorPointsAsync(_cts.Token));
+            _monitorTask = Task.Run(() => MonitorPointsAsync(_cts.Token));
+        }
+
+        /// <summary>
+        /// 停用后台点位监控循环。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由视图 Unloaded 时调用，只停止监控并注销轮询点位，不释放页面配置。
+        /// </remarks>
+        public void DeactivateMonitoring()
+        {
+            StopMonitoring();
         }
 
         /// <summary>
@@ -368,14 +372,65 @@ namespace Blood_Alcohol.ViewModels
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 由 Dispose 调用，也可用于手动停止监控。
+        /// 由 DeactivateMonitoring 和 Dispose 调用，也可用于内部停止监控。
         /// </remarks>
         public void StopMonitoring()
         {
-            _cts?.Cancel();
-            _cts?.Dispose();
+            StopMonitoringAsync().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// 异步停止后台点位监控循环并等待任务退出。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回异步停止任务。</returns>
+        /// <remarks>
+        /// 由 Dispose 或外部生命周期控制调用，取消后最多等待限定时间。
+        /// </remarks>
+        public async Task StopMonitoringAsync()
+        {
+            CancellationTokenSource? cts = _cts;
+            Task? monitorTask = _monitorTask;
+            cts?.Cancel();
+
+            if (monitorTask != null && !monitorTask.IsCompleted)
+            {
+                await WaitMonitorTaskExitAsync(monitorTask).ConfigureAwait(false);
+            }
+
             _cts = null;
+            _monitorTask = null;
+            cts?.Dispose();
             _isMonitoring = false;
+            UnregisterPollingPoints();
+        }
+
+        /// <summary>
+        /// 等待点位监控任务在限定时间内退出。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="monitorTask">需要等待的监控任务。</param>
+        /// <returns>返回等待任务。</returns>
+        /// <remarks>
+        /// 由 StopMonitoringAsync 调用，超时时记录状态消息并继续释放。
+        /// </remarks>
+        private async Task WaitMonitorTaskExitAsync(Task monitorTask)
+        {
+            try
+            {
+                await monitorTask.WaitAsync(StopTimeout).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 点位监控停止超时。";
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 点位监控停止异常: {ex.Message}";
+            }
         }
 
         /// <summary>
@@ -387,8 +442,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         public void Dispose()
         {
-            StopMonitoring();
-            UnregisterPollingPoints();
+            StopMonitoringAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -881,6 +935,11 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private void SyncPollingPoints()
         {
+            if (!_isMonitoring)
+            {
+                return;
+            }
+
             HashSet<ushort> desired = Points
                 .Select(x => TryParseCoilAddress(x.Address))
                 .Where(x => x.HasValue)
