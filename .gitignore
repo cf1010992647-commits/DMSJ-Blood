@@ -2,6 +2,7 @@
 bin/
 obj/
 obj_codex/
+*_wpftmp.csproj
 
 # IDE / workspace
 .vs/
@@ -10,4 +11,6 @@ obj_codex/
 
 # Runtime artifacts
 Logs/
-
+artifacts/publish/
+artifacts/publish-obj/
+artifacts/installer/
