@@ -44,6 +44,10 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private static readonly TimeSpan RackProcessPollInterval = TimeSpan.FromMilliseconds(300);
 
+	private static readonly TimeSpan TemperaturePollInterval = TimeSpan.FromSeconds(5);
+
+	private static readonly TimeSpan TemperatureWriteRefreshInterval = TimeSpan.FromSeconds(30);
+
 	private static readonly TimeSpan BackgroundStopTimeout = TimeSpan.FromSeconds(2);
 
 	private readonly ConfigService<ProcessParameterConfig> _processParameterConfigService = new ConfigService<ProcessParameterConfig>(ProcessParameterConfigFileName);
@@ -70,6 +74,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private readonly HomeConditionCoordinator _conditionCoordinator;
 
+	private readonly TemperatureService _temperatureService = new TemperatureService();
+
 	private readonly HomeSampleVolumeConverter _sampleVolumeConverter;
 
 	private readonly HomeLogController _homeLogController;
@@ -84,9 +90,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private readonly HomeBackgroundTaskSlot _alarmMonitorTaskSlot = new HomeBackgroundTaskSlot("报警监控");
 
+	private readonly HomeBackgroundTaskSlot _operationModeMonitorTaskSlot = new HomeBackgroundTaskSlot("档位监控");
+
 	private readonly HomeBackgroundTaskSlot _processModeMonitorTaskSlot = new HomeBackgroundTaskSlot("工艺模式监控");
 
 	private readonly HomeBackgroundTaskSlot _rackProcessMonitorTaskSlot = new HomeBackgroundTaskSlot("料架工序监控");
+
+	private readonly HomeBackgroundTaskSlot _temperatureMonitorTaskSlot = new HomeBackgroundTaskSlot("温控监控");
 
 	private readonly ConcurrentQueue<TubeProcessEvent> _tubeProcessEvents = new ConcurrentQueue<TubeProcessEvent>();
 
@@ -593,6 +603,10 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	public bool IsManualMode => _operationMode == OperationMode.Manual;
 
+	public bool CanSwitchToAutoMode => CommunicationManager.Is485Open && IsManualMode;
+
+	public bool CanSwitchToManualMode => CommunicationManager.Is485Open && IsAutoMode;
+
 	public string ModeDisplayText => IsAutoMode ? "当前档位：自动" : "当前档位：手动";
 
 	public bool IsStandbyProcessMode => _currentProcessMode == HomeProcessModeState.Standby;
@@ -721,11 +735,11 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		});
 		SwitchToAutoModeCommand = new AsyncRelayCommand(
 			() => SwitchOperationModeAsync(OperationMode.Auto),
-			() => IsManualMode,
+			() => CanSwitchToAutoMode,
 			ex => AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "档位切换失败：" + ex.Message));
 		SwitchToManualModeCommand = new AsyncRelayCommand(
 			() => SwitchOperationModeAsync(OperationMode.Manual),
-			() => IsAutoMode,
+			() => CanSwitchToManualMode,
 			ex => AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "档位切换失败：" + ex.Message));
 		InitializeExportDirectory();
 		OperationModeService.ModeChanged += OnOperationModeChanged;
@@ -738,12 +752,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		ApplyCount(0, writeLog: false);
 		RefreshVisibleLogs();
 		RegisterCorePlcPollingPoints();
+		CommunicationManager.OnStateChanged += OnCommunicationStateChanged;
 		CommunicationManager.OnLogReceived += OnCommunicationLogReceived;
 		_workflowEngine.OnLogGenerated += OnWorkflowLogGenerated;
 		StartTubeProcessEventLoop();
 		StartAlarmMonitor();
+		StartOperationModeMonitor();
 		StartProcessModeMonitor();
 		StartRackProcessMonitor();
+		StartTemperatureMonitor();
 	}
 
 	/// <summary>
@@ -785,17 +802,17 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		{
 			return;
 		}
+		if (!CommunicationManager.Is485Open)
+		{
+			AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "PLC未连接，禁止切换自动/手动档位。");
+			RefreshModeSwitchStates();
+			return;
+		}
+
 		bool autoModeBit = mode == OperationMode.Auto;
 		try
 		{
-			if (CommunicationManager.Is485Open)
-			{
-				await _plcGateway.WriteAutoModeAsync(autoModeBit);
-			}
-			else
-			{
-				AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "PLC未连接，仅切换软件档位显示。");
-			}
+			await _plcGateway.WriteAutoModeAsync(autoModeBit);
 			OperationModeService.CurrentMode = mode;
 			AddLog(HomeLogLevel.Info, HomeLogSource.System, HomeLogKind.Operation, (mode == OperationMode.Auto) ? "档位切换为自动（M10=1）。" : "档位切换为手动（M10=0）。");
 		}
@@ -838,12 +855,42 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			OnPropertyChanged("IsAutoMode");
 			OnPropertyChanged("IsManualMode");
 			OnPropertyChanged("ModeDisplayText");
-			CommandManager.InvalidateRequerySuggested();
+			RefreshModeSwitchStates();
 			if (writeLog)
 			{
 				AddLog(HomeLogLevel.Info, HomeLogSource.System, HomeLogKind.Operation, (mode == OperationMode.Auto) ? "档位切换为自动（M10=1）。" : "档位切换为手动（M10=0）。");
 			}
 		}
+		else
+		{
+			RefreshModeSwitchStates();
+		}
+	}
+
+	/// <summary>
+	/// 响应通信状态变化并刷新档位切换按钮状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 由 CommunicationManager.OnStateChanged 触发，确保 PLC 断开时自动/手动按钮立即禁用。
+	/// </remarks>
+	private void OnCommunicationStateChanged()
+	{
+		RunOnUiThread(RefreshModeSwitchStates);
+	}
+
+	/// <summary>
+	/// 刷新自动和手动档位切换按钮状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 高亮仍由当前档位控制，可点击状态则由 PLC 在线状态和当前模式共同决定。
+	/// </remarks>
+	private void RefreshModeSwitchStates()
+	{
+		OnPropertyChanged("CanSwitchToAutoMode");
+		OnPropertyChanged("CanSwitchToManualMode");
+		CommandManager.InvalidateRequerySuggested();
 	}
 
 	/// <summary>
@@ -1236,6 +1283,45 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	}
 
 	/// <summary>
+	/// 启动自动手动档位同步后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 软件打开后持续直读 PLC 的 M10 位，保证首页档位显示和设置页权限与设备真实状态一致。
+	/// </remarks>
+	private void StartOperationModeMonitor()
+	{
+		_backgroundTasks.Restart(_operationModeMonitorTaskSlot, token => HomeMonitorLoops.RunOperationModeMonitorAsync(
+			new HomeOperationModeMonitorContext
+			{
+				PollInterval = ProcessModePollInterval,
+				IsPlcConnected = () => CommunicationManager.Is485Open,
+				ReadAutoModeAsync = async token =>
+				{
+					var read = await _plcGateway.TryReadAutoModeDirectAsync(token).ConfigureAwait(false);
+					return new HomePlcBoolReadResult(read.Success, read.Value, read.Error);
+				},
+				RunOnUiThread = RunOnUiThread,
+				SetOperationMode = mode => OperationModeService.CurrentMode = mode,
+				AddLog = (level, source, kind, message) => AddLog(level, source, kind, message)
+			},
+			token));
+	}
+
+	/// <summary>
+	/// 停止自动手动档位同步后台任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回异步停止任务。</returns>
+	/// <remarks>
+	/// 由首页释放流程调用，避免页面关闭后仍持续读取 PLC 档位。
+	/// </remarks>
+	private async Task StopOperationModeMonitorAsync()
+	{
+		await _backgroundTasks.StopAsync(_operationModeMonitorTaskSlot).ConfigureAwait(false);
+	}
+
+	/// <summary>
 	/// 启动工艺模式监控后台任务。
 	/// </summary>
 	/// By:ChengLei
@@ -1304,6 +1390,65 @@ public class HomeViewModel : BaseViewModel, IDisposable
 				AddLog = (level, source, kind, message) => AddLog(level, source, kind, message)
 			},
 			token));
+	}
+
+	/// <summary>
+	/// 启动温控后台监控任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <remarks>
+	/// 软件打开后即持续运行 使用同一条温控 TCP 通道并按协议站号轮询四路温控。
+	/// </remarks>
+	private void StartTemperatureMonitor()
+	{
+		_backgroundTasks.Restart(_temperatureMonitorTaskSlot, token => HomeMonitorLoops.RunTemperatureMonitorAsync(
+			new HomeTemperatureMonitorContext
+			{
+				PollInterval = TemperaturePollInterval,
+				WriteRefreshInterval = TemperatureWriteRefreshInterval,
+				TemperatureTolerance = 0.2d,
+				IsTcpRunning = () => CommunicationManager.IsTcpRunning,
+				LoadTargets = BuildTemperatureMonitorTargets,
+				ResolveDeviceKey = () => CommunicationManager.GetDeviceKey("温控"),
+				IsDeviceConnected = deviceKey => CommunicationManager.TcpServer.IsDeviceConnected(deviceKey),
+				ReadTemperatureAsync = (station, token) => _temperatureService.ReadCurrentTemperatureAsync(station, token: token),
+				WriteTargetTemperatureAsync = (station, targetTemperature, token) => _temperatureService.SetTargetTemperatureAsync(station, targetTemperature, token: token),
+				AddLog = (level, source, kind, message) => AddLog(level, source, kind, message)
+			},
+			token));
+	}
+
+	/// <summary>
+	/// 停止温控后台监控任务。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回异步停止任务。</returns>
+	/// <remarks>
+	/// 由首页释放流程调用 避免页面关闭后仍继续轮询温控。
+	/// </remarks>
+	private async Task StopTemperatureMonitorAsync()
+	{
+		await _backgroundTasks.StopAsync(_temperatureMonitorTaskSlot).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// 构建温控后台监控目标集合。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回按站号组织的温控目标集合。</returns>
+	/// <remarks>
+	/// 当前四路温控共用同一端口 具体站号由参数配置页和配置文件决定。
+	/// </remarks>
+	private IReadOnlyList<HomeTemperatureMonitorTarget> BuildTemperatureMonitorTargets()
+	{
+		ProcessParameterConfig config = _conditionCoordinator.LoadSafely();
+		return new[]
+		{
+			new HomeTemperatureMonitorTarget("加热箱温控", config.HeatingBoxTemperatureStation, config.HeatingBoxTemperature),
+			new HomeTemperatureMonitorTarget("定量环温控", config.QuantitativeLoopTemperatureStation, config.QuantitativeLoopTemperature),
+			new HomeTemperatureMonitorTarget("传输线温控", config.TransferLineTemperatureStation, config.TransferLineTemperature),
+			new HomeTemperatureMonitorTarget("预留温控", config.ReservedTemperatureStation, config.ReservedTemperature)
+		};
 	}
 
 	/// <summary>
@@ -1843,13 +1988,16 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 		_disposed = true;
 		OperationModeService.ModeChanged -= OnOperationModeChanged;
+		CommunicationManager.OnStateChanged -= OnCommunicationStateChanged;
 		CommunicationManager.OnLogReceived -= OnCommunicationLogReceived;
 		_workflowEngine.OnLogGenerated -= OnWorkflowLogGenerated;
 		await StopTubeCountSyncAsync().ConfigureAwait(false);
 		await StopTubeProcessEventLoopAsync().ConfigureAwait(false);
 		await StopAlarmMonitorAsync().ConfigureAwait(false);
+		await StopOperationModeMonitorAsync().ConfigureAwait(false);
 		await StopProcessModeMonitorAsync().ConfigureAwait(false);
 		await StopRackProcessMonitorAsync().ConfigureAwait(false);
+		await StopTemperatureMonitorAsync().ConfigureAwait(false);
 		await _workflowEngine.StopAsync().ConfigureAwait(false);
 		UnregisterCorePlcPollingPoints();
 	}

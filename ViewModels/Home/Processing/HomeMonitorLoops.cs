@@ -82,6 +82,85 @@ internal static class HomeMonitorLoops
 	}
 
 	/// <summary>
+	/// 运行自动手动档位监控循环并持续同步软件档位状态
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="context">档位监控上下文</param>
+	/// <param name="token">取消令牌</param>
+	/// <returns>返回档位监控循环任务</returns>
+	/// <remarks>
+	/// 直接读取 PLC 的 M10 位 避免仅依赖软件内存态导致设置页和首页档位显示失真
+	/// </remarks>
+	public static async Task RunOperationModeMonitorAsync(HomeOperationModeMonitorContext context, CancellationToken token)
+	{
+		bool readFaultLogged = false;
+		bool hasLastMode = false;
+		OperationMode lastMode = OperationMode.Auto;
+
+		while (!token.IsCancellationRequested)
+		{
+			try
+			{
+				if (!context.IsPlcConnected())
+				{
+					readFaultLogged = false;
+					hasLastMode = false;
+					await Task.Delay(context.PollInterval, token).ConfigureAwait(false);
+					continue;
+				}
+
+				HomePlcBoolReadResult autoModeRead = await context.ReadAutoModeAsync(token).ConfigureAwait(false);
+				if (!autoModeRead.Success)
+				{
+					if (!readFaultLogged)
+					{
+						context.AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "档位同步失败：" + autoModeRead.Error);
+						readFaultLogged = true;
+					}
+
+					await Task.Delay(context.PollInterval, token).ConfigureAwait(false);
+					continue;
+				}
+
+				OperationMode mode = autoModeRead.Value ? OperationMode.Auto : OperationMode.Manual;
+				if (!hasLastMode || lastMode != mode)
+				{
+					context.RunOnUiThread(() => context.SetOperationMode(mode));
+					lastMode = mode;
+					hasLastMode = true;
+				}
+
+				if (readFaultLogged)
+				{
+					context.AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "档位同步已恢复。");
+					readFaultLogged = false;
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				break;
+			}
+			catch (Exception ex)
+			{
+				if (!readFaultLogged)
+				{
+					context.AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "档位同步失败：" + ex.Message);
+					readFaultLogged = true;
+				}
+			}
+
+			try
+			{
+				await Task.Delay(context.PollInterval, token).ConfigureAwait(false);
+			}
+			catch (OperationCanceledException)
+			{
+				break;
+			}
+		}
+	}
+
+	/// <summary>
 	/// 运行工艺模式监控循环并在模式变化时回调页面状态更新
 	/// </summary>
 	/// By:ChengLei
@@ -297,6 +376,63 @@ internal static class HomeMonitorLoops
 	}
 
 	/// <summary>
+	/// 运行温控后台监控循环并持续保障实验环境温度。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="context">温控监控上下文。</param>
+	/// <param name="token">取消令牌。</param>
+	/// <returns>返回温控监控循环任务。</returns>
+	/// <remarks>
+	/// 软件打开后即持续运行 不阻断开始检测 仅负责温度读取 偏差纠偏和异常日志。
+	/// </remarks>
+	public static async Task RunTemperatureMonitorAsync(HomeTemperatureMonitorContext context, CancellationToken token)
+	{
+		Dictionary<string, HomeTemperatureMonitorChannelState> states = new Dictionary<string, HomeTemperatureMonitorChannelState>(StringComparer.OrdinalIgnoreCase);
+		bool tcpFaultLogged = false;
+
+		while (!token.IsCancellationRequested)
+		{
+			try
+			{
+				if (!context.IsTcpRunning())
+				{
+					if (!tcpFaultLogged)
+					{
+						context.AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "TCP服务未启动，温控监控等待恢复。");
+						tcpFaultLogged = true;
+					}
+
+					await Task.Delay(context.PollInterval, token).ConfigureAwait(false);
+					continue;
+				}
+
+				if (tcpFaultLogged)
+				{
+					context.AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "TCP服务已恢复，温控监控继续运行。");
+					tcpFaultLogged = false;
+				}
+
+				foreach (HomeTemperatureMonitorTarget target in context.LoadTargets())
+				{
+					token.ThrowIfCancellationRequested();
+					HomeTemperatureMonitorChannelState state = GetOrCreateChannelState(states, target.Station);
+					await MonitorTemperatureChannelAsync(context, target, state, token).ConfigureAwait(false);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				break;
+			}
+			catch (Exception ex)
+			{
+				context.AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, "温控监控异常：" + ex.Message);
+			}
+
+			await Task.Delay(context.PollInterval, token).ConfigureAwait(false);
+		}
+	}
+
+	/// <summary>
 	/// 根据模式线圈组合解析当前工艺模式
 	/// </summary>
 	/// By:ChengLei
@@ -331,6 +467,151 @@ internal static class HomeMonitorLoops
 		}
 
 		return HomeProcessModeState.Standby;
+	}
+
+	/// <summary>
+	/// 获取或创建指定温控通道的运行状态对象。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="states">运行状态字典。</param>
+	/// <param name="deviceType">温控设备类型。</param>
+	/// <returns>返回对应通道状态对象。</returns>
+	/// <remarks>
+	/// 由温控监控循环为每一路温控维护独立的日志去重和下发节流状态。
+	/// </remarks>
+	private static HomeTemperatureMonitorChannelState GetOrCreateChannelState(
+		IDictionary<string, HomeTemperatureMonitorChannelState> states,
+		string station)
+	{
+		if (!states.TryGetValue(station, out HomeTemperatureMonitorChannelState? state))
+		{
+			state = new HomeTemperatureMonitorChannelState();
+			states[station] = state;
+		}
+
+		return state;
+	}
+
+	/// <summary>
+	/// 监控单一路温控设备并在温度偏低时自动下发设定值。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="context">温控监控上下文。</param>
+	/// <param name="target">当前监控目标。</param>
+	/// <param name="state">通道运行状态。</param>
+	/// <param name="token">取消令牌。</param>
+	/// <returns>返回单路温控监控任务。</returns>
+	/// <remarks>
+	/// 读取成功后只在状态变化时记日志 避免后台监控持续刷屏。
+	/// </remarks>
+	private static async Task MonitorTemperatureChannelAsync(
+		HomeTemperatureMonitorContext context,
+		HomeTemperatureMonitorTarget target,
+		HomeTemperatureMonitorChannelState state,
+		CancellationToken token)
+	{
+		string channelLabel = $"{target.DisplayName}(站号{target.Station})";
+		string deviceKey;
+		try
+		{
+			deviceKey = context.ResolveDeviceKey();
+			state.MappingFaultLogged = false;
+		}
+		catch (Exception ex)
+		{
+			if (!state.MappingFaultLogged)
+			{
+				context.AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, $"{channelLabel}未配置通信映射：{ex.Message}");
+				state.MappingFaultLogged = true;
+			}
+
+			return;
+		}
+
+		if (!context.IsDeviceConnected(deviceKey))
+		{
+			if (!state.OfflineLogged)
+			{
+				context.AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, $"{channelLabel}未连接，温控监控等待设备上线。");
+				state.OfflineLogged = true;
+			}
+
+			state.ReadFaultLogged = false;
+			state.WriteFaultLogged = false;
+			return;
+		}
+
+		if (state.OfflineLogged)
+		{
+			context.AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, $"{channelLabel}已连接，恢复温控监控。");
+			state.OfflineLogged = false;
+		}
+
+		double currentTemperature;
+		try
+		{
+			currentTemperature = await context.ReadTemperatureAsync(target.Station, token).ConfigureAwait(false);
+			if (state.ReadFaultLogged)
+			{
+				context.AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, $"{channelLabel}温度读取已恢复。");
+				state.ReadFaultLogged = false;
+			}
+		}
+		catch (Exception ex)
+		{
+			if (!state.ReadFaultLogged)
+			{
+				context.AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, $"{channelLabel}温度读取失败：{ex.Message}");
+				state.ReadFaultLogged = true;
+			}
+
+			return;
+		}
+
+		bool belowTarget = currentTemperature + context.TemperatureTolerance < target.TargetTemperature;
+		if (belowTarget)
+		{
+			try
+			{
+				if (!state.BelowTargetLogged)
+				{
+					context.AddLog(
+						HomeLogLevel.Warning,
+						HomeLogSource.Hardware,
+						HomeLogKind.Operation,
+						$"{channelLabel}当前温度 {currentTemperature:F1}℃ 低于设定 {target.TargetTemperature:F1}℃，开始自动纠偏。");
+				}
+
+				DateTime utcNow = DateTime.UtcNow;
+				if (!state.LastWriteUtc.HasValue || utcNow - state.LastWriteUtc.Value >= context.WriteRefreshInterval)
+				{
+					await context.WriteTargetTemperatureAsync(target.Station, target.TargetTemperature, token).ConfigureAwait(false);
+					state.LastWriteUtc = utcNow;
+					state.WriteFaultLogged = false;
+				}
+
+				state.BelowTargetLogged = true;
+			}
+			catch (Exception ex)
+			{
+				if (!state.WriteFaultLogged)
+				{
+					context.AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Operation, $"{channelLabel}温控设定下发失败：{ex.Message}");
+					state.WriteFaultLogged = true;
+				}
+			}
+
+			return;
+		}
+
+		if (state.BelowTargetLogged)
+		{
+			context.AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, $"{channelLabel}温度已恢复达标，当前 {currentTemperature:F1}℃。");
+		}
+
+		state.BelowTargetLogged = false;
+		state.WriteFaultLogged = false;
+		state.LastWriteUtc = null;
 	}
 }
 
@@ -383,6 +664,19 @@ internal sealed class HomeProcessModeMonitorContext
 
 /// <summary>
 /// 作用
+/// 首页档位监控上下文
+internal sealed class HomeOperationModeMonitorContext
+{
+	public required TimeSpan PollInterval { get; init; }
+	public required Func<bool> IsPlcConnected { get; init; }
+	public required Func<CancellationToken, Task<HomePlcBoolReadResult>> ReadAutoModeAsync { get; init; }
+	public required Action<Action> RunOnUiThread { get; init; }
+	public required Action<OperationMode> SetOperationMode { get; init; }
+	public required Action<HomeLogLevel, HomeLogSource, HomeLogKind, string> AddLog { get; init; }
+}
+
+/// <summary>
+/// 作用
 /// 首页报警监控上下文
 internal sealed class HomeAlarmMonitorContext
 {
@@ -395,4 +689,39 @@ internal sealed class HomeAlarmMonitorContext
 	public required Action<string> SetCountRuleText { get; init; }
 	public required Func<Task> AutoStopDetectionAsync { get; init; }
 	public required Action<HomeLogLevel, HomeLogSource, HomeLogKind, string> AddLog { get; init; }
+}
+
+/// <summary>
+/// 作用
+/// 首页温控监控目标
+internal readonly record struct HomeTemperatureMonitorTarget(string DisplayName, string Station, double TargetTemperature);
+
+/// <summary>
+/// 作用
+/// 首页温控监控上下文
+internal sealed class HomeTemperatureMonitorContext
+{
+	public required TimeSpan PollInterval { get; init; }
+	public required TimeSpan WriteRefreshInterval { get; init; }
+	public required double TemperatureTolerance { get; init; }
+	public required Func<bool> IsTcpRunning { get; init; }
+	public required Func<IReadOnlyList<HomeTemperatureMonitorTarget>> LoadTargets { get; init; }
+	public required Func<string> ResolveDeviceKey { get; init; }
+	public required Func<string, bool> IsDeviceConnected { get; init; }
+	public required Func<string, CancellationToken, Task<double>> ReadTemperatureAsync { get; init; }
+	public required Func<string, double, CancellationToken, Task> WriteTargetTemperatureAsync { get; init; }
+	public required Action<HomeLogLevel, HomeLogSource, HomeLogKind, string> AddLog { get; init; }
+}
+
+/// <summary>
+/// 作用
+/// 温控监控通道运行状态
+internal sealed class HomeTemperatureMonitorChannelState
+{
+	public bool MappingFaultLogged { get; set; }
+	public bool OfflineLogged { get; set; }
+	public bool ReadFaultLogged { get; set; }
+	public bool WriteFaultLogged { get; set; }
+	public bool BelowTargetLogged { get; set; }
+	public DateTime? LastWriteUtc { get; set; }
 }

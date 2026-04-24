@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36705.20
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DMSJ_Blood Alcohol", "DMSJ_Blood Alcohol.csproj", "{E80F4B91-32FC-4A1D-B436-1539DFC1EE4E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blood_Alcohol.Tests", "Blood_Alcohol.Tests\Blood_Alcohol.Tests.csproj", "{6BE5715C-B3D9-4254-9451-F6BAE597E464}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,18 @@ Global
 		{E80F4B91-32FC-4A1D-B436-1539DFC1EE4E}.Release|x64.Build.0 = Release|Any CPU
 		{E80F4B91-32FC-4A1D-B436-1539DFC1EE4E}.Release|x86.ActiveCfg = Release|Any CPU
 		{E80F4B91-32FC-4A1D-B436-1539DFC1EE4E}.Release|x86.Build.0 = Release|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Debug|x64.Build.0 = Debug|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Debug|x86.Build.0 = Debug|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Release|x64.ActiveCfg = Release|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Release|x64.Build.0 = Release|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Release|x86.ActiveCfg = Release|Any CPU
+		{6BE5715C-B3D9-4254-9451-F6BAE597E464}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

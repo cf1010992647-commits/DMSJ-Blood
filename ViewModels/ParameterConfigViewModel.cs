@@ -1,6 +1,7 @@
 using Blood_Alcohol.Models;
 using Blood_Alcohol.Services;
 using System;
+using System.Collections.Generic;
 using System.Windows.Input;
 
 namespace Blood_Alcohol.ViewModels
@@ -18,8 +19,13 @@ namespace Blood_Alcohol.ViewModels
         private readonly ConfigService<ProcessParameterConfig> _configService = new(ConfigFileName);
 
         private double _heatingBoxTemperature = 60.0;
+        private string _heatingBoxTemperatureStation = "01";
         private double _quantitativeLoopTemperature = 80.0;
+        private string _quantitativeLoopTemperatureStation = "02";
         private double _transferLineTemperature = 120.0;
+        private string _transferLineTemperatureStation = "03";
+        private double _reservedTemperature = 60.0;
+        private string _reservedTemperatureStation = "04";
         private int _shakeDurationSeconds = 10;
         private int _zDropNeedleRiseSlowSpeed = 0;
         private int _pipetteAspirateDelay100ms = 0;
@@ -53,6 +59,20 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        public string HeatingBoxTemperatureStation
+        {
+            get => _heatingBoxTemperatureStation;
+            set
+            {
+                string normalized = value ?? string.Empty;
+                if (_heatingBoxTemperatureStation != normalized)
+                {
+                    _heatingBoxTemperatureStation = normalized;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public double QuantitativeLoopTemperature
         {
             get => _quantitativeLoopTemperature;
@@ -66,6 +86,20 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        public string QuantitativeLoopTemperatureStation
+        {
+            get => _quantitativeLoopTemperatureStation;
+            set
+            {
+                string normalized = value ?? string.Empty;
+                if (_quantitativeLoopTemperatureStation != normalized)
+                {
+                    _quantitativeLoopTemperatureStation = normalized;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public double TransferLineTemperature
         {
             get => _transferLineTemperature;
@@ -74,6 +108,47 @@ namespace Blood_Alcohol.ViewModels
                 if (Math.Abs(_transferLineTemperature - value) > 0.000001d)
                 {
                     _transferLineTemperature = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string TransferLineTemperatureStation
+        {
+            get => _transferLineTemperatureStation;
+            set
+            {
+                string normalized = value ?? string.Empty;
+                if (_transferLineTemperatureStation != normalized)
+                {
+                    _transferLineTemperatureStation = normalized;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public double ReservedTemperature
+        {
+            get => _reservedTemperature;
+            set
+            {
+                if (Math.Abs(_reservedTemperature - value) > 0.000001d)
+                {
+                    _reservedTemperature = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string ReservedTemperatureStation
+        {
+            get => _reservedTemperatureStation;
+            set
+            {
+                string normalized = value ?? string.Empty;
+                if (_reservedTemperatureStation != normalized)
+                {
+                    _reservedTemperatureStation = normalized;
                     OnPropertyChanged();
                 }
             }
@@ -358,27 +433,7 @@ namespace Blood_Alcohol.ViewModels
             try
             {
                 ProcessParameterConfig config = _configService.Load() ?? new ProcessParameterConfig();
-                HeatingBoxTemperature = config.HeatingBoxTemperature;
-                QuantitativeLoopTemperature = config.QuantitativeLoopTemperature;
-                TransferLineTemperature = config.TransferLineTemperature;
-                ShakeDurationSeconds = config.ShakeDurationSeconds;
-                ZDropNeedleRiseSlowSpeed = config.ZDropNeedleRiseSlowSpeed;
-                PipetteAspirateDelay100ms = config.PipetteAspirateDelay100ms;
-                PipetteDispenseDelay100ms = config.PipetteDispenseDelay100ms;
-                TubeShakeHomeDelay100ms = config.TubeShakeHomeDelay100ms;
-                TubeShakeWorkDelay100ms = config.TubeShakeWorkDelay100ms;
-                TubeShakeTargetCount = config.TubeShakeTargetCount;
-                HeadspaceShakeHomeDelay100ms = config.HeadspaceShakeHomeDelay100ms;
-                HeadspaceShakeWorkDelay100ms = config.HeadspaceShakeWorkDelay100ms;
-                HeadspaceShakeTargetCount = config.HeadspaceShakeTargetCount;
-                ButanolAspirateDelay100ms = config.ButanolAspirateDelay100ms;
-                ButanolDispenseDelay100ms = config.ButanolDispenseDelay100ms;
-                SampleBottlePressureTime100ms = config.SampleBottlePressureTime100ms;
-                QuantitativeLoopBalanceTime100ms = config.QuantitativeLoopBalanceTime100ms;
-                InjectionTime100ms = config.InjectionTime100ms;
-                SampleBottlePressurePosition = config.SampleBottlePressurePosition;
-                QuantitativeLoopBalancePosition = config.QuantitativeLoopBalancePosition;
-                InjectionPosition = config.InjectionPosition;
+                ApplyConfigValues(config);
                 StatusMessage = $"{DateTime.Now:HH:mm:ss} 参数配置已加载。";
             }
             catch (Exception ex)
@@ -392,38 +447,22 @@ namespace Blood_Alcohol.ViewModels
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 由“保存参数”按钮调用，保存前会对非负数参数执行最小值约束。
+        /// 由“保存参数”按钮调用，保存前会先规范化站号并严格执行配置校验，校验失败时拒绝落盘。
         /// </remarks>
         private void SaveConfig()
         {
             try
             {
-                ProcessParameterConfig config = new()
+                ProcessParameterConfig config = BuildConfigSnapshot();
+                List<string> validationErrors = config.Validate();
+                if (validationErrors.Count > 0)
                 {
-                    HeatingBoxTemperature = HeatingBoxTemperature,
-                    QuantitativeLoopTemperature = QuantitativeLoopTemperature,
-                    TransferLineTemperature = TransferLineTemperature,
-                    ShakeDurationSeconds = Math.Max(0, ShakeDurationSeconds),
-                    ZDropNeedleRiseSlowSpeed = Math.Max(0, ZDropNeedleRiseSlowSpeed),
-                    PipetteAspirateDelay100ms = Math.Max(0, PipetteAspirateDelay100ms),
-                    PipetteDispenseDelay100ms = Math.Max(0, PipetteDispenseDelay100ms),
-                    TubeShakeHomeDelay100ms = Math.Max(0, TubeShakeHomeDelay100ms),
-                    TubeShakeWorkDelay100ms = Math.Max(0, TubeShakeWorkDelay100ms),
-                    TubeShakeTargetCount = Math.Max(0, TubeShakeTargetCount),
-                    HeadspaceShakeHomeDelay100ms = Math.Max(0, HeadspaceShakeHomeDelay100ms),
-                    HeadspaceShakeWorkDelay100ms = Math.Max(0, HeadspaceShakeWorkDelay100ms),
-                    HeadspaceShakeTargetCount = Math.Max(0, HeadspaceShakeTargetCount),
-                    ButanolAspirateDelay100ms = Math.Max(0, ButanolAspirateDelay100ms),
-                    ButanolDispenseDelay100ms = Math.Max(0, ButanolDispenseDelay100ms),
-                    SampleBottlePressureTime100ms = Math.Max(0, SampleBottlePressureTime100ms),
-                    QuantitativeLoopBalanceTime100ms = Math.Max(0, QuantitativeLoopBalanceTime100ms),
-                    InjectionTime100ms = Math.Max(0, InjectionTime100ms),
-                    SampleBottlePressurePosition = Math.Max(0, SampleBottlePressurePosition),
-                    QuantitativeLoopBalancePosition = Math.Max(0, QuantitativeLoopBalancePosition),
-                    InjectionPosition = Math.Max(0, InjectionPosition)
-                };
+                    StatusMessage = $"{DateTime.Now:HH:mm:ss} 保存失败：{string.Join("；", validationErrors)}";
+                    return;
+                }
 
                 _configService.Save(config);
+                ApplyConfigValues(config);
                 StatusMessage = $"{DateTime.Now:HH:mm:ss} 参数配置已保存。";
             }
             catch (Exception ex)
@@ -442,8 +481,13 @@ namespace Blood_Alcohol.ViewModels
         private void ResetDefault()
         {
             HeatingBoxTemperature = 60.0;
+            HeatingBoxTemperatureStation = "01";
             QuantitativeLoopTemperature = 80.0;
+            QuantitativeLoopTemperatureStation = "02";
             TransferLineTemperature = 120.0;
+            TransferLineTemperatureStation = "03";
+            ReservedTemperature = 60.0;
+            ReservedTemperatureStation = "04";
             ShakeDurationSeconds = 10;
             ZDropNeedleRiseSlowSpeed = 0;
             PipetteAspirateDelay100ms = 0;
@@ -463,6 +507,110 @@ namespace Blood_Alcohol.ViewModels
             QuantitativeLoopBalancePosition = 0;
             InjectionPosition = 0;
             StatusMessage = $"{DateTime.Now:HH:mm:ss} 已恢复默认值（未保存）。";
+        }
+
+        /// <summary>
+        /// 规范化温控站号文本。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="station">原始站号文本。</param>
+        /// <returns>返回保存到配置文件的两位站号文本。</returns>
+        /// <remarks>
+        /// 允许页面输入一位数字并自动补齐两位；非法文本保持原样交给配置校验拦截。
+        /// </remarks>
+        private static string NormalizeStation(string? station)
+        {
+            if (string.IsNullOrWhiteSpace(station))
+            {
+                return string.Empty;
+            }
+
+            string normalized = station.Trim();
+            if (!int.TryParse(normalized, out int stationValue) || stationValue < 0 || stationValue > 99)
+            {
+                return normalized;
+            }
+
+            return stationValue.ToString("D2");
+        }
+
+        /// <summary>
+        /// 根据页面当前输入构建待保存的流程参数快照。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回待校验和保存的流程参数对象。</returns>
+        /// <remarks>
+        /// 仅做站号规范化，不再静默修正范围错误，确保非法值由配置校验明确拦截。
+        /// </remarks>
+        private ProcessParameterConfig BuildConfigSnapshot()
+        {
+            return new ProcessParameterConfig
+            {
+                HeatingBoxTemperature = HeatingBoxTemperature,
+                HeatingBoxTemperatureStation = NormalizeStation(HeatingBoxTemperatureStation),
+                QuantitativeLoopTemperature = QuantitativeLoopTemperature,
+                QuantitativeLoopTemperatureStation = NormalizeStation(QuantitativeLoopTemperatureStation),
+                TransferLineTemperature = TransferLineTemperature,
+                TransferLineTemperatureStation = NormalizeStation(TransferLineTemperatureStation),
+                ReservedTemperature = ReservedTemperature,
+                ReservedTemperatureStation = NormalizeStation(ReservedTemperatureStation),
+                ShakeDurationSeconds = ShakeDurationSeconds,
+                ZDropNeedleRiseSlowSpeed = ZDropNeedleRiseSlowSpeed,
+                PipetteAspirateDelay100ms = PipetteAspirateDelay100ms,
+                PipetteDispenseDelay100ms = PipetteDispenseDelay100ms,
+                TubeShakeHomeDelay100ms = TubeShakeHomeDelay100ms,
+                TubeShakeWorkDelay100ms = TubeShakeWorkDelay100ms,
+                TubeShakeTargetCount = TubeShakeTargetCount,
+                HeadspaceShakeHomeDelay100ms = HeadspaceShakeHomeDelay100ms,
+                HeadspaceShakeWorkDelay100ms = HeadspaceShakeWorkDelay100ms,
+                HeadspaceShakeTargetCount = HeadspaceShakeTargetCount,
+                ButanolAspirateDelay100ms = ButanolAspirateDelay100ms,
+                ButanolDispenseDelay100ms = ButanolDispenseDelay100ms,
+                SampleBottlePressureTime100ms = SampleBottlePressureTime100ms,
+                QuantitativeLoopBalanceTime100ms = QuantitativeLoopBalanceTime100ms,
+                InjectionTime100ms = InjectionTime100ms,
+                SampleBottlePressurePosition = SampleBottlePressurePosition,
+                QuantitativeLoopBalancePosition = QuantitativeLoopBalancePosition,
+                InjectionPosition = InjectionPosition
+            };
+        }
+
+        /// <summary>
+        /// 将流程参数对象回填到页面属性。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="config">需要回填到页面的流程参数对象。</param>
+        /// <remarks>
+        /// 由加载配置和保存成功后的规范化回显复用，确保界面与最终落盘内容一致。
+        /// </remarks>
+        private void ApplyConfigValues(ProcessParameterConfig config)
+        {
+            HeatingBoxTemperature = config.HeatingBoxTemperature;
+            HeatingBoxTemperatureStation = config.HeatingBoxTemperatureStation;
+            QuantitativeLoopTemperature = config.QuantitativeLoopTemperature;
+            QuantitativeLoopTemperatureStation = config.QuantitativeLoopTemperatureStation;
+            TransferLineTemperature = config.TransferLineTemperature;
+            TransferLineTemperatureStation = config.TransferLineTemperatureStation;
+            ReservedTemperature = config.ReservedTemperature;
+            ReservedTemperatureStation = config.ReservedTemperatureStation;
+            ShakeDurationSeconds = config.ShakeDurationSeconds;
+            ZDropNeedleRiseSlowSpeed = config.ZDropNeedleRiseSlowSpeed;
+            PipetteAspirateDelay100ms = config.PipetteAspirateDelay100ms;
+            PipetteDispenseDelay100ms = config.PipetteDispenseDelay100ms;
+            TubeShakeHomeDelay100ms = config.TubeShakeHomeDelay100ms;
+            TubeShakeWorkDelay100ms = config.TubeShakeWorkDelay100ms;
+            TubeShakeTargetCount = config.TubeShakeTargetCount;
+            HeadspaceShakeHomeDelay100ms = config.HeadspaceShakeHomeDelay100ms;
+            HeadspaceShakeWorkDelay100ms = config.HeadspaceShakeWorkDelay100ms;
+            HeadspaceShakeTargetCount = config.HeadspaceShakeTargetCount;
+            ButanolAspirateDelay100ms = config.ButanolAspirateDelay100ms;
+            ButanolDispenseDelay100ms = config.ButanolDispenseDelay100ms;
+            SampleBottlePressureTime100ms = config.SampleBottlePressureTime100ms;
+            QuantitativeLoopBalanceTime100ms = config.QuantitativeLoopBalanceTime100ms;
+            InjectionTime100ms = config.InjectionTime100ms;
+            SampleBottlePressurePosition = config.SampleBottlePressurePosition;
+            QuantitativeLoopBalancePosition = config.QuantitativeLoopBalancePosition;
+            InjectionPosition = config.InjectionPosition;
         }
     }
 }

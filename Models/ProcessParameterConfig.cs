@@ -13,14 +13,39 @@ namespace Blood_Alcohol.Models
         public double HeatingBoxTemperature { get; set; } = 60.0;
 
         /// <summary>
+        /// 加热箱温控站号。
+        /// </summary>
+        public string HeatingBoxTemperatureStation { get; set; } = "01";
+
+        /// <summary>
         /// 定量环温度设定值。
         /// </summary>
         public double QuantitativeLoopTemperature { get; set; } = 80.0;
 
         /// <summary>
+        /// 定量环温控站号。
+        /// </summary>
+        public string QuantitativeLoopTemperatureStation { get; set; } = "02";
+
+        /// <summary>
         /// 传输线温度设定值。
         /// </summary>
         public double TransferLineTemperature { get; set; } = 120.0;
+
+        /// <summary>
+        /// 传输线温控站号。
+        /// </summary>
+        public string TransferLineTemperatureStation { get; set; } = "03";
+
+        /// <summary>
+        /// 预留温控温度设定值。
+        /// </summary>
+        public double ReservedTemperature { get; set; } = 60.0;
+
+        /// <summary>
+        /// 预留温控站号。
+        /// </summary>
+        public string ReservedTemperatureStation { get; set; } = "04";
 
         /// <summary>
         /// 摇匀持续时长（秒）。
@@ -123,6 +148,17 @@ namespace Blood_Alcohol.Models
             ValidateDoubleRange(errors, nameof(HeatingBoxTemperature), "加热箱温度", HeatingBoxTemperature, 0, 300);
             ValidateDoubleRange(errors, nameof(QuantitativeLoopTemperature), "定量环温度", QuantitativeLoopTemperature, 0, 300);
             ValidateDoubleRange(errors, nameof(TransferLineTemperature), "传输线温度", TransferLineTemperature, 0, 300);
+            ValidateDoubleRange(errors, nameof(ReservedTemperature), "预留温控温度", ReservedTemperature, 0, 300);
+            ValidateStation(errors, nameof(HeatingBoxTemperatureStation), "加热箱温控站号", HeatingBoxTemperatureStation);
+            ValidateStation(errors, nameof(QuantitativeLoopTemperatureStation), "定量环温控站号", QuantitativeLoopTemperatureStation);
+            ValidateStation(errors, nameof(TransferLineTemperatureStation), "传输线温控站号", TransferLineTemperatureStation);
+            ValidateStation(errors, nameof(ReservedTemperatureStation), "预留温控站号", ReservedTemperatureStation);
+            ValidateDistinctStations(
+                errors,
+                ("加热箱温控站号", HeatingBoxTemperatureStation),
+                ("定量环温控站号", QuantitativeLoopTemperatureStation),
+                ("传输线温控站号", TransferLineTemperatureStation),
+                ("预留温控站号", ReservedTemperatureStation));
 
             ValidateIntRange(errors, nameof(ShakeDurationSeconds), "摇匀持续时长", ShakeDurationSeconds, 0, 3600);
             ValidateIntRange(errors, nameof(ZDropNeedleRiseSlowSpeed), "Z轴丢枪头上升慢速速度", ZDropNeedleRiseSlowSpeed, 0, 1_000_000);
@@ -229,6 +265,79 @@ namespace Blood_Alcohol.Models
             {
                 errors.Add($"{displayName}（{propertyName}）必须在 {min}-{max} 范围内，当前值：{value}。");
             }
+        }
+
+        /// <summary>
+        /// 校验温控站号文本。
+        /// </summary>
+        /// <param name="errors">用于收集错误信息的列表。</param>
+        /// <param name="propertyName">属性名称。</param>
+        /// <param name="displayName">显示名称。</param>
+        /// <param name="station">站号文本。</param>
+        private static void ValidateStation(List<string> errors, string propertyName, string displayName, string? station)
+        {
+            if (string.IsNullOrWhiteSpace(station))
+            {
+                errors.Add($"{displayName}（{propertyName}）不能为空。");
+                return;
+            }
+
+            string normalized = station.Trim();
+            if (!int.TryParse(normalized, out int stationValue) || stationValue < 0 || stationValue > 99)
+            {
+                errors.Add($"{displayName}（{propertyName}）必须是 0-99 之间的数字，当前值：{station}。");
+            }
+        }
+
+        /// <summary>
+        /// 校验多路温控站号不能重复。
+        /// </summary>
+        /// <param name="errors">用于收集错误信息的列表。</param>
+        /// <param name="items">需要参与重复校验的显示名称和站号集合。</param>
+        private static void ValidateDistinctStations(
+            List<string> errors,
+            params (string DisplayName, string? Station)[] items)
+        {
+            Dictionary<string, string> seenStations = new Dictionary<string, string>();
+            foreach ((string DisplayName, string? Station) item in items)
+            {
+                if (!TryNormalizeStation(item.Station, out string normalizedStation))
+                {
+                    continue;
+                }
+
+                if (seenStations.TryGetValue(normalizedStation, out string? existingDisplayName))
+                {
+                    errors.Add($"{item.DisplayName}与{existingDisplayName}不能使用相同站号：{normalizedStation}。");
+                    continue;
+                }
+
+                seenStations[normalizedStation] = item.DisplayName;
+            }
+        }
+
+        /// <summary>
+        /// 尝试把站号文本规范化为两位数字文本。
+        /// </summary>
+        /// <param name="station">原始站号文本。</param>
+        /// <param name="normalizedStation">规范化后的两位站号文本。</param>
+        /// <returns>返回站号是否可用于重复校验。</returns>
+        private static bool TryNormalizeStation(string? station, out string normalizedStation)
+        {
+            normalizedStation = string.Empty;
+            if (string.IsNullOrWhiteSpace(station))
+            {
+                return false;
+            }
+
+            string trimmedStation = station.Trim();
+            if (!int.TryParse(trimmedStation, out int stationValue) || stationValue < 0 || stationValue > 99)
+            {
+                return false;
+            }
+
+            normalizedStation = stationValue.ToString("D2");
+            return true;
         }
     }
 }

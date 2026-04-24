@@ -411,11 +411,14 @@
                                                 <Setter TargetName="Root" Property="Background" Value="#D2E1F0" />
                                                 <Setter TargetName="Root" Property="BorderBrush" Value="#8AA7C5" />
                                             </Trigger>
-                                            <Trigger Property="IsEnabled" Value="False">
+                                            <Trigger Property="Tag" Value="True">
                                                 <Setter TargetName="Root" Property="Background" Value="#2F6FA8" />
                                                 <Setter TargetName="Root" Property="BorderBrush" Value="#2F6FA8" />
                                                 <Setter Property="Foreground" Value="White" />
                                                 <Setter Property="Opacity" Value="1" />
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter Property="Opacity" Value="0.7" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -433,13 +436,15 @@
                         <Button Content="自动"
                                 Style="{StaticResource ModeSwitchActionButton}"
                                 Command="{Binding SwitchToAutoModeCommand}"
-                                IsEnabled="{Binding IsManualMode}"
+                                Tag="{Binding IsAutoMode}"
+                                IsEnabled="{Binding CanSwitchToAutoMode}"
                                 MinWidth="64"
                                 Margin="0,0,6,0" />
                         <Button Content="手动"
                                 Style="{StaticResource ModeSwitchActionButton}"
                                 Command="{Binding SwitchToManualModeCommand}"
-                                IsEnabled="{Binding IsAutoMode}"
+                                Tag="{Binding IsManualMode}"
+                                IsEnabled="{Binding CanSwitchToManualMode}"
                                 MinWidth="64" />
                     </StackPanel>
                 </Border>

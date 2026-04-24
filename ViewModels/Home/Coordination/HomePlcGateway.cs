@@ -114,6 +114,20 @@ internal sealed class HomePlcGateway
 	}
 
 	/// <summary>
+	/// 直接读取自动模式线圈状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌。</param>
+	/// <returns>返回读取结果。</returns>
+	/// <remarks>
+	/// 不使用轮询缓存，避免档位刚写入后读到旧值，供档位同步监控循环使用。
+	/// </remarks>
+	public Task<(bool Success, bool Value, string Error)> TryReadAutoModeDirectAsync(CancellationToken token = default)
+	{
+		return TryReadCoilDirectAsync(AutoModeCoilAddress, token);
+	}
+
+	/// <summary>
 	/// 直接读取初始化完成线圈状态。
 	/// </summary>
 	/// By:ChengLei
@@ -404,31 +418,54 @@ internal sealed class HomePlcGateway
 	}
 
 	/// <summary>
-	/// 直接读取线圈状态，失败时抛出异常。
+	/// 直接读取线圈状态并返回错误信息。
 	/// </summary>
 	/// By:ChengLei
 	/// <param name="address">线圈地址。</param>
-	/// <returns>返回线圈状态。</returns>
+	/// <param name="token">取消令牌。</param>
+	/// <returns>返回读取结果。</returns>
 	/// <remarks>
-	/// 不使用轮询缓存，适用于初始化完成位等需要实时读取的场景。
+	/// 不使用轮询缓存，适用于档位同步等不能容忍缓存滞后的读取场景。
 	/// </remarks>
-	private async Task<bool> ReadCoilDirectAsync(ushort address)
+	private async Task<(bool Success, bool Value, string Error)> TryReadCoilDirectAsync(ushort address, CancellationToken token = default)
 	{
-		await _plcLock.WaitAsync().ConfigureAwait(false);
+		await _plcLock.WaitAsync(token).ConfigureAwait(false);
 		try
 		{
 			var read = await CommunicationManager.Plc.TryReadCoilsAsync(address, 1).ConfigureAwait(false);
 			if (!read.Success)
 			{
-				throw new InvalidOperationException(read.Error);
+				return (false, false, read.Error);
 			}
 
-			return read.Values.Length != 0 && read.Values[0];
+			bool state = read.Values.Length != 0 && read.Values[0];
+			return (true, state, string.Empty);
 		}
 		finally
 		{
 			_plcLock.Release();
 		}
+	}
+
+	/// <summary>
+	/// 直接读取线圈状态，失败时抛出异常。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="address">线圈地址。</param>
+	/// <param name="token">取消令牌。</param>
+	/// <returns>返回线圈状态。</returns>
+	/// <remarks>
+	/// 不使用轮询缓存，适用于初始化完成位和档位同步等需要实时读取的场景。
+	/// </remarks>
+	private async Task<bool> ReadCoilDirectAsync(ushort address, CancellationToken token = default)
+	{
+		var read = await TryReadCoilDirectAsync(address, token).ConfigureAwait(false);
+		if (!read.Success)
+		{
+			throw new InvalidOperationException(read.Error);
+		}
+
+		return read.Value;
 	}
 
 	/// <summary>

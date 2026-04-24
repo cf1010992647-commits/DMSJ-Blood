@@ -1,4 +1,5 @@
-﻿<UserControl x:Class="Blood_Alcohol.Views.ParameterConfigView"
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl x:Class="Blood_Alcohol.Views.ParameterConfigView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:Blood_Alcohol.ViewModels">
@@ -68,10 +69,13 @@
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="260" />
-                            <ColumnDefinition Width="180" />
-                            <ColumnDefinition Width="70" />
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="55" />
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="60" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -81,18 +85,30 @@
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="加热箱温度" Style="{StaticResource LabelStyle}" />
                         <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBoxStyle}" Text="{Binding HeatingBoxTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                        <TextBox Grid.Row="0" Grid.Column="3" Style="{StaticResource InputBoxStyle}" Text="{Binding HeatingBoxTemperatureStation, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="0" Grid.Column="4" Text="站号" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,10,0,0" Text="定量环温度" Style="{StaticResource LabelStyle}" />
                         <TextBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding QuantitativeLoopTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
                         <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                        <TextBox Grid.Row="1" Grid.Column="3" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding QuantitativeLoopTemperatureStation, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="1" Grid.Column="4" Margin="0,10,0,0" Text="站号" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" Text="传输线温度" Style="{StaticResource LabelStyle}" />
                         <TextBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TransferLineTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
                         <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,10,0,0" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                        <TextBox Grid.Row="2" Grid.Column="3" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TransferLineTemperatureStation, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="2" Grid.Column="4" Margin="0,10,0,0" Text="站号" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" Text="摇匀时长" Style="{StaticResource LabelStyle}" />
-                        <TextBox Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ShakeDurationSeconds, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Row="3" Grid.Column="2" Margin="0,10,0,0" Text="s" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" Text="预留温控温度" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ReservedTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Margin="0,10,0,0" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                        <TextBox Grid.Row="3" Grid.Column="3" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ReservedTemperatureStation, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="3" Grid.Column="4" Margin="0,10,0,0" Text="站号" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,10,0,0" Text="摇匀时长" Style="{StaticResource LabelStyle}" />
+                        <TextBox Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ShakeDurationSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Grid.Row="4" Grid.Column="2" Margin="0,10,0,0" Text="s" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
                     </Grid>
                 </Border>
 
@@ -231,4 +247,3 @@
         </StackPanel>
     </Grid>
 </UserControl>
-

@@ -22,6 +22,7 @@ namespace Blood_Alcohol.Communication.Serial
         private readonly int _responseTimeoutMs;
         // Modbus 主站互斥锁
         private readonly SemaphoreSlim _masterGate = new(1, 1);
+        private readonly ILx5vPlcTransport? _transport;
 
         // 当前缓存的 Modbus 主站实例
         private IModbusSerialMaster? _master;
@@ -45,14 +46,20 @@ namespace Blood_Alcohol.Communication.Serial
         /// <param name="rs485">RS485 管理器实例。</param>
         /// <param name="slaveAddress">PLC Modbus 从站地址。</param>
         /// <param name="responseTimeoutMs">通信超时时间（毫秒）。</param>
+        /// <param name="transport">可选的 PLC 传输实现，供测试或模拟场景注入。</param>
         /// <remarks>
         /// 由 CommunicationManager 构造阶段调用。
         /// </remarks>
-        public Lx5vPlc(Rs485Helper rs485, byte slaveAddress = 1, int responseTimeoutMs = 3000)
+        public Lx5vPlc(
+            Rs485Helper rs485,
+            byte slaveAddress = 1,
+            int responseTimeoutMs = 3000,
+            ILx5vPlcTransport? transport = null)
         {
             _rs485 = rs485 ?? throw new ArgumentNullException(nameof(rs485));
             SlaveAddress = slaveAddress;
             _responseTimeoutMs = responseTimeoutMs > 0 ? responseTimeoutMs : 3000;
+            _transport = transport;
         }
 
         /// <summary>
@@ -67,6 +74,21 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<ushort[]> ReadHoldingRegistersAsync(ushort startAddress, ushort length)
         {
+            if (_transport != null)
+            {
+                PlcCallResult<ushort[]> transportResult = await ExecuteTransportAsync(
+                    operation: "ReadHoldingRegisters",
+                    action: transport => transport.ReadHoldingRegistersAsync(SlaveAddress, startAddress, length),
+                    fallback: Array.Empty<ushort>()).ConfigureAwait(false);
+
+                if (!transportResult.Success)
+                {
+                    throw transportResult.Error!;
+                }
+
+                return transportResult.Value;
+            }
+
             PlcCallResult<ushort[]> result = await ExecuteAsync(
                 operation: "ReadHoldingRegisters",
                 action: master => master.ReadHoldingRegistersAsync(SlaveAddress, startAddress, length),
@@ -92,6 +114,21 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, ushort[] Values, string Error)> TryReadHoldingRegistersAsync(ushort startAddress, ushort length)
         {
+            if (_transport != null)
+            {
+                PlcCallResult<ushort[]> transportResult = await ExecuteTransportAsync(
+                    operation: "ReadHoldingRegisters",
+                    action: transport => transport.ReadHoldingRegistersAsync(SlaveAddress, startAddress, length),
+                    fallback: Array.Empty<ushort>()).ConfigureAwait(false);
+
+                if (transportResult.Success)
+                {
+                    return (true, transportResult.Value, string.Empty);
+                }
+
+                return (false, Array.Empty<ushort>(), transportResult.Error?.Message ?? "Unknown PLC error.");
+            }
+
             PlcCallResult<ushort[]> result = await ExecuteAsync(
                 operation: "ReadHoldingRegisters",
                 action: master => master.ReadHoldingRegistersAsync(SlaveAddress, startAddress, length),
@@ -117,6 +154,21 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<bool[]> ReadCoilsAsync(ushort startAddress, ushort length)
         {
+            if (_transport != null)
+            {
+                PlcCallResult<bool[]> transportResult = await ExecuteTransportAsync(
+                    operation: "ReadCoils",
+                    action: transport => transport.ReadCoilsAsync(SlaveAddress, startAddress, length),
+                    fallback: Array.Empty<bool>()).ConfigureAwait(false);
+
+                if (!transportResult.Success)
+                {
+                    throw transportResult.Error!;
+                }
+
+                return transportResult.Value;
+            }
+
             PlcCallResult<bool[]> result = await ExecuteAsync(
                 operation: "ReadCoils",
                 action: master => master.ReadCoilsAsync(SlaveAddress, startAddress, length),
@@ -142,6 +194,21 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, bool[] Values, string Error)> TryReadCoilsAsync(ushort startAddress, ushort length)
         {
+            if (_transport != null)
+            {
+                PlcCallResult<bool[]> transportResult = await ExecuteTransportAsync(
+                    operation: "ReadCoils",
+                    action: transport => transport.ReadCoilsAsync(SlaveAddress, startAddress, length),
+                    fallback: Array.Empty<bool>()).ConfigureAwait(false);
+
+                if (transportResult.Success)
+                {
+                    return (true, transportResult.Value, string.Empty);
+                }
+
+                return (false, Array.Empty<bool>(), transportResult.Error?.Message ?? "Unknown PLC error.");
+            }
+
             PlcCallResult<bool[]> result = await ExecuteAsync(
                 operation: "ReadCoils",
                 action: master => master.ReadCoilsAsync(SlaveAddress, startAddress, length),
@@ -167,6 +234,25 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task WriteSingleCoilAsync(ushort address, bool value)
         {
+            if (_transport != null)
+            {
+                PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
+                    operation: "WriteSingleCoil",
+                    action: async transport =>
+                    {
+                        await transport.WriteSingleCoilAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                        return true;
+                    },
+                    fallback: false).ConfigureAwait(false);
+
+                if (!transportResult.Success)
+                {
+                    throw transportResult.Error!;
+                }
+
+                return;
+            }
+
             PlcCallResult<bool> result = await ExecuteAsync(
                 operation: "WriteSingleCoil",
                 action: async master =>
@@ -194,6 +280,22 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, string Error)> TryWriteSingleCoilAsync(ushort address, bool value)
         {
+            if (_transport != null)
+            {
+                PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
+                    operation: "WriteSingleCoil",
+                    action: async transport =>
+                    {
+                        await transport.WriteSingleCoilAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                        return true;
+                    },
+                    fallback: false).ConfigureAwait(false);
+
+                return transportResult.Success
+                    ? (true, string.Empty)
+                    : (false, transportResult.Error?.Message ?? "Unknown PLC error.");
+            }
+
             PlcCallResult<bool> result = await ExecuteAsync(
                 operation: "WriteSingleCoil",
                 action: async master =>
@@ -220,6 +322,25 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task WriteSingleRegisterAsync(ushort address, ushort value)
         {
+            if (_transport != null)
+            {
+                PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
+                    operation: "WriteSingleRegister",
+                    action: async transport =>
+                    {
+                        await transport.WriteSingleRegisterAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                        return true;
+                    },
+                    fallback: false).ConfigureAwait(false);
+
+                if (!transportResult.Success)
+                {
+                    throw transportResult.Error!;
+                }
+
+                return;
+            }
+
             PlcCallResult<bool> result = await ExecuteAsync(
                 operation: "WriteSingleRegister",
                 action: async master =>
@@ -247,6 +368,22 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, string Error)> TryWriteSingleRegisterAsync(ushort address, ushort value)
         {
+            if (_transport != null)
+            {
+                PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
+                    operation: "WriteSingleRegister",
+                    action: async transport =>
+                    {
+                        await transport.WriteSingleRegisterAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                        return true;
+                    },
+                    fallback: false).ConfigureAwait(false);
+
+                return transportResult.Success
+                    ? (true, string.Empty)
+                    : (false, transportResult.Error?.Message ?? "Unknown PLC error.");
+            }
+
             PlcCallResult<bool> result = await ExecuteAsync(
                 operation: "WriteSingleRegister",
                 action: async master =>
@@ -314,6 +451,54 @@ namespace Blood_Alcohol.Communication.Serial
             {
                 IModbusSerialMaster master = GetOrCreateMaster();
                 T value = await action(master).ConfigureAwait(false);
+                return PlcCallResult<T>.FromSuccess(value);
+            }
+            catch (Exception ex)
+            {
+                Exception wrapped = WrapCommunicationException(operation, ex);
+                return PlcCallResult<T>.FromFailure(fallback, wrapped);
+            }
+            finally
+            {
+                _masterGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// 在注入传输实现时统一执行 PLC 调用。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="operation">操作名称，用于错误上下文。</param>
+        /// <param name="action">面向注入传输的读写委托。</param>
+        /// <param name="fallback">失败时返回的回退值。</param>
+        /// <returns>返回封装后的调用结果对象。</returns>
+        /// <remarks>
+        /// 由集成测试场景复用，保持与串口路径一致的异常包装和返回语义。
+        /// </remarks>
+        private async Task<PlcCallResult<T>> ExecuteTransportAsync<T>(
+            string operation,
+            Func<ILx5vPlcTransport, Task<T>> action,
+            T fallback)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+
+            if (action == null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            if (_transport == null)
+            {
+                throw new InvalidOperationException("PLC transport is not configured.");
+            }
+
+            await _masterGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                T value = await action(_transport).ConfigureAwait(false);
                 return PlcCallResult<T>.FromSuccess(value);
             }
             catch (Exception ex)
