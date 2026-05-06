@@ -59,6 +59,19 @@ internal sealed class HomePlcCommandCoordinator
 	}
 
 	/// <summary>
+	/// 发送轴安全位置确认点位。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回命令执行结果。</returns>
+	/// <remarks>
+	/// 系统初始化前确认安全位置后调用，失败时阻止继续初始化。
+	/// </remarks>
+	public Task<HomeCommandResult> SendSafePositionConfirmAsync()
+	{
+		return ExecuteAsync(_plcGateway.SendSafePositionConfirmAsync);
+	}
+
+	/// <summary>
 	/// 检查开始前置条件并在满足时发送开始脉冲
 	/// </summary>
 	/// By:ChengLei

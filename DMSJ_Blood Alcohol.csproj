@@ -18,6 +18,14 @@
 
   <ItemGroup>
     <Resource Include="Resources\*.png" />
+    <Resource Include="Resources\Figma\FaultDebug\*.svg" />
+    <Resource Include="Resources\Figma\ParameterConfig\*.svg" />
+    <Resource Include="Resources\Figma\CylinderControl\*.svg" />
+    <Resource Include="Resources\Figma\WeightToZDebug\*.svg" />
+    <Resource Include="Resources\Figma\CoordinateDebug\*.svg" />
+    <Resource Include="Resources\Figma\PointPositionControl\*.svg" />
+    <Resource Include="Resources\Figma\AxisAddressConfig\*.svg" />
+    <Resource Include="Resources\Figma\AxisDebug\*.svg" />
   </ItemGroup>
 
   <ItemGroup>

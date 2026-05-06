@@ -2,248 +2,563 @@
 <UserControl x:Class="Blood_Alcohol.Views.ParameterConfigView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:Blood_Alcohol.ViewModels">
+             xmlns:vm="clr-namespace:Blood_Alcohol.ViewModels"
+             FontFamily="Segoe UI, Microsoft YaHei">
     <UserControl.DataContext>
         <vm:ParameterConfigViewModel />
     </UserControl.DataContext>
 
     <UserControl.Resources>
-        <Style x:Key="CardBorderStyle" TargetType="Border">
-            <Setter Property="Background" Value="#F7F9FC" />
-            <Setter Property="BorderBrush" Value="#CBD5E1" />
+        <DropShadowEffect x:Key="CardShadow"
+                          BlurRadius="10"
+                          Direction="270"
+                          ShadowDepth="1"
+                          Color="#000000"
+                          Opacity="0.10" />
+
+        <DrawingImage x:Key="FigmaParameterIconSettings">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M10.1833 1.66667H9.81667C9.37464 1.66667 8.95072 1.84226 8.63816 2.15482C8.32559 2.46738 8.15 2.89131 8.15 3.33333V3.48333C8.1497 3.7756 8.07255 4.06266 7.92628 4.3157C7.78002 4.56874 7.56978 4.77886 7.31667 4.925L6.95833 5.13333C6.70497 5.27961 6.41756 5.35662 6.125 5.35662C5.83244 5.35662 5.54503 5.27961 5.29167 5.13333L5.16667 5.06667C4.78422 4.84605 4.32986 4.7862 3.90334 4.90026C3.47681 5.01431 3.11296 5.29295 2.89167 5.675L2.70833 5.99167C2.48772 6.37411 2.42787 6.82847 2.54192 7.255C2.65598 7.68153 2.93461 8.04537 3.31667 8.26667L3.44167 8.35C3.69356 8.49543 3.90302 8.70424 4.04921 8.95569C4.1954 9.20714 4.27324 9.49248 4.275 9.78333V10.2083C4.27617 10.502 4.19971 10.7908 4.05337 11.0454C3.90703 11.3001 3.69601 11.5115 3.44167 11.6583L3.31667 11.7333C2.93461 11.9546 2.65598 12.3185 2.54192 12.745C2.42787 13.1715 2.48772 13.6259 2.70833 14.0083L2.89167 14.325C3.11296 14.7071 3.47681 14.9857 3.90334 15.0997C4.32986 15.2138 4.78422 15.1539 5.16667 14.9333L5.29167 14.8667C5.54503 14.7204 5.83244 14.6434 6.125 14.6434C6.41756 14.6434 6.70497 14.7204 6.95833 14.8667L7.31667 15.075C7.56978 15.2211 7.78002 15.4313 7.92628 15.6843C8.07255 15.9373 8.1497 16.2244 8.15 16.5167V16.6667C8.15 17.1087 8.32559 17.5326 8.63816 17.8452C8.95072 18.1577 9.37464 18.3333 9.81667 18.3333H10.1833C10.6254 18.3333 11.0493 18.1577 11.3618 17.8452C11.6744 17.5326 11.85 17.1087 11.85 16.6667V16.5167C11.8503 16.2244 11.9275 15.9373 12.0737 15.6843C12.22 15.4313 12.4302 15.2211 12.6833 15.075L13.0417 14.8667C13.295 14.7204 13.5824 14.6434 13.875 14.6434C14.1676 14.6434 14.455 14.7204 14.7083 14.8667L14.8333 14.9333C15.2158 15.1539 15.6701 15.2138 16.0967 15.0997C16.5232 14.9857 16.887 14.7071 17.1083 14.325L17.2917 14C17.5123 13.6176 17.5721 13.1632 17.4581 12.7367C17.344 12.3101 17.0654 11.9463 16.6833 11.725L16.5583 11.6583C16.304 11.5115 16.093 11.3001 15.9466 11.0454C15.8003 10.7908 15.7238 10.502 15.725 10.2083V9.79167C15.7238 9.49798 15.8003 9.20921 15.9466 8.95458C16.093 8.69995 16.304 8.48851 16.5583 8.34167L16.6833 8.26667C17.0654 8.04537 17.344 7.68153 17.4581 7.255C17.5721 6.82847 17.5123 6.37411 17.2917 5.99167L17.1083 5.675C16.887 5.29295 16.5232 5.01431 16.0967 4.90026C15.6701 4.7862 15.2158 4.84605 14.8333 5.06667L14.7083 5.13333C14.455 5.27961 14.1676 5.35662 13.875 5.35662C13.5824 5.35662 13.295 5.27961 13.0417 5.13333L12.6833 4.925C12.4302 4.77886 12.22 4.56874 12.0737 4.3157C11.9275 4.06266 11.8503 3.7756 11.85 3.48333V3.33333C11.85 2.89131 11.6744 2.46738 11.3618 2.15482C11.0493 1.84226 10.6254 1.66667 10.1833 1.66667Z M10 12.5C11.3807 12.5 12.5 11.3807 12.5 10C12.5 8.61929 11.3807 7.5 10 7.5C8.61929 7.5 7.5 8.61929 7.5 10C7.5 11.3807 8.61929 12.5 10 12.5Z">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#155DFC" Thickness="1.66667" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaParameterIconThermometer">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M9.33333 2.66667V9.69333C9.84171 9.98685 10.239 10.4399 10.4637 10.9822C10.6883 11.5246 10.7277 12.1259 10.5758 12.6929C10.4239 13.2599 10.0891 13.761 9.62336 14.1183C9.15765 14.4757 8.58702 14.6694 8 14.6694C7.41298 14.6694 6.84235 14.4757 6.37664 14.1183C5.91092 13.761 5.57613 13.2599 5.4242 12.6929C5.27226 12.1259 5.31168 11.5246 5.53632 10.9822C5.76097 10.4399 6.15829 9.98685 6.66667 9.69333V2.66667C6.66667 2.31304 6.80714 1.97391 7.05719 1.72386C7.30724 1.47381 7.64638 1.33333 8 1.33333C8.35362 1.33333 8.69276 1.47381 8.94281 1.72386C9.19286 1.97391 9.33333 2.31304 9.33333 2.66667Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaParameterIconTube">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M3 2H13 M4 2V12.6667C4 13.0203 4.14048 13.3594 4.39052 13.6095C4.64057 13.8595 4.97971 14 5.33333 14H10.6667C11.0203 14 11.3594 13.8595 11.6095 13.6095C11.8595 13.3594 12 13.0203 12 12.6667V2 M4 9.33333H12">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaParameterIconPenWhite">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.116 4.54133C14.4685 4.18895 14.6665 3.71098 14.6666 3.21257C14.6667 2.71416 14.4687 2.23614 14.1163 1.88367C13.7639 1.53119 13.286 1.33314 12.7876 1.33308C12.2892 1.33302 11.8111 1.53095 11.4587 1.88333L2.56133 10.7827C2.40655 10.937 2.29208 11.127 2.228 11.336L1.34733 14.2373C1.3301 14.295 1.3288 14.3562 1.34357 14.4146C1.35833 14.4729 1.38861 14.5262 1.4312 14.5687C1.47378 14.6112 1.52708 14.6414 1.58544 14.6561C1.6438 14.6707 1.70504 14.6693 1.76267 14.652L4.66467 13.772C4.87345 13.7085 5.06345 13.5947 5.218 13.4407L14.116 4.54133Z M10 3.33333L12.6667 6">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaParameterIconDroplet">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M8 14.6667C9.23768 14.6667 10.4247 14.175 11.2998 13.2998C12.175 12.4247 12.6667 11.2377 12.6667 10C12.6667 8.66667 12 7.4 10.6667 6.33333C9.33333 5.26667 8.33333 3.66667 8 2C7.66667 3.66667 6.66667 5.26667 5.33333 6.33333C4 7.4 3.33333 8.66667 3.33333 10C3.33333 11.2377 3.825 12.4247 4.70017 13.2998C5.57534 14.175 6.76232 14.6667 8 14.6667Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaParameterIconStopwatch">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M6.66667 1.33333H9.33333 M8 9.33333L10 7.33333 M8 14.6667C10.9455 14.6667 13.3333 12.2789 13.3333 9.33333C13.3333 6.38781 10.9455 4 8 4C5.05448 4 2.66667 6.38781 2.66667 9.33333C2.66667 12.2789 5.05448 14.6667 8 14.6667Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#62748E" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaParameterIconUndo">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M2 8C2 9.18669 2.35189 10.3467 3.01118 11.3334C3.67047 12.3201 4.60754 13.0892 5.7039 13.5433C6.80026 13.9974 8.00666 14.1162 9.17054 13.8847C10.3344 13.6532 11.4035 13.0818 12.2426 12.2426C13.0818 11.4035 13.6532 10.3344 13.8847 9.17054C14.1162 8.00666 13.9974 6.80026 13.5433 5.7039C13.0892 4.60754 12.3201 3.67047 11.3334 3.01118C10.3467 2.35189 9.18669 2 8 2C6.32263 2.00631 4.71265 2.66082 3.50667 3.82667L2 5.33333 M2 2V5.33333H5.33333">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#0A0A0A" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaParameterIconReload">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M2 8C2 6.4087 2.63214 4.88258 3.75736 3.75736C4.88258 2.63214 6.4087 2 8 2C9.67737 2.00631 11.2874 2.66082 12.4933 3.82667L14 5.33333 M14 2V5.33333H10.6667 M14 8C14 9.5913 13.3679 11.1174 12.2426 12.2426C11.1174 13.3679 9.5913 14 8 14C6.32263 13.9937 4.71265 13.3392 3.50667 12.1733L2 10.6667 M5.33333 10.6667H2V14">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#0A0A0A" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaParameterIconSaveWhite">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M10.1333 2C10.485 2.00501 10.8205 2.14878 11.0667 2.4L13.6 4.93333C13.8512 5.17951 13.995 5.51497 14 5.86667V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V3.33333C2 2.97971 2.14048 2.64057 2.39052 2.39052C2.64057 2.14048 2.97971 2 3.33333 2H10.1333Z M11.3333 14V9.33333C11.3333 9.15652 11.2631 8.98695 11.1381 8.86193C11.013 8.73691 10.8435 8.66667 10.6667 8.66667H5.33333C5.15652 8.66667 4.98695 8.73691 4.86193 8.86193C4.7369 8.98695 4.66667 9.15652 4.66667 9.33333V14 M4.66667 2V4.66667C4.66667 4.84348 4.7369 5.01305 4.86193 5.13807C4.98695 5.2631 5.15652 5.33333 5.33333 5.33333H10">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="12" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Effect" Value="{StaticResource CardShadow}" />
         </Style>
 
-        <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#334155" />
-            <Setter Property="VerticalAlignment" Value="Center" />
+        <Style x:Key="SectionHeaderIconBoxStyle" TargetType="Border">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Background" Value="#EAF1FF" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+
+        <Style x:Key="TitleTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#0F172B" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="LineHeight" Value="24" />
+        </Style>
+
+        <Style x:Key="SubTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#62748E" />
             <Setter Property="FontSize" Value="14" />
+            <Setter Property="LineHeight" Value="20" />
+        </Style>
+
+        <Style x:Key="ParamNameStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#1D293D" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="LineHeight" Value="24" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <Style x:Key="RegisterHintStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#90A1B9" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LineHeight" Value="16" />
+        </Style>
+
+        <Style x:Key="UnitTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#62748E" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
         <Style x:Key="InputBoxStyle" TargetType="TextBox">
-            <Setter Property="Height" Value="30" />
-            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="12,0" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="BorderBrush" Value="#FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Background" Value="White" />
+            <Setter Property="Background" Value="#FFFFFF" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#155DFC" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="ActionButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="#F8FAFC" />
-            <Setter Property="Background" Value="#2F6E9E" />
-            <Setter Property="BorderBrush" Value="#1E4F73" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="Background" Value="#155DFC" />
+            <Setter Property="BorderBrush" Value="#155DFC" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Padding" Value="11,0" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="MinWidth" Value="100" />
-            <Setter Property="Height" Value="34" />
+            <Setter Property="MinWidth" Value="72" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.84" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Foreground" Value="#0A0A0A" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="104" />
         </Style>
     </UserControl.Resources>
 
-    <Grid Background="White" Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
-        <Border Grid.Row="0"
-                Style="{StaticResource CardBorderStyle}"
-                Margin="0,0,0,10">
-            <TextBlock Text="{Binding StatusMessage}"
-                       Foreground="#334155"
-                       FontSize="14" />
-        </Border>
-
-        <ScrollViewer Grid.Row="1"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-            <StackPanel>
-                <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,10">
+    <Grid Background="#F8FAFC">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="24">
+                <Border Style="{StaticResource CardStyle}" Padding="24,20" Margin="0,0,0,16">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="260" />
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="55" />
-                            <ColumnDefinition Width="100" />
-                            <ColumnDefinition Width="60" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="加热箱温度" Style="{StaticResource LabelStyle}" />
-                        <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBoxStyle}" Text="{Binding HeatingBoxTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
-                        <TextBlock Grid.Row="0" Grid.Column="2" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-                        <TextBox Grid.Row="0" Grid.Column="3" Style="{StaticResource InputBoxStyle}" Text="{Binding HeatingBoxTemperatureStation, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Row="0" Grid.Column="4" Text="站号" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="40" Height="40" Background="#EAF1FF" CornerRadius="10" Margin="0,0,12,0">
+                                <Image Width="20" Height="20" Source="{StaticResource FigmaParameterIconSettings}" />
+                            </Border>
+                            <StackPanel>
+                                <TextBlock Text="参数配置" Style="{StaticResource TitleTextStyle}" />
+                                <TextBlock Text="温控设置 / 流体延时 / 运动位置参数" Style="{StaticResource SubTextStyle}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </StackPanel>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,10,0,0" Text="定量环温度" Style="{StaticResource LabelStyle}" />
-                        <TextBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding QuantitativeLoopTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
-                        <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-                        <TextBox Grid.Row="1" Grid.Column="3" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding QuantitativeLoopTemperatureStation, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Row="1" Grid.Column="4" Margin="0,10,0,0" Text="站号" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" Text="传输线温度" Style="{StaticResource LabelStyle}" />
-                        <TextBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TransferLineTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
-                        <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,10,0,0" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-                        <TextBox Grid.Row="2" Grid.Column="3" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TransferLineTemperatureStation, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Row="2" Grid.Column="4" Margin="0,10,0,0" Text="站号" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" Text="预留温控温度" Style="{StaticResource LabelStyle}" />
-                        <TextBox Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ReservedTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
-                        <TextBlock Grid.Row="3" Grid.Column="2" Margin="0,10,0,0" Text="°C" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-                        <TextBox Grid.Row="3" Grid.Column="3" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ReservedTemperatureStation, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Row="3" Grid.Column="4" Margin="0,10,0,0" Text="站号" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,10,0,0" Text="摇匀时长" Style="{StaticResource LabelStyle}" />
-                        <TextBox Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ShakeDurationSeconds, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Grid.Row="4" Grid.Column="2" Margin="0,10,0,0" Text="s" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="参数总数" Style="{StaticResource SubTextStyle}" VerticalAlignment="Center" />
+                            <TextBlock Text="22" Foreground="#0F172B" FontSize="16" Margin="8,0,24,0" VerticalAlignment="Center" />
+                            <Ellipse Width="8" Height="8" Fill="#00BC7D" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="已同步" Style="{StaticResource SubTextStyle}" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Grid>
                 </Border>
 
-                <Border Style="{StaticResource CardBorderStyle}">
+                <Border Background="#EFF6FF" BorderBrush="#DBEAFE" BorderThickness="1" CornerRadius="14" Padding="20,12" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Fill="#2B7FFF" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBlock Text="{Binding StatusMessage}" Foreground="#314158" FontSize="14" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <Border BorderBrush="#F1F5F9" BorderThickness="0,0,0,1" Padding="20,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Style="{StaticResource SectionHeaderIconBoxStyle}">
+                                        <Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconThermometer}" />
+                                    </Border>
+                                    <StackPanel>
+                                        <TextBlock Text="温控与摇匀参数" Style="{StaticResource TitleTextStyle}" />
+                                        <TextBlock Text="加热区温度阈值与摇匀时长配置" Style="{StaticResource SubTextStyle}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#F1F5F9" CornerRadius="8" Padding="9,3" VerticalAlignment="Center">
+                                    <TextBlock Text="5 项" Foreground="#45556C" FontSize="12" FontWeight="Medium" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <UniformGrid Columns="2" Margin="32,24,32,24">
+                            <Grid Margin="0,0,48,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="52" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="加热箱温度" Style="{StaticResource ParamNameStyle}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding HeatingBoxTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="2" Text="°C" Style="{StaticResource UnitTextStyle}" />
+                                <TextBox Grid.Column="3" Text="{Binding HeatingBoxTemperatureStation, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="4" Text="站号" Style="{StaticResource UnitTextStyle}" />
+                            </Grid>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="52" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="定量环温度" Style="{StaticResource ParamNameStyle}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding QuantitativeLoopTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="2" Text="°C" Style="{StaticResource UnitTextStyle}" />
+                                <TextBox Grid.Column="3" Text="{Binding QuantitativeLoopTemperatureStation, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="4" Text="站号" Style="{StaticResource UnitTextStyle}" />
+                            </Grid>
+                            <Grid Margin="0,0,48,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="52" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="传输线温度" Style="{StaticResource ParamNameStyle}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding TransferLineTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="2" Text="°C" Style="{StaticResource UnitTextStyle}" />
+                                <TextBox Grid.Column="3" Text="{Binding TransferLineTemperatureStation, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="4" Text="站号" Style="{StaticResource UnitTextStyle}" />
+                            </Grid>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="44" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="52" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="预留温控温度" Style="{StaticResource ParamNameStyle}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding ReservedTemperature, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="2" Text="°C" Style="{StaticResource UnitTextStyle}" />
+                                <TextBox Grid.Column="3" Text="{Binding ReservedTemperatureStation, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="4" Text="站号" Style="{StaticResource UnitTextStyle}" />
+                            </Grid>
+                            <Grid Margin="0,0,48,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.5*" />
+                                    <ColumnDefinition Width="100" />
+                                    <ColumnDefinition Width="65" />
+                                    <ColumnDefinition Width="1.5*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="摇匀时长" Style="{StaticResource ParamNameStyle}" VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding ShakeDurationSeconds, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="2" Text="s" Style="{StaticResource UnitTextStyle}" />
+                            </Grid>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#F1F5F9" BorderThickness="0,0,0,1" Padding="20,16">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource SectionHeaderIconBoxStyle}">
+                                            <Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconTube}" />
+                                        </Border>
+                                        <StackPanel>
+                                            <TextBlock Text="移液与摇匀控制" Style="{StaticResource TitleTextStyle}" />
+                                            <TextBlock Text="Z 轴运动、移液枪与摇匀延时" Style="{StaticResource SubTextStyle}" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="#F1F5F9" CornerRadius="8" Padding="9,3" VerticalAlignment="Center">
+                                        <TextBlock Text="9 项" Foreground="#45556C" FontSize="12" FontWeight="Medium" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                            <StackPanel Margin="20">
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="140" />
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="72" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Z轴_丢枪头_上升慢速速度" Style="{StaticResource ParamNameStyle}" />
+                                        <TextBlock Text="寄存器 D6000/D6001" Style="{StaticResource RegisterHintStyle}" />
+                                    </StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding ZDropNeedleRiseSlowSpeed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" />
+                                    <TextBlock Grid.Column="2" Text="—" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="ZDropNeedleRiseSlowSpeed" Style="{StaticResource ActionButtonStyle}">
+                                        <StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel>
+                                    </Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="移液枪吸液延时时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6020" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding PipetteAspirateDelay100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="PipetteAspirateDelay100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="移液枪打液延时时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6021" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding PipetteDispenseDelay100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="PipetteDispenseDelay100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="采血管摇匀原位延时时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6022" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding TubeShakeHomeDelay100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="TubeShakeHomeDelay100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="采血管摇匀工位延时时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6023" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding TubeShakeWorkDelay100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="TubeShakeWorkDelay100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="采血管摇匀目标次数" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6024" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding TubeShakeTargetCount, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="次" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="TubeShakeTargetCount" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="顶空瓶摇匀原位延时时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6026" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding HeadspaceShakeHomeDelay100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="HeadspaceShakeHomeDelay100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="顶空瓶摇匀工位延时时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6027" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding HeadspaceShakeWorkDelay100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="HeadspaceShakeWorkDelay100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="顶空瓶摇匀目标次数" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6028" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding HeadspaceShakeTargetCount, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="次" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="HeadspaceShakeTargetCount" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <Border BorderBrush="#F1F5F9" BorderThickness="0,0,0,1" Padding="20,16">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource SectionHeaderIconBoxStyle}">
+                                            <Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconDroplet}" />
+                                        </Border>
+                                        <StackPanel>
+                                            <TextBlock Text="进样流路控制" Style="{StaticResource TitleTextStyle}" />
+                                            <TextBlock Text="叔丁醇、加压平衡与进样位置" Style="{StaticResource SubTextStyle}" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="#F1F5F9" CornerRadius="8" Padding="9,3" VerticalAlignment="Center">
+                                        <TextBlock Text="8 项" Foreground="#45556C" FontSize="12" FontWeight="Medium" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                            <StackPanel Margin="20">
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="叔丁醇吸液延时时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6030" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding ButanolAspirateDelay100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="ButanolAspirateDelay100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="叔丁醇打液延时时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6031" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding ButanolDispenseDelay100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="ButanolDispenseDelay100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="样品瓶加压时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6040" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding SampleBottlePressureTime100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="SampleBottlePressureTime100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="定量环平衡时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6041" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding QuantitativeLoopBalanceTime100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="QuantitativeLoopBalanceTime100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="进样时间" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6042" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding InjectionTime100ms, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="100ms" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="InjectionTime100ms" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="样品瓶加压位置" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6302/D6303" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding SampleBottlePressurePosition, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="—" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="SampleBottlePressurePosition" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="定量环平衡位置" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6304/D6305" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding QuantitativeLoopBalancePosition, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="—" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="QuantitativeLoopBalancePosition" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="140" /><ColumnDefinition Width="72" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
+                                    <StackPanel><TextBlock Text="进样位置" Style="{StaticResource ParamNameStyle}" /><TextBlock Text="寄存器 D6306/D6307" Style="{StaticResource RegisterHintStyle}" /></StackPanel>
+                                    <TextBox Grid.Column="1" Text="{Binding InjectionPosition, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InputBoxStyle}" /><TextBlock Grid.Column="2" Text="—" Style="{StaticResource UnitTextStyle}" />
+                                    <Button Grid.Column="3" Command="{Binding WriteParameterCommand}" CommandParameter="InjectionPosition" Style="{StaticResource ActionButtonStyle}"><StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconPenWhite}" Margin="0,0,6,0" /><TextBlock Text="写入" /></StackPanel></Button>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Margin="0,16,0,0" Padding="20,16" Style="{StaticResource CardStyle}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="20" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-
-                        <Grid Grid.Column="0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="320" />
-                                <ColumnDefinition Width="180" />
-                                <ColumnDefinition Width="70" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Z轴_丢枪头_上升慢速速度 (D6000)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBoxStyle}" Text="{Binding ZDropNeedleRiseSlowSpeed, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="-" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,10,0,0" Text="移液枪吸液延时时间 (D6020)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding PipetteAspirateDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" Text="移液枪打液延时时间 (D6021)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding PipetteDispenseDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" Text="采血管摇匀原位延时时间 (D6022)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TubeShakeHomeDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="3" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,10,0,0" Text="采血管摇匀工位延时时间 (D6023)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TubeShakeWorkDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="4" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,10,0,0" Text="采血管摇匀目标次数 (D6024)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="5" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding TubeShakeTargetCount, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="5" Grid.Column="2" Margin="0,10,0,0" Text="次" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,10,0,0" Text="顶空瓶摇匀原位延时时间 (D6026)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="6" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding HeadspaceShakeHomeDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="6" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,10,0,0" Text="顶空瓶摇匀工位延时时间 (D6027)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="7" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding HeadspaceShakeWorkDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="7" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,10,0,0" Text="顶空瓶摇匀目标次数 (D6028)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="8" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding HeadspaceShakeTargetCount, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="8" Grid.Column="2" Margin="0,10,0,0" Text="次" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-                        </Grid>
-
-                        <Grid Grid.Column="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="320" />
-                                <ColumnDefinition Width="180" />
-                                <ColumnDefinition Width="70" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="叔丁醇吸液延时时间 (D6030)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource InputBoxStyle}" Text="{Binding ButanolAspirateDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,10,0,0" Text="叔丁醇打液延时时间 (D6031)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding ButanolDispenseDelay100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,10,0,0" Text="样品瓶加压时间 (D6040)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding SampleBottlePressureTime100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,10,0,0" Text="定量环平衡时间 (D6041)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding QuantitativeLoopBalanceTime100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="3" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,10,0,0" Text="进样时间 (D6042)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding InjectionTime100ms, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="4" Grid.Column="2" Margin="0,10,0,0" Text="100ms" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,10,0,0" Text="样品瓶加压位置 (D6302)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="5" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding SampleBottlePressurePosition, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="5" Grid.Column="2" Margin="0,10,0,0" Text="-" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,10,0,0" Text="定量环平衡位置 (D6304)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="6" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding QuantitativeLoopBalancePosition, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="6" Grid.Column="2" Margin="0,10,0,0" Text="-" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,10,0,0" Text="进样位置 (D6306)" Style="{StaticResource LabelStyle}" />
-                            <TextBox Grid.Row="7" Grid.Column="1" Margin="0,10,0,0" Style="{StaticResource InputBoxStyle}" Text="{Binding InjectionPosition, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock Grid.Row="7" Grid.Column="2" Margin="0,10,0,0" Text="-" Style="{StaticResource LabelStyle}" HorizontalAlignment="Center" />
-                        </Grid>
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconStopwatch}" Margin="0,0,8,0" />
+                            <TextBlock Text="对运行设备进行修改前请确认安全" Style="{StaticResource SubTextStyle}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Command="{Binding ResetDefaultCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconUndo}" Margin="0,0,6,0" /><TextBlock Text="恢复默认" /></StackPanel>
+                            </Button>
+                            <Button Command="{Binding ReloadConfigCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconReload}" Margin="0,0,6,0" /><TextBlock Text="重新加载" /></StackPanel>
+                            </Button>
+                            <Button Command="{Binding SaveConfigCommand}" Style="{StaticResource ActionButtonStyle}" Height="36" MinWidth="104">
+                                <StackPanel Orientation="Horizontal"><Image Width="16" Height="16" Source="{StaticResource FigmaParameterIconSaveWhite}" Margin="0,0,6,0" /><TextBlock Text="保存参数" /></StackPanel>
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </Border>
             </StackPanel>
         </ScrollViewer>
-
-        <StackPanel Grid.Row="2"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Left"
-                    Margin="0,10,0,0">
-            <Button Content="恢复默认"
-                    Style="{StaticResource ActionButtonStyle}"
-                    Command="{Binding ResetDefaultCommand}"
-                    Margin="0,0,8,0" />
-            <Button Content="重新加载"
-                    Style="{StaticResource ActionButtonStyle}"
-                    Command="{Binding ReloadConfigCommand}"
-                    Margin="0,0,8,0" />
-            <Button Content="保存参数"
-                    Style="{StaticResource ActionButtonStyle}"
-                    Command="{Binding SaveConfigCommand}" />
-        </StackPanel>
     </Grid>
 </UserControl>

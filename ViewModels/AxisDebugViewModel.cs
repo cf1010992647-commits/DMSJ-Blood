@@ -25,6 +25,11 @@ namespace Blood_Alcohol.ViewModels
         private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
         private static readonly TimeSpan CoilCacheMaxAge = TimeSpan.FromMilliseconds(800);
         private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan PlcCommandInterval = TimeSpan.FromMilliseconds(100);
+        private const int JogManualSpeedMin = 0;
+        private const int JogManualSpeedMax = 3000;
+        private const int JogMotionTimeMax = 3000;
+        private const int ManualLocateMaxDistance = 10000;
 
         private static readonly Brush LampOnBrush = Brushes.LimeGreen;
         private static readonly Brush LampOffBrush = Brushes.Gainsboro;
@@ -34,6 +39,7 @@ namespace Blood_Alcohol.ViewModels
         private readonly AxisDebugAddressConfig _axisAddressConfig;
         private readonly AxisBinding[] _axes;
         private readonly HashSet<ushort> _registeredPollingCoils = new();
+        private readonly SemaphoreSlim _momentaryCommandSequenceLock = new(1, 1);
         private CancellationTokenSource? _pollCts;
         private Task? _pollTask;
         private bool _disposed;
@@ -122,6 +128,15 @@ namespace Blood_Alcohol.ViewModels
                     config.Axis4.AxisName = defaults.Axis4.AxisName;
                 }
 
+                FillMissingMotionTimeRegisters(config.Axis1, defaults.Axis1);
+                FillMissingMotionTimeRegisters(config.Axis2, defaults.Axis2);
+                FillMissingMotionTimeRegisters(config.Axis3, defaults.Axis3);
+                FillMissingMotionTimeRegisters(config.Axis4, defaults.Axis4);
+                FillMissingSpeedHighRegisters(config.Axis1, defaults.Axis1);
+                FillMissingSpeedHighRegisters(config.Axis2, defaults.Axis2);
+                FillMissingSpeedHighRegisters(config.Axis3, defaults.Axis3);
+                FillMissingSpeedHighRegisters(config.Axis4, defaults.Axis4);
+
                 _axisAddressConfigService.Save(config);
                 return config;
             }
@@ -151,6 +166,50 @@ namespace Blood_Alcohol.ViewModels
                 4 => _axisAddressConfig.Axis4 ?? new AxisAddressProfile(),
                 _ => new AxisAddressProfile()
             };
+        }
+
+        /// <summary>
+        /// 回填历史配置中缺失的加减速时间地址。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="profile">当前轴地址配置。</param>
+        /// <param name="defaults">默认轴地址配置。</param>
+        /// <remarks>
+        /// 由 LoadAxisAddressConfig 调用，避免旧配置文件没有新增字段时写入D0。
+        /// </remarks>
+        private static void FillMissingMotionTimeRegisters(AxisAddressProfile profile, AxisAddressProfile defaults)
+        {
+            if (profile.AccelerationTimeRegister == 0)
+            {
+                profile.AccelerationTimeRegister = defaults.AccelerationTimeRegister;
+            }
+
+            if (profile.DecelerationTimeRegister == 0)
+            {
+                profile.DecelerationTimeRegister = defaults.DecelerationTimeRegister;
+            }
+        }
+
+        /// <summary>
+        /// 回填历史配置中缺失的速度高位地址。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="profile">当前轴地址配置。</param>
+        /// <param name="defaults">默认轴地址配置。</param>
+        /// <remarks>
+        /// 由 LoadAxisAddressConfig 调用，兼容旧配置文件中速度只有低16位地址的情况。
+        /// </remarks>
+        private static void FillMissingSpeedHighRegisters(AxisAddressProfile profile, AxisAddressProfile defaults)
+        {
+            if (profile.ManualSpeedHighRegister == 0)
+            {
+                profile.ManualSpeedHighRegister = defaults.ManualSpeedHighRegister;
+            }
+
+            if (profile.AutoSpeedHighRegister == 0)
+            {
+                profile.AutoSpeedHighRegister = defaults.AutoSpeedHighRegister;
+            }
         }
 
         /// <summary>
@@ -226,13 +285,13 @@ namespace Blood_Alcohol.ViewModels
                 TargetPosition = "0",
                 ManualSpeed = "0",
                 AutoSpeed = "0",
-                ManualSpeedInput = "0",
-                AutoSpeedInput = "0",
+                AccelerationTime = "0",
+                DecelerationTime = "0",
                 ShowPositionFields = true,
                 ShowManualLocate = showManualLocate,
-                ManualLocateText = manualLocateText,
-                ManualLocateInput = "0"
+                ManualLocateText = manualLocateText
             };
+            card.InitializeProcessInputMemory(axisNo, "0", "0", "0", "0", "0");
 
             card.StatusLamps.Add(new AxisStatusLampViewModel("正限位"));
             card.StatusLamps.Add(new AxisStatusLampViewModel("原点"));
@@ -264,13 +323,13 @@ namespace Blood_Alcohol.ViewModels
                 TargetPosition = string.Empty,
                 ManualSpeed = "0",
                 AutoSpeed = "0",
-                ManualSpeedInput = "0",
-                AutoSpeedInput = "0",
+                AccelerationTime = "0",
+                DecelerationTime = "0",
                 ShowPositionFields = false,
                 ShowManualLocate = false,
-                ManualLocateText = string.Empty,
-                ManualLocateInput = string.Empty
+                ManualLocateText = string.Empty
             };
+            card.InitializeProcessInputMemory(axisNo, "0", "0", "0", "0", string.Empty);
 
             card.StatusLamps.Add(new AxisStatusLampViewModel("原点"));
             card.StatusLamps.Add(new AxisStatusLampViewModel("回原点完成"));
@@ -290,31 +349,31 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private void BindAxisCommands(AxisBinding axis)
         {
-            axis.Card.JogPlusPressCommand = CreateAxisAsyncCommand(
+            axis.Card.JogPlusPressCommand = CreateMomentaryAxisCommand(
                 () => WriteAxisCommandLevelAsync(axis, AxisCommand.JogPlus, true),
                 "点动正向按下");
-            axis.Card.JogPlusReleaseCommand = CreateAxisAsyncCommand(
+            axis.Card.JogPlusReleaseCommand = CreateMomentaryAxisCommand(
                 () => WriteAxisCommandLevelAsync(axis, AxisCommand.JogPlus, false),
                 "点动正向释放");
 
-            axis.Card.JogMinusPressCommand = CreateAxisAsyncCommand(
+            axis.Card.JogMinusPressCommand = CreateMomentaryAxisCommand(
                 () => WriteAxisCommandLevelAsync(axis, AxisCommand.JogMinus, true),
                 "点动反向按下");
-            axis.Card.JogMinusReleaseCommand = CreateAxisAsyncCommand(
+            axis.Card.JogMinusReleaseCommand = CreateMomentaryAxisCommand(
                 () => WriteAxisCommandLevelAsync(axis, AxisCommand.JogMinus, false),
                 "点动反向释放");
 
-            axis.Card.GoHomePressCommand = CreateAxisAsyncCommand(
+            axis.Card.GoHomePressCommand = CreateMomentaryAxisCommand(
                 () => WriteAxisCommandLevelAsync(axis, AxisCommand.GoHome, true),
                 "回原点按下");
-            axis.Card.GoHomeReleaseCommand = CreateAxisAsyncCommand(
+            axis.Card.GoHomeReleaseCommand = CreateMomentaryAxisCommand(
                 () => WriteAxisCommandLevelAsync(axis, AxisCommand.GoHome, false),
                 "回原点释放");
 
-            axis.Card.ManualLocatePressCommand = CreateAxisAsyncCommand(
+            axis.Card.ManualLocatePressCommand = CreateMomentaryAxisCommand(
                 () => ExecuteManualLocateAsync(axis, true),
                 "手动定位按下");
-            axis.Card.ManualLocateReleaseCommand = CreateAxisAsyncCommand(
+            axis.Card.ManualLocateReleaseCommand = CreateMomentaryAxisCommand(
                 () => ExecuteManualLocateAsync(axis, false),
                 "手动定位释放");
             axis.Card.WriteManualSpeedCommand = CreateAxisAsyncCommand(
@@ -323,6 +382,12 @@ namespace Blood_Alcohol.ViewModels
             axis.Card.WriteAutoSpeedCommand = CreateAxisAsyncCommand(
                 () => WriteAxisSpeedAsync(axis, false),
                 "自动速度下发");
+            axis.Card.WriteAccelerationTimeCommand = CreateAxisAsyncCommand(
+                () => WriteAxisMotionTimeAsync(axis, true),
+                "加速时间下发");
+            axis.Card.WriteDecelerationTimeCommand = CreateAxisAsyncCommand(
+                () => WriteAxisMotionTimeAsync(axis, false),
+                "减速时间下发");
         }
 
         /// <summary>
@@ -340,6 +405,43 @@ namespace Blood_Alcohol.ViewModels
             return new AsyncRelayCommand(
                 executeAsync,
                 onError: ex => SetActionMessage($"{commandName}命令异常: {ex.Message}"));
+        }
+
+        /// <summary>
+        /// 创建按住型轴调试命令。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="executeAsync">命令执行异步委托。</param>
+        /// <param name="commandName">命令名称，用于异常状态提示。</param>
+        /// <returns>返回不丢弃连续触发的按住型命令。</returns>
+        /// <remarks>
+        /// 由点动、回原点和手动定位按钮使用，释放命令必须允许排队，避免快速点按时漏发复位。
+        /// </remarks>
+        private ICommand CreateMomentaryAxisCommand(Func<Task> executeAsync, string commandName)
+        {
+            return new RelayCommand(_ => _ = ExecuteMomentaryAxisCommandAsync(executeAsync, commandName));
+        }
+
+        /// <summary>
+        /// 执行按住型轴调试命令并集中处理异常。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="executeAsync">命令执行异步委托。</param>
+        /// <param name="commandName">命令名称，用于异常状态提示。</param>
+        /// <returns>返回按住型命令执行任务。</returns>
+        /// <remarks>
+        /// 由 CreateMomentaryAxisCommand 调用，真正的顺序控制在命令内部的队列锁中完成。
+        /// </remarks>
+        private async Task ExecuteMomentaryAxisCommandAsync(Func<Task> executeAsync, string commandName)
+        {
+            try
+            {
+                await executeAsync();
+            }
+            catch (Exception ex)
+            {
+                SetActionMessage($"{commandName}命令异常: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -416,14 +518,18 @@ namespace Blood_Alcohol.ViewModels
 
             ushort currentPositionLow = await ReadRegisterValueWithLockAsync(axis.Addresses.CurrentPositionLowRegister, token);
             ushort currentPositionHigh = await ReadRegisterValueWithLockAsync(axis.Addresses.CurrentPositionHighRegister, token);
-            ushort manualSpeedRaw = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualSpeedRegister, token);
-            ushort autoSpeedRaw = await ReadRegisterValueWithLockAsync(axis.Addresses.AutoSpeedRegister, token);
+            ushort manualSpeedLow = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualSpeedRegister, token);
+            ushort manualSpeedHigh = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualSpeedHighRegister, token);
+            ushort autoSpeedLow = await ReadRegisterValueWithLockAsync(axis.Addresses.AutoSpeedRegister, token);
+            ushort autoSpeedHigh = await ReadRegisterValueWithLockAsync(axis.Addresses.AutoSpeedHighRegister, token);
+            ushort accelerationTimeRaw = await ReadRegisterValueWithLockAsync(axis.Addresses.AccelerationTimeRegister, token);
+            ushort decelerationTimeRaw = await ReadRegisterValueWithLockAsync(axis.Addresses.DecelerationTimeRegister, token);
             ushort manualTargetLow = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualTargetLowRegister, token);
             ushort manualTargetHigh = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualTargetHighRegister, token);
 
             int currentPosition = ComposeInt32(currentPositionLow, currentPositionHigh);
-            short jogSpeed = ToInt16(manualSpeedRaw);
-            short autoSpeed = ToInt16(autoSpeedRaw);
+            int jogSpeed = ComposeInt32(manualSpeedLow, manualSpeedHigh);
+            int autoSpeed = ComposeInt32(autoSpeedLow, autoSpeedHigh);
             int manualTarget = ComposeInt32(manualTargetLow, manualTargetHigh);
 
             RunOnUiThread(() =>
@@ -435,6 +541,7 @@ namespace Blood_Alcohol.ViewModels
                 }
 
                 axis.Card.UpdateSpeedFromPlc(jogSpeed, autoSpeed);
+                axis.Card.UpdateMotionTimeFromPlc(accelerationTimeRaw, decelerationTimeRaw);
 
                 if (axis.Card.StatusLamps.Count == 4)
                 {
@@ -465,6 +572,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private async Task ExecuteManualLocateAsync(AxisBinding axis, bool level)
         {
+            await _momentaryCommandSequenceLock.WaitAsync();
             _isAxisCommandBusy = true;
             try
             {
@@ -489,11 +597,54 @@ namespace Blood_Alcohol.ViewModels
                         return;
                     }
 
+                    if (axis.AxisNo == 3 && target > 0)
+                    {
+                        SetActionMessage($"{axis.Card.Title}: Z轴手动定位值不能为正值，当前输入={target}。");
+                        return;
+                    }
+
+                    if (!TryParseInt32(axis.Card.ManualSpeedInput, out int manualSpeed))
+                    {
+                        SetActionMessage($"{axis.Card.Title}: 手动定位速度输入无效（范围: 32位整数）。");
+                        return;
+                    }
+
+                    if (!ValidateManualSpeedRange(axis, manualSpeed, "手动定位"))
+                    {
+                        return;
+                    }
+
+                    int currentPosition = await ReadCurrentPositionFromPlcAsync(axis, CancellationToken.None);
+                    long distance = Math.Abs((long)target - currentPosition);
+                    if (distance > ManualLocateMaxDistance)
+                    {
+                        SetActionMessage($"{axis.Card.Title}: 手动定位距离过大，当前位置={currentPosition}，目标={target}，差值={distance}，最大允许={ManualLocateMaxDistance}。");
+                        return;
+                    }
+
+                    if (!await ValidateMotionTimeSafetyFromPlcAsync(axis, "手动定位").ConfigureAwait(false))
+                    {
+                        return;
+                    }
+
                     SplitInt32(target, out ushort lowWord, out ushort highWord);
+                    SplitInt32(manualSpeed, out ushort manualSpeedLowWord, out ushort manualSpeedHighWord);
+
+                    await WriteRegisterWithLockAsync(axis.Addresses.ManualSpeedRegister, manualSpeedLowWord);
+                    await Task.Delay(PlcCommandInterval);
+
+                    await WriteRegisterWithLockAsync(axis.Addresses.ManualSpeedHighRegister, manualSpeedHighWord);
+                    axis.Card.CommitSpeedInput(true, manualSpeed);
+                    await Task.Delay(PlcCommandInterval);
+
                     await WriteRegisterWithLockAsync(axis.Addresses.ManualTargetLowRegister, lowWord);
+                    await Task.Delay(PlcCommandInterval);
+
                     await WriteRegisterWithLockAsync(axis.Addresses.ManualTargetHighRegister, highWord);
+                    await Task.Delay(PlcCommandInterval);
+
                     await WriteCoilWithLockAsync(axis.Addresses.ManualLocateTriggerCoil, true);
-                    SetActionMessage($"{axis.Card.Title}: 手动定位触发=1，目标={target}");
+                    SetActionMessage($"{axis.Card.Title}: 手动定位触发=1，速度={manualSpeed}，目标={target}");
                 }
                 else
                 {
@@ -508,6 +659,7 @@ namespace Blood_Alcohol.ViewModels
             finally
             {
                 _isAxisCommandBusy = false;
+                _momentaryCommandSequenceLock.Release();
             }
         }
 
@@ -524,6 +676,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private async Task WriteAxisCommandLevelAsync(AxisBinding axis, AxisCommand command, bool level)
         {
+            await _momentaryCommandSequenceLock.WaitAsync();
             _isAxisCommandBusy = true;
             try
             {
@@ -535,10 +688,20 @@ namespace Blood_Alcohol.ViewModels
                     return;
                 }
 
+                if (level && !await ValidateGoHomeInterlockFromPlcAsync(axis, command))
+                {
+                    return;
+                }
+
                 if (level && await IsJogBlockedByLimitAsync(axis, command))
                 {
                     string limitText = command == AxisCommand.JogPlus ? "正限位" : "负限位";
                     SetActionMessage($"{axis.Card.Title}: {limitText}已触发，阻止{ToCommandText(command)}=1");
+                    return;
+                }
+
+                if (level && !await ValidateJogSafetyFromPlcAsync(axis, command))
+                {
                     return;
                 }
 
@@ -560,6 +723,7 @@ namespace Blood_Alcohol.ViewModels
             finally
             {
                 _isAxisCommandBusy = false;
+                _momentaryCommandSequenceLock.Release();
             }
         }
 
@@ -588,6 +752,165 @@ namespace Blood_Alcohol.ViewModels
         }
 
         /// <summary>
+        /// 从PLC实时读取回原点联锁条件并判断是否允许回原。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="command">轴命令类型。</param>
+        /// <returns>返回是否允许下发回原点置位命令。</returns>
+        /// <remarks>
+        /// X轴回原要求Y轴和Z轴回原完成，Y轴回原要求Z轴回原完成，释放命令不进入该校验。
+        /// </remarks>
+        private async Task<bool> ValidateGoHomeInterlockFromPlcAsync(AxisBinding axis, AxisCommand command)
+        {
+            if (command != AxisCommand.GoHome)
+            {
+                return true;
+            }
+
+            if (axis.AxisNo == 1)
+            {
+                AxisBinding yAxis = _axes[1];
+                AxisBinding zAxis = _axes[2];
+                bool yHomeDone = await ReadCoilStateDirectWithLockAsync(yAxis.Addresses.HomeDoneCoil, CancellationToken.None);
+                bool zHomeDone = await ReadCoilStateDirectWithLockAsync(zAxis.Addresses.HomeDoneCoil, CancellationToken.None);
+
+                if (!yHomeDone || !zHomeDone)
+                {
+                    SetActionMessage($"{axis.Card.Title}: X轴回原被阻止，必须先保证Y轴和Z轴在原点。当前 Y={(yHomeDone ? "已回原" : "未回原")}，Z={(zHomeDone ? "已回原" : "未回原")}。");
+                    return false;
+                }
+            }
+
+            if (axis.AxisNo == 2)
+            {
+                AxisBinding zAxis = _axes[2];
+                bool zHomeDone = await ReadCoilStateDirectWithLockAsync(zAxis.Addresses.HomeDoneCoil, CancellationToken.None);
+
+                if (!zHomeDone)
+                {
+                    SetActionMessage($"{axis.Card.Title}: Y轴回原被阻止，必须先保证Z轴在原点。当前 Z=未回原。");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 从PLC实时读取JOG安全参数并判断是否允许点动。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="command">轴命令类型。</param>
+        /// <returns>返回是否允许下发JOG置位命令。</returns>
+        /// <remarks>
+        /// 由 WriteAxisCommandLevelAsync 在JOG置位前调用，速度和加减速时间使用PLC当前值。
+        /// </remarks>
+        private async Task<bool> ValidateJogSafetyFromPlcAsync(AxisBinding axis, AxisCommand command)
+        {
+            if (command != AxisCommand.JogPlus && command != AxisCommand.JogMinus)
+            {
+                return true;
+            }
+
+            ushort manualSpeedLow = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualSpeedRegister, CancellationToken.None);
+            ushort manualSpeedHigh = await ReadRegisterValueWithLockAsync(axis.Addresses.ManualSpeedHighRegister, CancellationToken.None);
+            int manualSpeed = ComposeInt32(manualSpeedLow, manualSpeedHigh);
+
+            RunOnUiThread(() => axis.Card.ManualSpeed = manualSpeed.ToString(CultureInfo.InvariantCulture));
+
+            if (!ValidateManualSpeedRange(axis, manualSpeed, "JOG"))
+            {
+                return false;
+            }
+
+            return await ValidateMotionTimeSafetyFromPlcAsync(axis, "JOG").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// 校验手动速度是否处于允许范围。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="manualSpeed">待校验的手动速度。</param>
+        /// <param name="actionName">当前动作名称。</param>
+        /// <returns>返回手动速度是否允许当前动作继续。</returns>
+        /// <remarks>
+        /// 由 JOG 和手动定位动作前置校验调用，保证速度超限时不下发动作线圈。
+        /// </remarks>
+        private bool ValidateManualSpeedRange(AxisBinding axis, int manualSpeed, string actionName)
+        {
+            if (manualSpeed < JogManualSpeedMin || manualSpeed > JogManualSpeedMax)
+            {
+                SetActionMessage($"{axis.Card.Title}: 手动速度={manualSpeed}，超出{actionName}允许范围{JogManualSpeedMin}~{JogManualSpeedMax}，禁止{actionName}。");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 从PLC读取加减速时间并校验是否允许动作继续。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="actionName">当前动作名称。</param>
+        /// <returns>返回加减速时间是否允许当前动作继续。</returns>
+        /// <remarks>
+        /// 由 JOG 和手动定位动作前置校验调用，使用 PLC 当前寄存器值作为最终判断依据。
+        /// </remarks>
+        private async Task<bool> ValidateMotionTimeSafetyFromPlcAsync(AxisBinding axis, string actionName)
+        {
+            ushort accelerationTime = await ReadRegisterValueWithLockAsync(axis.Addresses.AccelerationTimeRegister, CancellationToken.None);
+            ushort decelerationTime = await ReadRegisterValueWithLockAsync(axis.Addresses.DecelerationTimeRegister, CancellationToken.None);
+
+            RunOnUiThread(() =>
+            {
+                axis.Card.AccelerationTime = accelerationTime.ToString(CultureInfo.InvariantCulture);
+                axis.Card.DecelerationTime = decelerationTime.ToString(CultureInfo.InvariantCulture);
+            });
+
+            if (accelerationTime > JogMotionTimeMax)
+            {
+                SetActionMessage($"{axis.Card.Title}: PLC加速时间={accelerationTime}ms，大于{actionName}允许上限{JogMotionTimeMax}ms，禁止{actionName}。");
+                return false;
+            }
+
+            if (decelerationTime > JogMotionTimeMax)
+            {
+                SetActionMessage($"{axis.Card.Title}: PLC减速时间={decelerationTime}ms，大于{actionName}允许上限{JogMotionTimeMax}ms，禁止{actionName}。");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 从PLC读取当前轴当前位置并同步到界面。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="token">取消令牌，用于终止当前异步流程。</param>
+        /// <returns>返回PLC当前32位位置值。</returns>
+        /// <remarks>
+        /// 由手动定位前的安全距离校验调用，避免使用过期的界面坐标。
+        /// </remarks>
+        private async Task<int> ReadCurrentPositionFromPlcAsync(AxisBinding axis, CancellationToken token)
+        {
+            ushort lowWord = await ReadRegisterValueWithLockAsync(axis.Addresses.CurrentPositionLowRegister, token);
+            ushort highWord = await ReadRegisterValueWithLockAsync(axis.Addresses.CurrentPositionHighRegister, token);
+            int currentPosition = ComposeInt32(lowWord, highWord);
+
+            if (axis.Card.ShowPositionFields)
+            {
+                RunOnUiThread(() => axis.Card.CurrentPosition = currentPosition.ToString(CultureInfo.InvariantCulture));
+            }
+
+            return currentPosition;
+        }
+
+        /// <summary>
         /// 写入手动速度或自动速度到PLC。
         /// </summary>
         /// By:ChengLei
@@ -611,20 +934,82 @@ namespace Blood_Alcohol.ViewModels
                     return;
                 }
 
-                if (!TryParseInt16(inputText, out short speed))
+                if (!TryParseInt32(inputText, out int speed))
                 {
-                    SetActionMessage($"{axis.Card.Title}: {speedType}输入无效（范围: -32768~32767）。");
+                    SetActionMessage($"{axis.Card.Title}: {speedType}输入无效（范围: 32位整数）。");
                     return;
                 }
 
-                ushort address = manualSpeed ? axis.Addresses.ManualSpeedRegister : axis.Addresses.AutoSpeedRegister;
-                await WriteRegisterWithLockAsync(address, unchecked((ushort)speed));
+                if (manualSpeed && !ValidateManualSpeedRange(axis, speed, "手动速度写入"))
+                {
+                    return;
+                }
+
+                ushort lowAddress = manualSpeed ? axis.Addresses.ManualSpeedRegister : axis.Addresses.AutoSpeedRegister;
+                ushort highAddress = manualSpeed ? axis.Addresses.ManualSpeedHighRegister : axis.Addresses.AutoSpeedHighRegister;
+                SplitInt32(speed, out ushort lowWord, out ushort highWord);
+                await WriteRegisterWithLockAsync(lowAddress, lowWord);
+                await Task.Delay(PlcCommandInterval);
+                await WriteRegisterWithLockAsync(highAddress, highWord);
                 axis.Card.CommitSpeedInput(manualSpeed, speed);
-                SetActionMessage($"{axis.Card.Title}: {speedType}已下发，D{address}={speed}");
+                SetActionMessage($"{axis.Card.Title}: {speedType}已下发，D{lowAddress}/D{highAddress}={speed}");
             }
             catch (Exception ex)
             {
                 SetActionMessage($"{axis.Card.Title}: 速度下发失败 - {ex.Message}");
+            }
+            finally
+            {
+                _isAxisCommandBusy = false;
+            }
+        }
+
+        /// <summary>
+        /// 写入轴加速或减速时间到PLC。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axis">当前轴绑定对象。</param>
+        /// <param name="accelerationTime">是否写入加速时间；false表示减速时间。</param>
+        /// <returns>返回时间写入异步任务。</returns>
+        /// <remarks>
+        /// 由轴调试卡片中的加速时间和减速时间写入按钮触发。
+        /// </remarks>
+        private async Task WriteAxisMotionTimeAsync(AxisBinding axis, bool accelerationTime)
+        {
+            _isAxisCommandBusy = true;
+            try
+            {
+                string timeType = accelerationTime ? "加速时间" : "减速时间";
+                string inputText = accelerationTime ? axis.Card.AccelerationTimeInput : axis.Card.DecelerationTimeInput;
+
+                if (!CommunicationManager.Is485Open)
+                {
+                    SetActionMessage($"{axis.Card.Title}: PLC未连接，跳过{timeType}下发。");
+                    return;
+                }
+
+                if (!TryParseUInt16(inputText, out ushort time))
+                {
+                    SetActionMessage($"{axis.Card.Title}: {timeType}输入无效（范围: 0~65535 ms）。");
+                    return;
+                }
+
+                if (time > JogMotionTimeMax)
+                {
+                    SetActionMessage($"{axis.Card.Title}: {timeType}={time}ms，大于允许上限{JogMotionTimeMax}ms，禁止写入。");
+                    return;
+                }
+
+                ushort address = accelerationTime
+                    ? axis.Addresses.AccelerationTimeRegister
+                    : axis.Addresses.DecelerationTimeRegister;
+                await WriteRegisterWithLockAsync(address, time);
+                axis.Card.CommitMotionTimeInput(accelerationTime, time);
+                SetActionMessage($"{axis.Card.Title}: {timeType}已下发，D{address}={time}ms");
+            }
+            catch (Exception ex)
+            {
+                SetActionMessage($"{axis.Card.Title}: 加减速时间下发失败 - {ex.Message}");
             }
             finally
             {
@@ -670,6 +1055,35 @@ namespace Blood_Alcohol.ViewModels
                 return cached.Value;
             }
 
+            await _plcLock.WaitAsync(token);
+            try
+            {
+                var read = await CommunicationManager.Plc.TryReadCoilsAsync(address, 1);
+                if (!read.Success)
+                {
+                    throw new InvalidOperationException(read.Error);
+                }
+
+                return read.Values.Length > 0 && read.Values[0];
+            }
+            finally
+            {
+                _plcLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// 在互斥锁保护下直接读取线圈状态。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">PLC地址。</param>
+        /// <param name="token">取消令牌，用于终止当前异步流程。</param>
+        /// <returns>返回线圈当前状态。</returns>
+        /// <remarks>
+        /// 由回原点安全联锁调用，不使用缓存以避免过期状态放行动作。
+        /// </remarks>
+        private async Task<bool> ReadCoilStateDirectWithLockAsync(ushort address, CancellationToken token)
+        {
             await _plcLock.WaitAsync(token);
             try
             {
@@ -880,7 +1294,7 @@ namespace Blood_Alcohol.ViewModels
         /// <param name="value">待写入或待转换的数值。</param>
         /// <returns>返回是否成功解析为Int16。</returns>
         /// <remarks>
-        /// 由 WriteAxisSpeedAsync 校验输入值时调用。
+        /// 当前保留供16位寄存器写入场景复用。
         /// </remarks>
         private static bool TryParseInt16(string input, out short value)
         {
@@ -900,6 +1314,33 @@ namespace Blood_Alcohol.ViewModels
         }
 
         /// <summary>
+        /// 解析输入文本为UInt16并进行范围校验。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="input">待解析输入文本。</param>
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <returns>返回是否成功解析为UInt16。</returns>
+        /// <remarks>
+        /// 由 WriteAxisMotionTimeAsync 校验加减速时间输入值时调用。
+        /// </remarks>
+        private static bool TryParseUInt16(string input, out ushort value)
+        {
+            value = 0;
+            if (!TryParseInt32(input, out int parsed))
+            {
+                return false;
+            }
+
+            if (parsed < ushort.MinValue || parsed > ushort.MaxValue)
+            {
+                return false;
+            }
+
+            value = (ushort)parsed;
+            return true;
+        }
+
+        /// <summary>
         /// 将高低位寄存器合成为Int32。
         /// </summary>
         /// By:ChengLei
@@ -911,8 +1352,8 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private static int ComposeInt32(ushort lowWord, ushort highWord)
         {
-            int raw = (highWord << 16) | lowWord;
-            return raw;
+            uint raw = ((uint)highWord << 16) | lowWord;
+            return unchecked((int)raw);
         }
 
         /// <summary>
@@ -965,7 +1406,7 @@ namespace Blood_Alcohol.ViewModels
                 return;
             }
 
-            dispatcher.Invoke(action, DispatcherPriority.Send);
+            _ = dispatcher.BeginInvoke(action, DispatcherPriority.Send);
         }
 
         /// <summary>
@@ -997,8 +1438,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         public void DeactivateMonitoring()
         {
-            StopPollingAsync().GetAwaiter().GetResult();
-            UnregisterAxisPollingPoints();
+            _ = BeginStopPollingAsync();
         }
 
         /// <summary>
@@ -1016,7 +1456,7 @@ namespace Blood_Alcohol.ViewModels
             }
 
             _disposed = true;
-            DeactivateMonitoring();
+            BeginStopPollingAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -1027,15 +1467,39 @@ namespace Blood_Alcohol.ViewModels
         /// <remarks>
         /// 由 Dispose 调用，取消轮询后最多等待限定时间。
         /// </remarks>
-        private async Task StopPollingAsync()
+        private Task BeginStopPollingAsync()
         {
             CancellationTokenSource? cts = _pollCts;
             Task? pollTask = _pollTask;
-            cts?.Cancel();
+            _pollTask = null;
+            _pollCts = null;
+            _isMonitoring = false;
+            UnregisterAxisPollingPoints();
 
+            if (cts == null && pollTask == null)
+            {
+                return Task.CompletedTask;
+            }
+
+            cts?.Cancel();
+            return FinishStopPollingAsync(cts, pollTask);
+        }
+
+        /// <summary>
+        /// 异步等待轴状态轮询任务退出并释放取消资源。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="cts">需要释放的取消令牌源。</param>
+        /// <param name="pollTask">需要等待结束的后台轮询任务。</param>
+        /// <returns>返回异步收尾任务。</returns>
+        /// <remarks>
+        /// 由 BeginStopPollingAsync 调用，取消轮询后最多等待限定时间。
+        /// </remarks>
+        private async Task FinishStopPollingAsync(CancellationTokenSource? cts, Task? pollTask)
+        {
             if (pollTask == null)
             {
-                _isMonitoring = false;
+                cts?.Dispose();
                 return;
             }
 
@@ -1058,10 +1522,7 @@ namespace Blood_Alcohol.ViewModels
                 }
             }
 
-            _pollTask = null;
-            _pollCts = null;
             cts?.Dispose();
-            _isMonitoring = false;
         }
 
         private sealed class AxisBinding
@@ -1098,6 +1559,8 @@ namespace Blood_Alcohol.ViewModels
 
     public class AxisControlCardViewModel : BaseViewModel
     {
+        private static readonly object ProcessInputCacheGate = new();
+        private static readonly Dictionary<int, AxisInputMemory> ProcessInputCache = new();
         private string _title = string.Empty;
         private string _currentPosition = string.Empty;
         private string _targetPosition = string.Empty;
@@ -1105,13 +1568,21 @@ namespace Blood_Alcohol.ViewModels
         private string _autoSpeed = string.Empty;
         private string _manualSpeedInput = string.Empty;
         private string _autoSpeedInput = string.Empty;
+        private string _accelerationTime = string.Empty;
+        private string _decelerationTime = string.Empty;
+        private string _accelerationTimeInput = string.Empty;
+        private string _decelerationTimeInput = string.Empty;
         private bool _manualSpeedInputDirty;
         private bool _autoSpeedInputDirty;
+        private bool _accelerationTimeInputDirty;
+        private bool _decelerationTimeInputDirty;
+        private bool _manualLocateInputDirty;
         private bool _suppressInputDirty;
         private bool _showPositionFields = true;
         private bool _showManualLocate;
         private string _manualLocateText = string.Empty;
         private string _manualLocateInput = string.Empty;
+        private int _processInputCacheKey;
 
         public string Title
         {
@@ -1191,6 +1662,7 @@ namespace Blood_Alcohol.ViewModels
                     if (!_suppressInputDirty)
                     {
                         _manualSpeedInputDirty = true;
+                        SaveProcessInputMemory();
                     }
 
                     OnPropertyChanged();
@@ -1209,6 +1681,71 @@ namespace Blood_Alcohol.ViewModels
                     if (!_suppressInputDirty)
                     {
                         _autoSpeedInputDirty = true;
+                        SaveProcessInputMemory();
+                    }
+
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string AccelerationTime
+        {
+            get => _accelerationTime;
+            set
+            {
+                if (_accelerationTime != value)
+                {
+                    _accelerationTime = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string DecelerationTime
+        {
+            get => _decelerationTime;
+            set
+            {
+                if (_decelerationTime != value)
+                {
+                    _decelerationTime = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string AccelerationTimeInput
+        {
+            get => _accelerationTimeInput;
+            set
+            {
+                if (_accelerationTimeInput != value)
+                {
+                    _accelerationTimeInput = value;
+                    if (!_suppressInputDirty)
+                    {
+                        _accelerationTimeInputDirty = true;
+                        SaveProcessInputMemory();
+                    }
+
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string DecelerationTimeInput
+        {
+            get => _decelerationTimeInput;
+            set
+            {
+                if (_decelerationTimeInput != value)
+                {
+                    _decelerationTimeInput = value;
+                    if (!_suppressInputDirty)
+                    {
+                        _decelerationTimeInputDirty = true;
+                        SaveProcessInputMemory();
                     }
 
                     OnPropertyChanged();
@@ -1263,6 +1800,12 @@ namespace Blood_Alcohol.ViewModels
                 if (_manualLocateInput != value)
                 {
                     _manualLocateInput = value;
+                    if (!_suppressInputDirty)
+                    {
+                        _manualLocateInputDirty = true;
+                        SaveProcessInputMemory();
+                    }
+
                     OnPropertyChanged();
                 }
             }
@@ -1278,6 +1821,53 @@ namespace Blood_Alcohol.ViewModels
         public ICommand? ManualLocateReleaseCommand { get; set; }
         public ICommand? WriteManualSpeedCommand { get; set; }
         public ICommand? WriteAutoSpeedCommand { get; set; }
+        public ICommand? WriteAccelerationTimeCommand { get; set; }
+        public ICommand? WriteDecelerationTimeCommand { get; set; }
+
+        /// <summary>
+        /// 初始化当前轴的进程内输入记忆并恢复上一次未重启前的输入值。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axisNo">轴编号。</param>
+        /// <param name="defaultManualSpeedInput">没有缓存时的手动速度默认值。</param>
+        /// <param name="defaultAutoSpeedInput">没有缓存时的自动速度默认值。</param>
+        /// <param name="defaultAccelerationTimeInput">没有缓存时的加速时间默认值。</param>
+        /// <param name="defaultDecelerationTimeInput">没有缓存时的减速时间默认值。</param>
+        /// <param name="defaultManualLocateInput">没有缓存时的手动定位默认值。</param>
+        /// <remarks>
+        /// 由轴卡片创建后调用，只在当前软件进程中保存，不写入配置文件。
+        /// </remarks>
+        public void InitializeProcessInputMemory(
+            int axisNo,
+            string defaultManualSpeedInput,
+            string defaultAutoSpeedInput,
+            string defaultAccelerationTimeInput,
+            string defaultDecelerationTimeInput,
+            string defaultManualLocateInput)
+        {
+            _processInputCacheKey = axisNo;
+            AxisInputMemory? memory = TryGetProcessInputMemory(axisNo);
+
+            _suppressInputDirty = true;
+            try
+            {
+                ManualSpeedInput = memory?.ManualSpeedInput ?? defaultManualSpeedInput;
+                AutoSpeedInput = memory?.AutoSpeedInput ?? defaultAutoSpeedInput;
+                AccelerationTimeInput = memory?.AccelerationTimeInput ?? defaultAccelerationTimeInput;
+                DecelerationTimeInput = memory?.DecelerationTimeInput ?? defaultDecelerationTimeInput;
+                ManualLocateInput = memory?.ManualLocateInput ?? defaultManualLocateInput;
+
+                _manualSpeedInputDirty = memory?.ManualSpeedInputDirty ?? false;
+                _autoSpeedInputDirty = memory?.AutoSpeedInputDirty ?? false;
+                _accelerationTimeInputDirty = memory?.AccelerationTimeInputDirty ?? false;
+                _decelerationTimeInputDirty = memory?.DecelerationTimeInputDirty ?? false;
+                _manualLocateInputDirty = memory?.ManualLocateInputDirty ?? false;
+            }
+            finally
+            {
+                _suppressInputDirty = false;
+            }
+        }
 
         /// <summary>
         /// 用PLC速度刷新显示，并在未编辑时同步输入框。
@@ -1288,7 +1878,7 @@ namespace Blood_Alcohol.ViewModels
         /// <remarks>
         /// 由 RefreshAxisAsync 在轮询到新速度时调用。
         /// </remarks>
-        public void UpdateSpeedFromPlc(short manualSpeed, short autoSpeed)
+        public void UpdateSpeedFromPlc(int manualSpeed, int autoSpeed)
         {
             string manualText = manualSpeed.ToString(CultureInfo.InvariantCulture);
             string autoText = autoSpeed.ToString(CultureInfo.InvariantCulture);
@@ -1316,6 +1906,42 @@ namespace Blood_Alcohol.ViewModels
         }
 
         /// <summary>
+        /// 用PLC加减速时间刷新显示，并在未编辑时同步输入框。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="accelerationTime">PLC读取到的加速时间。</param>
+        /// <param name="decelerationTime">PLC读取到的减速时间。</param>
+        /// <remarks>
+        /// 由 RefreshAxisAsync 在轮询到加减速时间时调用。
+        /// </remarks>
+        public void UpdateMotionTimeFromPlc(ushort accelerationTime, ushort decelerationTime)
+        {
+            string accelerationText = accelerationTime.ToString(CultureInfo.InvariantCulture);
+            string decelerationText = decelerationTime.ToString(CultureInfo.InvariantCulture);
+
+            AccelerationTime = accelerationText;
+            DecelerationTime = decelerationText;
+
+            _suppressInputDirty = true;
+            try
+            {
+                if (!_accelerationTimeInputDirty)
+                {
+                    AccelerationTimeInput = accelerationText;
+                }
+
+                if (!_decelerationTimeInputDirty)
+                {
+                    DecelerationTimeInput = decelerationText;
+                }
+            }
+            finally
+            {
+                _suppressInputDirty = false;
+            }
+        }
+
+        /// <summary>
         /// 速度写入成功后提交输入状态并同步显示。
         /// </summary>
         /// By:ChengLei
@@ -1324,7 +1950,7 @@ namespace Blood_Alcohol.ViewModels
         /// <remarks>
         /// 由 WriteAxisSpeedAsync 写入成功后调用。
         /// </remarks>
-        public void CommitSpeedInput(bool manualSpeed, short value)
+        public void CommitSpeedInput(bool manualSpeed, int value)
         {
             string text = value.ToString(CultureInfo.InvariantCulture);
 
@@ -1333,21 +1959,250 @@ namespace Blood_Alcohol.ViewModels
             {
                 if (manualSpeed)
                 {
-                    _manualSpeedInputDirty = false;
+                    _manualSpeedInputDirty = true;
                     ManualSpeedInput = text;
                     ManualSpeed = text;
                 }
                 else
                 {
-                    _autoSpeedInputDirty = false;
+                    _autoSpeedInputDirty = true;
                     AutoSpeedInput = text;
                     AutoSpeed = text;
                 }
+
+                SaveProcessInputMemory();
             }
             finally
             {
                 _suppressInputDirty = false;
             }
+        }
+
+        /// <summary>
+        /// 加减速时间写入成功后提交输入状态并同步显示。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="accelerationTime">是否操作加速时间；false表示减速时间。</param>
+        /// <param name="value">待写入或待转换的数值。</param>
+        /// <remarks>
+        /// 由 WriteAxisMotionTimeAsync 写入成功后调用。
+        /// </remarks>
+        public void CommitMotionTimeInput(bool accelerationTime, ushort value)
+        {
+            string text = value.ToString(CultureInfo.InvariantCulture);
+
+            _suppressInputDirty = true;
+            try
+            {
+                if (accelerationTime)
+                {
+                    _accelerationTimeInputDirty = true;
+                    AccelerationTimeInput = text;
+                    AccelerationTime = text;
+                }
+                else
+                {
+                    _decelerationTimeInputDirty = true;
+                    DecelerationTimeInput = text;
+                    DecelerationTime = text;
+                }
+
+                SaveProcessInputMemory();
+            }
+            finally
+            {
+                _suppressInputDirty = false;
+            }
+        }
+
+        /// <summary>
+        /// 读取指定轴的进程内输入缓存。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="axisNo">轴编号。</param>
+        /// <returns>返回缓存快照，没有缓存时返回空。</returns>
+        /// <remarks>
+        /// 由 InitializeProcessInputMemory 调用，避免切换页面后设置输入回到默认值。
+        /// </remarks>
+        private static AxisInputMemory? TryGetProcessInputMemory(int axisNo)
+        {
+            lock (ProcessInputCacheGate)
+            {
+                return ProcessInputCache.TryGetValue(axisNo, out AxisInputMemory? memory)
+                    ? memory
+                    : null;
+            }
+        }
+
+        /// <summary>
+        /// 保存当前轴的设置输入到进程内缓存。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由输入框变更和写入成功后调用，只保证软件未关闭期间可恢复。
+        /// </remarks>
+        private void SaveProcessInputMemory()
+        {
+            if (_processInputCacheKey <= 0)
+            {
+                return;
+            }
+
+            lock (ProcessInputCacheGate)
+            {
+                ProcessInputCache[_processInputCacheKey] = new AxisInputMemory(
+                    ManualSpeedInput,
+                    AutoSpeedInput,
+                    AccelerationTimeInput,
+                    DecelerationTimeInput,
+                    ManualLocateInput,
+                    _manualSpeedInputDirty,
+                    _autoSpeedInputDirty,
+                    _accelerationTimeInputDirty,
+                    _decelerationTimeInputDirty,
+                    _manualLocateInputDirty);
+            }
+        }
+
+        /// <summary>
+        /// 轴调试设置输入的进程内缓存快照。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 每个轴保存一份，软件关闭后随进程释放。
+        /// </remarks>
+        private sealed class AxisInputMemory
+        {
+            /// <summary>
+            /// 初始化轴调试设置输入缓存。
+            /// </summary>
+            /// By:ChengLei
+            /// <param name="manualSpeedInput">手动速度输入文本。</param>
+            /// <param name="autoSpeedInput">自动速度输入文本。</param>
+            /// <param name="accelerationTimeInput">加速时间输入文本。</param>
+            /// <param name="decelerationTimeInput">减速时间输入文本。</param>
+            /// <param name="manualLocateInput">手动定位输入文本。</param>
+            /// <param name="manualSpeedInputDirty">手动速度输入是否被用户改过。</param>
+            /// <param name="autoSpeedInputDirty">自动速度输入是否被用户改过。</param>
+            /// <param name="accelerationTimeInputDirty">加速时间输入是否被用户改过。</param>
+            /// <param name="decelerationTimeInputDirty">减速时间输入是否被用户改过。</param>
+            /// <param name="manualLocateInputDirty">手动定位输入是否被用户改过。</param>
+            /// <remarks>
+            /// 由 SaveProcessInputMemory 创建不可变快照。
+            /// </remarks>
+            public AxisInputMemory(
+                string manualSpeedInput,
+                string autoSpeedInput,
+                string accelerationTimeInput,
+                string decelerationTimeInput,
+                string manualLocateInput,
+                bool manualSpeedInputDirty,
+                bool autoSpeedInputDirty,
+                bool accelerationTimeInputDirty,
+                bool decelerationTimeInputDirty,
+                bool manualLocateInputDirty)
+            {
+                ManualSpeedInput = manualSpeedInput;
+                AutoSpeedInput = autoSpeedInput;
+                AccelerationTimeInput = accelerationTimeInput;
+                DecelerationTimeInput = decelerationTimeInput;
+                ManualLocateInput = manualLocateInput;
+                ManualSpeedInputDirty = manualSpeedInputDirty;
+                AutoSpeedInputDirty = autoSpeedInputDirty;
+                AccelerationTimeInputDirty = accelerationTimeInputDirty;
+                DecelerationTimeInputDirty = decelerationTimeInputDirty;
+                ManualLocateInputDirty = manualLocateInputDirty;
+            }
+
+            /// <summary>
+            /// 获取手动速度输入文本。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 恢复输入框内容时读取。
+            /// </remarks>
+            public string ManualSpeedInput { get; }
+
+            /// <summary>
+            /// 获取自动速度输入文本。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 恢复输入框内容时读取。
+            /// </remarks>
+            public string AutoSpeedInput { get; }
+
+            /// <summary>
+            /// 获取加速时间输入文本。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 恢复输入框内容时读取。
+            /// </remarks>
+            public string AccelerationTimeInput { get; }
+
+            /// <summary>
+            /// 获取减速时间输入文本。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 恢复输入框内容时读取。
+            /// </remarks>
+            public string DecelerationTimeInput { get; }
+
+            /// <summary>
+            /// 获取手动定位输入文本。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 恢复输入框内容时读取。
+            /// </remarks>
+            public string ManualLocateInput { get; }
+
+            /// <summary>
+            /// 获取手动速度输入是否被用户改过。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 决定是否允许 PLC 轮询覆盖输入框。
+            /// </remarks>
+            public bool ManualSpeedInputDirty { get; }
+
+            /// <summary>
+            /// 获取自动速度输入是否被用户改过。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 决定是否允许 PLC 轮询覆盖输入框。
+            /// </remarks>
+            public bool AutoSpeedInputDirty { get; }
+
+            /// <summary>
+            /// 获取加速时间输入是否被用户改过。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 决定是否允许 PLC 轮询覆盖输入框。
+            /// </remarks>
+            public bool AccelerationTimeInputDirty { get; }
+
+            /// <summary>
+            /// 获取减速时间输入是否被用户改过。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 决定是否允许 PLC 轮询覆盖输入框。
+            /// </remarks>
+            public bool DecelerationTimeInputDirty { get; }
+
+            /// <summary>
+            /// 获取手动定位输入是否被用户改过。
+            /// </summary>
+            /// By:ChengLei
+            /// <remarks>
+            /// 由 InitializeProcessInputMemory 保持手动定位输入的进程内记忆。
+            /// </remarks>
+            public bool ManualLocateInputDirty { get; }
         }
     }
 

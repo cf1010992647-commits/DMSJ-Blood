@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Media;
 using Blood_Alcohol.Models;
 using Blood_Alcohol.Services;
 
@@ -50,6 +51,10 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	private static readonly TimeSpan BackgroundStopTimeout = TimeSpan.FromSeconds(2);
 
+	private static readonly Brush NormalIndicatorBrush = CreateIndicatorBrush("#16A34A");
+
+	private static readonly Brush AlarmIndicatorActiveBrush = CreateIndicatorBrush("#FACC15");
+
 	private readonly ConfigService<ProcessParameterConfig> _processParameterConfigService = new ConfigService<ProcessParameterConfig>(ProcessParameterConfigFileName);
 
 	private readonly ConfigService<WeightToZCalibrationConfig> _weightToZConfigService = new ConfigService<WeightToZCalibrationConfig>(WeightToZConfigFileName);
@@ -57,6 +62,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	private readonly WorkflowEngine _workflowEngine;
 
 	private readonly IUiDispatcher _uiDispatcher;
+
+	private readonly ISystemInitializationDialogService _systemInitializationDialogService;
 
 	private readonly HomeDetectionStateCoordinator _detectionState;
 
@@ -609,6 +616,18 @@ public class HomeViewModel : BaseViewModel, IDisposable
 
 	public string ModeDisplayText => IsAutoMode ? "当前档位：自动" : "当前档位：手动";
 
+	/// <summary>
+	/// 首页报警状态灯画刷
+	/// </summary>
+	/// By:ChengLei
+	public Brush AlarmIndicatorBrush => _isAlarmActive ? AlarmIndicatorActiveBrush : NormalIndicatorBrush;
+
+	/// <summary>
+	/// 首页报警状态文本
+	/// </summary>
+	/// By:ChengLei
+	public string AlarmIndicatorText => _isAlarmActive ? "报警" : "正常";
+
 	public bool IsStandbyProcessMode => _currentProcessMode == HomeProcessModeState.Standby;
 
 	public bool IsPressureProcessMode => _currentProcessMode == HomeProcessModeState.Pressure;
@@ -679,9 +698,28 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// 由测试或未来组合根调用，默认构造函数仍使用生产依赖。
 	/// </remarks>
 	public HomeViewModel(WorkflowEngine workflowEngine, IUiDispatcher uiDispatcher)
+		: this(workflowEngine, uiDispatcher, new SystemInitializationDialogService())
+	{
+	}
+
+	/// <summary>
+	/// 初始化首页视图模型并注入核心依赖和初始化确认弹窗服务。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="workflowEngine">流程引擎实例。</param>
+	/// <param name="uiDispatcher">UI线程调度器。</param>
+	/// <param name="systemInitializationDialogService">系统初始化确认弹窗服务。</param>
+	/// <remarks>
+	/// 由默认构造函数和测试组合根调用，便于替换安全位置确认交互。
+	/// </remarks>
+	public HomeViewModel(
+		WorkflowEngine workflowEngine,
+		IUiDispatcher uiDispatcher,
+		ISystemInitializationDialogService systemInitializationDialogService)
 	{
 		_workflowEngine = workflowEngine ?? throw new ArgumentNullException(nameof(workflowEngine));
 		_uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
+		_systemInitializationDialogService = systemInitializationDialogService ?? throw new ArgumentNullException(nameof(systemInitializationDialogService));
 		_detectionState = new HomeDetectionStateCoordinator();
 		_detectionCommands = new HomeDetectionCommandCoordinator();
 		_homeLogOutput = new HomeLogOutputCoordinator();
@@ -876,7 +914,12 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private void OnCommunicationStateChanged()
 	{
-		RunOnUiThread(RefreshModeSwitchStates);
+		RunOnUiThread(delegate
+		{
+			RefreshModeSwitchStates();
+			OnPropertyChanged("AlarmIndicatorBrush");
+			OnPropertyChanged("AlarmIndicatorText");
+		});
 	}
 
 	/// <summary>
@@ -953,15 +996,29 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	}
 
 	/// <summary>
-	/// 执行初始化流程：下发参数、发送初始化命令并等待完成信号。
+	/// 执行初始化流程：确认轴安全位置、写入 M40、下发参数、发送初始化命令并等待完成信号。
 	/// </summary>
 	/// By:ChengLei
 	/// <returns>返回初始化执行异步任务。</returns>
 	/// <remarks>
-	/// 由 InitializeSystem 触发，包含完整初始化业务链路。
+	/// 由 InitializeSystem 触发，点击否或关闭确认弹窗时不执行初始化。
 	/// </remarks>
 	private async Task InitializeSystemAsync()
 	{
+		if (!_systemInitializationDialogService.ConfirmAxisSafePosition())
+		{
+			AddLog(HomeLogLevel.Info, HomeLogSource.System, HomeLogKind.Operation, "初始化已取消：未确认轴处于安全位置。");
+			return;
+		}
+
+		HomeCommandResult safePositionConfirmResult = await _plcCommands.SendSafePositionConfirmAsync().ConfigureAwait(true);
+		if (!safePositionConfirmResult.Success)
+		{
+			AddLog(HomeLogLevel.Error, HomeLogSource.Hardware, HomeLogKind.Operation, "初始化失败：安全位置确认点 M40 写入失败。" + safePositionConfirmResult.Error);
+			return;
+		}
+
+		AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "已确认轴处于安全位置，M40=1。");
 		await _detectionCommands.InitializeAsync(new HomeInitializeCommandContext
 		{
 			DetectionState = _detectionState,
@@ -984,6 +1041,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	{
 		OnPropertyChanged("IsTubeSelectionEnabled");
 		OnPropertyChanged("CountRuleText");
+		OnPropertyChanged("AlarmIndicatorBrush");
+		OnPropertyChanged("AlarmIndicatorText");
 		CommandManager.InvalidateRequerySuggested();
 	}
 
@@ -1260,13 +1319,54 @@ public class HomeViewModel : BaseViewModel, IDisposable
 					var read = await _plcGateway.TryReadAlarmSummaryAsync(token).ConfigureAwait(false);
 					return new HomePlcBoolReadResult(read.Success, read.Value, read.Error);
 				},
-				SetAlarmActive = value => _isAlarmActive = value,
+				SetAlarmActive = SetAlarmActiveState,
 				RunOnUiThread = RunOnUiThread,
 				SetCountRuleText = text => CountRuleText = text,
 				AutoStopDetectionAsync = AutoStopDetectionByAlarmAsync,
 				AddLog = (level, source, kind, message) => AddLog(level, source, kind, message)
 			},
 			token));
+	}
+
+	/// <summary>
+	/// 更新首页报警灯状态并刷新绑定属性
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="value">是否存在报警</param>
+	/// <remarks>
+	/// 由报警监控循环调用，统一维护报警灯颜色和状态文本。
+	/// </remarks>
+	private void SetAlarmActiveState(bool value)
+	{
+		if (_isAlarmActive == value)
+		{
+			return;
+		}
+
+		_isAlarmActive = value;
+		OnPropertyChanged("AlarmIndicatorBrush");
+		OnPropertyChanged("AlarmIndicatorText");
+	}
+
+	/// <summary>
+	/// 根据颜色代码创建冻结的画刷实例
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="colorHex">十六进制颜色值</param>
+	/// <returns>返回可复用的冻结画刷</returns>
+	/// <remarks>
+	/// 首页状态灯频繁刷新，统一复用冻结画刷可以减少重复分配。
+	/// </remarks>
+	private static Brush CreateIndicatorBrush(string colorHex)
+	{
+		BrushConverter converter = new BrushConverter();
+		Brush brush = (Brush)(converter.ConvertFromString(colorHex) ?? Brushes.Transparent);
+		if (brush.CanFreeze)
+		{
+			brush.Freeze();
+		}
+
+		return brush;
 	}
 
 	/// <summary>

@@ -16,6 +16,7 @@ namespace Blood_Alcohol.Communication.Serial
     /// </remarks>
     public class Lx5vPlc
     {
+        private const ushort ModbusAddressOffset = 4096;
         // RS485 串口管理器
         private readonly Rs485Helper _rs485;
         // PLC 响应超时时间
@@ -37,7 +38,7 @@ namespace Blood_Alcohol.Communication.Serial
         /// <remarks>
         /// 由上层通信流程在日志或调试中读取。
         /// </remarks>
-        public byte SlaveAddress { get; }
+        public byte SlaveAddress { get; private set; }
 
         /// <summary>
         /// 初始化 PLC 通信对象。
@@ -63,6 +64,30 @@ namespace Blood_Alcohol.Communication.Serial
         }
 
         /// <summary>
+        /// 更新当前 PLC 从站站号并重置主站连接缓存。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="slaveAddress">新的 Modbus 从站站号。</param>
+        /// <remarks>
+        /// 由通信配置保存和自动连接流程调用，站号变更后强制下次请求重建主站对象。
+        /// </remarks>
+        public void UpdateSlaveAddress(byte slaveAddress)
+        {
+            if (slaveAddress == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(slaveAddress), "PLC 站号必须大于 0。");
+            }
+
+            if (SlaveAddress == slaveAddress)
+            {
+                return;
+            }
+
+            SlaveAddress = slaveAddress;
+            ResetConnection();
+        }
+
+        /// <summary>
         /// 读取保持寄存器，失败时抛出异常。
         /// </summary>
         /// By:ChengLei
@@ -74,11 +99,13 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<ushort[]> ReadHoldingRegistersAsync(ushort startAddress, ushort length)
         {
+            ushort mappedStartAddress = NormalizeAddress(startAddress);
+
             if (_transport != null)
             {
                 PlcCallResult<ushort[]> transportResult = await ExecuteTransportAsync(
                     operation: "ReadHoldingRegisters",
-                    action: transport => transport.ReadHoldingRegistersAsync(SlaveAddress, startAddress, length),
+                    action: transport => transport.ReadHoldingRegistersAsync(SlaveAddress, mappedStartAddress, length),
                     fallback: Array.Empty<ushort>()).ConfigureAwait(false);
 
                 if (!transportResult.Success)
@@ -91,7 +118,7 @@ namespace Blood_Alcohol.Communication.Serial
 
             PlcCallResult<ushort[]> result = await ExecuteAsync(
                 operation: "ReadHoldingRegisters",
-                action: master => master.ReadHoldingRegistersAsync(SlaveAddress, startAddress, length),
+                action: master => master.ReadHoldingRegistersAsync(SlaveAddress, mappedStartAddress, length),
                 fallback: Array.Empty<ushort>()).ConfigureAwait(false);
 
             if (!result.Success)
@@ -114,11 +141,13 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, ushort[] Values, string Error)> TryReadHoldingRegistersAsync(ushort startAddress, ushort length)
         {
+            ushort mappedStartAddress = NormalizeAddress(startAddress);
+
             if (_transport != null)
             {
                 PlcCallResult<ushort[]> transportResult = await ExecuteTransportAsync(
                     operation: "ReadHoldingRegisters",
-                    action: transport => transport.ReadHoldingRegistersAsync(SlaveAddress, startAddress, length),
+                    action: transport => transport.ReadHoldingRegistersAsync(SlaveAddress, mappedStartAddress, length),
                     fallback: Array.Empty<ushort>()).ConfigureAwait(false);
 
                 if (transportResult.Success)
@@ -131,7 +160,7 @@ namespace Blood_Alcohol.Communication.Serial
 
             PlcCallResult<ushort[]> result = await ExecuteAsync(
                 operation: "ReadHoldingRegisters",
-                action: master => master.ReadHoldingRegistersAsync(SlaveAddress, startAddress, length),
+                action: master => master.ReadHoldingRegistersAsync(SlaveAddress, mappedStartAddress, length),
                 fallback: Array.Empty<ushort>()).ConfigureAwait(false);
 
             if (result.Success)
@@ -154,11 +183,13 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<bool[]> ReadCoilsAsync(ushort startAddress, ushort length)
         {
+            ushort mappedStartAddress = NormalizeAddress(startAddress);
+
             if (_transport != null)
             {
                 PlcCallResult<bool[]> transportResult = await ExecuteTransportAsync(
                     operation: "ReadCoils",
-                    action: transport => transport.ReadCoilsAsync(SlaveAddress, startAddress, length),
+                    action: transport => transport.ReadCoilsAsync(SlaveAddress, mappedStartAddress, length),
                     fallback: Array.Empty<bool>()).ConfigureAwait(false);
 
                 if (!transportResult.Success)
@@ -171,7 +202,7 @@ namespace Blood_Alcohol.Communication.Serial
 
             PlcCallResult<bool[]> result = await ExecuteAsync(
                 operation: "ReadCoils",
-                action: master => master.ReadCoilsAsync(SlaveAddress, startAddress, length),
+                action: master => master.ReadCoilsAsync(SlaveAddress, mappedStartAddress, length),
                 fallback: Array.Empty<bool>()).ConfigureAwait(false);
 
             if (!result.Success)
@@ -194,11 +225,13 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, bool[] Values, string Error)> TryReadCoilsAsync(ushort startAddress, ushort length)
         {
+            ushort mappedStartAddress = NormalizeAddress(startAddress);
+
             if (_transport != null)
             {
                 PlcCallResult<bool[]> transportResult = await ExecuteTransportAsync(
                     operation: "ReadCoils",
-                    action: transport => transport.ReadCoilsAsync(SlaveAddress, startAddress, length),
+                    action: transport => transport.ReadCoilsAsync(SlaveAddress, mappedStartAddress, length),
                     fallback: Array.Empty<bool>()).ConfigureAwait(false);
 
                 if (transportResult.Success)
@@ -211,7 +244,7 @@ namespace Blood_Alcohol.Communication.Serial
 
             PlcCallResult<bool[]> result = await ExecuteAsync(
                 operation: "ReadCoils",
-                action: master => master.ReadCoilsAsync(SlaveAddress, startAddress, length),
+                action: master => master.ReadCoilsAsync(SlaveAddress, mappedStartAddress, length),
                 fallback: Array.Empty<bool>()).ConfigureAwait(false);
 
             if (result.Success)
@@ -234,13 +267,15 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task WriteSingleCoilAsync(ushort address, bool value)
         {
+            ushort mappedAddress = NormalizeAddress(address);
+
             if (_transport != null)
             {
                 PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
                     operation: "WriteSingleCoil",
                     action: async transport =>
                     {
-                        await transport.WriteSingleCoilAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                        await transport.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
                         return true;
                     },
                     fallback: false).ConfigureAwait(false);
@@ -257,7 +292,7 @@ namespace Blood_Alcohol.Communication.Serial
                 operation: "WriteSingleCoil",
                 action: async master =>
                 {
-                    await master.WriteSingleCoilAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                    await master.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
                     return true;
                 },
                 fallback: false).ConfigureAwait(false);
@@ -280,13 +315,15 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, string Error)> TryWriteSingleCoilAsync(ushort address, bool value)
         {
+            ushort mappedAddress = NormalizeAddress(address);
+
             if (_transport != null)
             {
                 PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
                     operation: "WriteSingleCoil",
                     action: async transport =>
                     {
-                        await transport.WriteSingleCoilAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                        await transport.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
                         return true;
                     },
                     fallback: false).ConfigureAwait(false);
@@ -300,7 +337,7 @@ namespace Blood_Alcohol.Communication.Serial
                 operation: "WriteSingleCoil",
                 action: async master =>
                 {
-                    await master.WriteSingleCoilAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                    await master.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
                     return true;
                 },
                 fallback: false).ConfigureAwait(false);
@@ -322,13 +359,15 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task WriteSingleRegisterAsync(ushort address, ushort value)
         {
+            ushort mappedAddress = NormalizeAddress(address);
+
             if (_transport != null)
             {
                 PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
                     operation: "WriteSingleRegister",
                     action: async transport =>
                     {
-                        await transport.WriteSingleRegisterAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                        await transport.WriteSingleRegisterAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
                         return true;
                     },
                     fallback: false).ConfigureAwait(false);
@@ -345,7 +384,7 @@ namespace Blood_Alcohol.Communication.Serial
                 operation: "WriteSingleRegister",
                 action: async master =>
                 {
-                    await master.WriteSingleRegisterAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                    await master.WriteSingleRegisterAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
                     return true;
                 },
                 fallback: false).ConfigureAwait(false);
@@ -368,13 +407,15 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, string Error)> TryWriteSingleRegisterAsync(ushort address, ushort value)
         {
+            ushort mappedAddress = NormalizeAddress(address);
+
             if (_transport != null)
             {
                 PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
                     operation: "WriteSingleRegister",
                     action: async transport =>
                     {
-                        await transport.WriteSingleRegisterAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                        await transport.WriteSingleRegisterAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
                         return true;
                     },
                     fallback: false).ConfigureAwait(false);
@@ -388,7 +429,7 @@ namespace Blood_Alcohol.Communication.Serial
                 operation: "WriteSingleRegister",
                 action: async master =>
                 {
-                    await master.WriteSingleRegisterAsync(SlaveAddress, address, value).ConfigureAwait(false);
+                    await master.WriteSingleRegisterAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
                     return true;
                 },
                 fallback: false).ConfigureAwait(false);
@@ -399,11 +440,31 @@ namespace Blood_Alcohol.Communication.Serial
         }
 
         /// <summary>
+        /// 将项目中的显示地址统一规范化为底层 Modbus 地址。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">调用方传入的线圈或寄存器地址。</param>
+        /// <returns>返回可直接用于底层通信的 Modbus 地址。</returns>
+        /// <remarks>
+        /// 项目界面和配置始终保存未偏移的 M D 显示地址，底层读写前统一补齐 4096 偏移。
+        /// </remarks>
+        private static ushort NormalizeAddress(ushort address)
+        {
+            int mappedAddress = address + ModbusAddressOffset;
+            if (mappedAddress > ushort.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(address), "PLC地址超出允许范围。");
+            }
+
+            return (ushort)mappedAddress;
+        }
+
+        /// <summary>
         /// 重置当前 Modbus 主站连接缓存。
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 由通信异常恢复流程调用，强制下次请求重建主站对象。
+        /// 由通信异常恢复流程调用，强制下一次请求重建主站对象。
         /// </remarks>
         public void ResetConnection()
         {

@@ -60,6 +60,48 @@ namespace Blood_Alcohol.Views
         }
 
         /// <summary>
+        /// 打开轴点位配置窗口并在保存后刷新轴调试页。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="sender">事件发送对象。</param>
+        /// <param name="e">路由事件参数。</param>
+        /// <remarks>
+        /// 由轴调试页顶部“轴点位配置”按钮触发。
+        /// </remarks>
+        private void OpenAxisAddressConfig_Click(object sender, RoutedEventArgs e)
+        {
+            AxisAddressConfigWindow window = new()
+            {
+                Owner = Window.GetWindow(this)
+            };
+
+            window.ShowDialog();
+            if (window.HasSaved)
+            {
+                ReloadAxisDebugViewModel();
+            }
+        }
+
+        /// <summary>
+        /// 重新创建轴调试视图模型以加载最新点位配置。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由轴点位配置窗口保存后调用，避免修改配置后必须重启软件。
+        /// </remarks>
+        private void ReloadAxisDebugViewModel()
+        {
+            if (DataContext is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+
+            AxisDebugViewModel viewModel = new();
+            DataContext = viewModel;
+            viewModel.ActivateMonitoring();
+        }
+
+        /// <summary>
         /// 绑定宿主窗口关闭事件。
         /// </summary>
         /// By:ChengLei

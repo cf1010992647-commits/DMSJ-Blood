@@ -113,7 +113,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private static bool IsManualOnlyTab(int index)
         {
-            return index == 0 || index == 2 || index == 3 || index == 4 || index == 5;
+            return index == 0 || index == 2 || index == 3 || index == 4 || index == 5 || index == 6 || index == 7;
         }
 
         /// <summary>

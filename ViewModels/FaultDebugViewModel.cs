@@ -1,4 +1,5 @@
 ﻿using Blood_Alcohol.Communication.Serial;
+using Blood_Alcohol.Helpers;
 using Blood_Alcohol.Services;
 using System;
 using System.Collections.Generic;
@@ -17,9 +18,11 @@ namespace Blood_Alcohol.ViewModels
     public class FaultDebugViewModel : BaseViewModel, IMonitoringLifecycle, IDisposable
     {
         private const string FaultDebugConfigFileName = "FaultDebugConfig.json";
+        private const ushort HmiFaultResetAddress = 11;
         private const ushort MaxCoilsPerBatch = 120;
         private static readonly TimeSpan MonitorInterval = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan CoilCacheMaxAge = TimeSpan.FromMilliseconds(1200);
+        private static readonly TimeSpan CommandPulseWidth = TimeSpan.FromMilliseconds(100);
         private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
         private readonly Lx5vPlc _plc;
@@ -42,6 +45,7 @@ namespace Blood_Alcohol.ViewModels
         public ICollectionView AlarmPointsView { get; }
 
         public ICommand ClearFaultCommand { get; }
+        public ICommand ClearHmiFaultCommand { get; }
         public ICommand ToggleGlobalShieldCommand { get; }
         public ICommand ToggleSelectedMaskCommand { get; }
         public ICommand ClearEventLogCommand { get; }
@@ -108,6 +112,7 @@ namespace Blood_Alcohol.ViewModels
         }
 
         public string GlobalShieldButtonText => IsGlobalShieldEnabled ? "取消全局屏蔽" : "全局屏蔽报警";
+        public string ClearHmiFaultButtonText => "故障清除";
         public string ClearFaultButtonText => SelectedAlarm == null ? "清除选中故障" : $"清除 {SelectedAlarm.Address}";
         public string SelectedAlarmMaskButtonText => SelectedAlarm == null
             ? "屏蔽选中报警"
@@ -143,6 +148,9 @@ namespace Blood_Alcohol.ViewModels
                 ClearFaultAsync,
                 () => SelectedAlarm != null,
                 ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 清故障命令异常: {ex.Message}");
+            ClearHmiFaultCommand = new AsyncRelayCommand(
+                ClearHmiFaultAsync,
+                onError: ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 故障清除HMI命令异常: {ex.Message}");
             ToggleGlobalShieldCommand = new AsyncRelayCommand(
                 ToggleGlobalShieldAsync,
                 onError: ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 全局屏蔽命令异常: {ex.Message}");
@@ -299,7 +307,7 @@ namespace Blood_Alcohol.ViewModels
         private string BuildSuggestedAddress()
         {
             int max = AlarmPoints
-                .Select(x => TryParsePlcAddress(x.Address))
+                .Select(x => PlcAddressMapper.TryParseCoilDisplayAddress(x.Address))
                 .Where(x => x.HasValue)
                 .Select(x => x!.Value)
                 .DefaultIfEmpty((ushort)500)
@@ -350,19 +358,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         public void DeactivateMonitoring()
         {
-            StopMonitoring();
-        }
-
-        /// <summary>
-        /// 同步停止故障监控循环。
-        /// </summary>
-        /// By:ChengLei
-        /// <remarks>
-        /// 由 DeactivateMonitoring 调用，内部转为异步停止并等待任务退出。
-        /// </remarks>
-        private void StopMonitoring()
-        {
-            StopMonitoringAsync().GetAwaiter().GetResult();
+            _ = StopMonitoringAsync();
         }
 
         /// <summary>
@@ -377,6 +373,10 @@ namespace Blood_Alcohol.ViewModels
         {
             CancellationTokenSource? cts = _cts;
             Task? monitorTask = _monitorTask;
+            _cts = null;
+            _monitorTask = null;
+            _isMonitoring = false;
+            UnregisterPollingPoints();
             cts?.Cancel();
 
             if (monitorTask != null && !monitorTask.IsCompleted)
@@ -384,11 +384,7 @@ namespace Blood_Alcohol.ViewModels
                 await WaitMonitorTaskExitAsync(monitorTask).ConfigureAwait(false);
             }
 
-            _cts = null;
-            _monitorTask = null;
             cts?.Dispose();
-            _isMonitoring = false;
-            UnregisterPollingPoints();
         }
 
         /// <summary>
@@ -797,6 +793,29 @@ namespace Blood_Alcohol.ViewModels
             }
         }
 
+        /// <summary>
+        /// 向故障清除 HMI 按钮地址发送一次短脉冲。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回异步清除任务。</returns>
+        /// <remarks>
+        /// 该命令固定写入 M11，并在 100ms 后复位，独立于报警列表的选中状态。
+        /// </remarks>
+        private async Task ClearHmiFaultAsync()
+        {
+            try
+            {
+                await PulseCoilAsync(HmiFaultResetAddress).ConfigureAwait(true);
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 已发送故障清除HMI脉冲: M{HmiFaultResetAddress}。";
+                AppendEvent($"M{HmiFaultResetAddress}", "故障清除HMI", "发送故障清除脉冲");
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 故障清除HMI失败: {ex.Message}";
+                AppendEvent($"M{HmiFaultResetAddress}", "故障清除HMI", $"发送失败: {ex.Message}");
+            }
+        }
+
         private async Task ToggleGlobalShieldAsync()
         {
             bool next = !IsGlobalShieldEnabled;
@@ -829,6 +848,45 @@ namespace Blood_Alcohol.ViewModels
             {
                 StatusMessage = $"{DateTime.Now:HH:mm:ss} 全局屏蔽操作失败: {ex.Message}";
                 AppendEvent($"M{GlobalShieldAddress}", "报警屏蔽", $"全局屏蔽操作失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 向指定线圈地址发送一次置位后自动复位的短脉冲。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">目标线圈地址。</param>
+        /// <returns>返回异步脉冲任务。</returns>
+        /// <remarks>
+        /// 由故障清除HMI等瞬时命令复用，底层自动处理 4096 偏移。
+        /// </remarks>
+        private async Task PulseCoilAsync(ushort address)
+        {
+            if (!CommunicationManager.Is485Open)
+            {
+                throw new InvalidOperationException("PLC 未连接。");
+            }
+
+            await _plcLock.WaitAsync().ConfigureAwait(true);
+            try
+            {
+                var writeHigh = await _plc.TryWriteSingleCoilAsync(address, true).ConfigureAwait(true);
+                if (!writeHigh.Success)
+                {
+                    throw new InvalidOperationException(writeHigh.Error);
+                }
+
+                await Task.Delay(CommandPulseWidth).ConfigureAwait(true);
+
+                var writeLow = await _plc.TryWriteSingleCoilAsync(address, false).ConfigureAwait(true);
+                if (!writeLow.Success)
+                {
+                    throw new InvalidOperationException(writeLow.Error);
+                }
+            }
+            finally
+            {
+                _plcLock.Release();
             }
         }
 
@@ -904,19 +962,7 @@ namespace Blood_Alcohol.ViewModels
 
         private static ushort? TryParsePlcAddress(string address)
         {
-            if (string.IsNullOrWhiteSpace(address))
-            {
-                return null;
-            }
-
-            string trimmed = address.Trim();
-            if (trimmed.StartsWith("M", StringComparison.OrdinalIgnoreCase)
-                && ushort.TryParse(trimmed.Substring(1), out ushort result))
-            {
-                return result;
-            }
-
-            return null;
+            return PlcAddressMapper.TryParseCoilDisplayAddress(address);
         }
 
         private sealed class AlarmReadItem

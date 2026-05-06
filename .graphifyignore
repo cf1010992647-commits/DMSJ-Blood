@@ -1,0 +1,8 @@
+bin/
+obj/
+artifacts/
+.vs/
+.svn/
+Logs/
+.claude/
+*_wpftmp.csproj

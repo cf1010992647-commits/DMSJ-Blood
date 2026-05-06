@@ -201,6 +201,7 @@ namespace Blood_Alcohol.Services
         public static void LoadSettings()
         {
             _settingsStore.Load();
+            ApplyPlcSlaveAddressFromSettings();
             if (ValidateCurrentSettingsAndLog())
             {
                 ConfigureTcpDeviceMappings();
@@ -209,9 +210,28 @@ namespace Blood_Alcohol.Services
 
         public static void SaveSettings()
         {
+            ApplyPlcSlaveAddressFromSettings();
             ConfigureTcpDeviceMappings();
             _settingsStore.Save();
             ValidateCurrentSettingsAndLog();
+        }
+
+        /// <summary>
+        /// 按当前配置同步 PLC 从站站号。
+        /// </summary>
+        /// By:ChengLei
+        /// <remarks>
+        /// 由加载配置 保存配置和连接前流程调用，保证 PLC 读写使用最新站号。
+        /// </remarks>
+        public static void ApplyPlcSlaveAddressFromSettings()
+        {
+            int configuredAddress = Settings.PlcSlaveAddress;
+            if (configuredAddress <= 0 || configuredAddress > 247)
+            {
+                configuredAddress = 1;
+            }
+
+            Plc.UpdateSlaveAddress((byte)configuredAddress);
         }
 
         /// <summary>
@@ -511,6 +531,7 @@ namespace Blood_Alcohol.Services
             /// </remarks>
             public void ConnectRs485(string comPort, int baudRate)
             {
+                _devices.Plc.UpdateSlaveAddress((byte)Math.Clamp(_settingsProvider().PlcSlaveAddress, 1, 247));
                 _devices.Plc.ResetConnection();
                 if (_devices.Rs485.IsOpen)
                 {
@@ -598,6 +619,7 @@ namespace Blood_Alcohol.Services
                     if (!_devices.Rs485.IsOpen)
                     {
                         CommunicationSettings settings = _settingsProvider();
+                        _devices.Plc.UpdateSlaveAddress((byte)Math.Clamp(settings.PlcSlaveAddress, 1, 247));
                         _devices.Plc.ResetConnection();
                         SerialPort port = CreateLx5vSerialPort(settings.ComPort, settings.BaudRate);
                         _devices.Rs485.Open(port);

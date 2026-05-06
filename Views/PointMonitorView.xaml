@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <UserControl x:Class="Blood_Alcohol.Views.PointMonitorView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,187 +8,509 @@
              mc:Ignorable="d"
              d:DesignHeight="760"
              d:DesignWidth="1400"
+             FontFamily="Segoe UI, Microsoft YaHei"
              Unloaded="UserControl_Unloaded">
     <UserControl.DataContext>
         <vm:PointMonitorViewModel />
     </UserControl.DataContext>
 
     <UserControl.Resources>
-        <Style x:Key="IndustrialButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="#F8FAFC" />
-            <Setter Property="Background" Value="#2F6E9E" />
-            <Setter Property="BorderBrush" Value="#1E4F73" />
+        <DropShadowEffect x:Key="CardShadow"
+                          BlurRadius="10"
+                          Direction="270"
+                          ShadowDepth="1"
+                          Color="#000000"
+                          Opacity="0.10" />
+
+        <Style x:Key="PageCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Effect" Value="{StaticResource CardShadow}" />
+        </Style>
+
+        <Style x:Key="TitleTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#0F172B" />
+            <Setter Property="FontSize" Value="24" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="LineHeight" Value="32" />
+        </Style>
+
+        <Style x:Key="CardTitleTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#020618" />
+            <Setter Property="FontSize" Value="18" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="LineHeight" Value="28" />
+        </Style>
+
+        <Style x:Key="DescriptionTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#62748E" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="LineHeight" Value="20" />
+        </Style>
+
+        <Style x:Key="ActionButtonBaseStyle" TargetType="Button">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.84" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.50" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource IndustrialButtonStyle}">
-            <Setter Property="Background" Value="#64748B" />
-            <Setter Property="BorderBrush" Value="#475569" />
+        <Style x:Key="PrimaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+            <Setter Property="Background" Value="#155DFC" />
+            <Setter Property="BorderBrush" Value="#155DFC" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
         </Style>
 
-        <Style x:Key="MonitorGridStyle" TargetType="DataGrid">
+        <Style x:Key="DarkActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+            <Setter Property="Background" Value="#1D293D" />
+            <Setter Property="BorderBrush" Value="#1D293D" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style x:Key="SecondaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="Foreground" Value="#020618" />
+        </Style>
+
+        <Style x:Key="DangerActionButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#FEE2E2" />
+            <Setter Property="Foreground" Value="#E7000B" />
+        </Style>
+
+        <Style x:Key="InlineButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="28" />
+            <Setter Property="MinWidth" Value="50" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="Foreground" Value="#45556C" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#F8FAFC" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#EFF6FF" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.50" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="InlinePrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource InlineButtonStyle}">
+            <Setter Property="BorderBrush" Value="#BEDBFF" />
+            <Setter Property="Foreground" Value="#1447E6" />
+        </Style>
+
+        <Style x:Key="PointTableStyle" TargetType="DataGrid">
             <Setter Property="AutoGenerateColumns" Value="False" />
             <Setter Property="CanUserAddRows" Value="False" />
             <Setter Property="CanUserDeleteRows" Value="False" />
             <Setter Property="CanUserResizeRows" Value="False" />
             <Setter Property="HeadersVisibility" Value="Column" />
             <Setter Property="GridLinesVisibility" Value="Horizontal" />
+            <Setter Property="HorizontalGridLinesBrush" Value="#F1F5F9" />
             <Setter Property="RowHeaderWidth" Value="0" />
-            <Setter Property="AlternationCount" Value="2" />
             <Setter Property="SelectionUnit" Value="FullRow" />
             <Setter Property="SelectionMode" Value="Single" />
-            <Setter Property="Background" Value="White" />
+            <Setter Property="Background" Value="#FFFFFF" />
             <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="RowHeight" Value="49" />
+            <Setter Property="ColumnHeaderHeight" Value="41" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="#020618" />
+            <Setter Property="ColumnHeaderStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#F8FAFC" />
+                        <Setter Property="Foreground" Value="#62748E" />
+                        <Setter Property="FontSize" Value="12" />
+                        <Setter Property="FontWeight" Value="Medium" />
+                        <Setter Property="Padding" Value="16,0" />
+                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                        <Setter Property="HorizontalContentAlignment" Value="Left" />
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RowStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="#FFFFFF" />
+                        <Setter Property="BorderBrush" Value="#F1F5F9" />
+                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                        <Setter Property="SnapsToDevicePixels" Value="True" />
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#F8FAFC" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#EFF6FF" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CellStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="16,0" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="#020618" />
+                                <Setter Property="Background" Value="Transparent" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TableTextElementStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="#020618" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <Style x:Key="MutedTableTextElementStyle" TargetType="TextBlock" BasedOn="{StaticResource TableTextElementStyle}">
+            <Setter Property="Foreground" Value="#45556C" />
+        </Style>
+
+        <Style x:Key="NumericTableTextElementStyle" TargetType="TextBlock" BasedOn="{StaticResource TableTextElementStyle}">
+            <Setter Property="Foreground" Value="#314158" />
+            <Setter Property="FontFamily" Value="Consolas" />
+        </Style>
+
+        <Style x:Key="TableEditingTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="BorderBrush" Value="#BFDBFE" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="#020618" />
         </Style>
     </UserControl.Resources>
 
-    <Grid Background="White" Margin="12">
+    <Grid Background="#F8FAFC">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
+                Margin="24,24,24,0"
+                Padding="24"
+                Style="{StaticResource PageCardStyle}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                    <TextBlock Text="PLC 点位监控"
-                               FontSize="20"
-                               FontWeight="SemiBold"
-                               Foreground="#0F172A" />
-                    <TextBlock Text="支持 M线圈 与 D寄存器监控（16/32位），配置保存在 PointMonitorConfig.json。"
-                               FontSize="13"
-                               Foreground="#64748B"
-                               Margin="0,2,0,0" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Viewbox Width="24" Height="24" Margin="0,0,8,0">
+                        <Canvas Width="24" Height="24">
+                            <Path Stroke="#155DFC" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Data="M4,4 L9,4 L9,9 L4,9 Z M15,4 L20,4 L20,9 L15,9 Z M4,15 L9,15 L9,20 L4,20 Z M15,15 L20,15 L20,20 L15,20 Z" />
+                        </Canvas>
+                    </Viewbox>
+                    <StackPanel>
+                        <TextBlock Text="PLC 点位监控系统" Style="{StaticResource TitleTextStyle}" />
+                        <TextBlock Text="支持 M线圈 与 D寄存器监控，实时数据采集与控制"
+                                   Style="{StaticResource DescriptionTextStyle}"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                    <Button Content="新增点位"
-                            Command="{Binding AddPointCommand}"
-                            Style="{StaticResource IndustrialButtonStyle}"
-                            Margin="0,0,8,0" />
-                    <Button Content="删除选中"
-                            Command="{Binding DeletePointCommand}"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Margin="0,0,8,0" />
-                    <Button Content="重新加载配置"
-                            Command="{Binding ReloadConfigCommand}"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Margin="0,0,8,0" />
-                    <Button Content="保存配置"
-                            Command="{Binding SaveConfigCommand}"
-                            Style="{StaticResource IndustrialButtonStyle}" />
-                </StackPanel>
+                <Border Grid.Column="1"
+                        Background="#F8FAFC"
+                        BorderBrush="#F1F5F9"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="12,7"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="系统状态"
+                                   Foreground="#45556C"
+                                   FontSize="14"
+                                   FontWeight="Medium"
+                                   VerticalAlignment="Center" />
+                        <Grid Width="24" Height="24" Margin="8,0,6,0">
+                            <Ellipse Fill="#00D492" Opacity="0.20" />
+                            <Ellipse Width="12"
+                                     Height="12"
+                                     Fill="#00BC7D"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock Text="运行中"
+                                   Foreground="#009966"
+                                   FontSize="12"
+                                   FontWeight="Medium"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 
         <Border Grid.Row="1"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="10">
-            <DataGrid Style="{StaticResource MonitorGridStyle}"
-                      ItemsSource="{Binding Points}"
-                      SelectedItem="{Binding SelectedPoint, Mode=TwoWay}">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="地址"
-                                        Binding="{Binding Address, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                        Width="120" />
-                    <DataGridTextColumn Header="类型"
-                                        Binding="{Binding PointTypeText}"
-                                        IsReadOnly="True"
-                                        Width="130" />
-                    <DataGridTextColumn Header="位宽"
-                                        Binding="{Binding RegisterBitWidth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                        Width="70" />
-                    <DataGridTextColumn Header="当前值"
-                                        Binding="{Binding ValueText}"
-                                        IsReadOnly="True"
-                                        Width="110" />
-                    <DataGridTextColumn Header="描述"
-                                        Binding="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                        Width="*" />
-                    <DataGridTemplateColumn Header="状态" Width="90" IsReadOnly="True">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Ellipse Width="12" Height="12" Fill="{Binding StatusColor}" Stroke="#94A3B8" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="操作" Width="180" IsReadOnly="True">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0"
-                                            Content="开启"
-                                            Height="26"
-                                            Margin="0,0,4,0"
-                                            IsEnabled="{Binding IsWriteSupported}"
-                                            Command="{Binding DataContext.TogglePointCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource IndustrialButtonStyle}" />
-                                    <Button Grid.Column="1"
-                                            Content="关闭"
-                                            Height="26"
-                                            Margin="4,0,0,0"
-                                            IsEnabled="{Binding IsWriteSupported}"
-                                            Command="{Binding DataContext.TogglePointOffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource SecondaryButtonStyle}" />
-                                </Grid>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
+                Margin="24"
+                Style="{StaticResource PageCardStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-        <Border Grid.Row="2"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="10"
-                Margin="0,10,0,0">
-            <TextBlock Text="{Binding StatusMessage}"
-                       Foreground="#334155"
-                       FontSize="14" />
+                <Border Grid.Row="0"
+                        BorderBrush="#F1F5F9"
+                        BorderThickness="0,0,0,1"
+                        Padding="24">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Viewbox Width="20" Height="20" Margin="0,0,8,0">
+                                <Canvas Width="24" Height="24">
+                                    <Path Stroke="#62748E" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Data="M3,12 L6,12 L8,6 L12,18 L15,10 L21,10" />
+                                </Canvas>
+                            </Viewbox>
+                            <StackPanel>
+                                <TextBlock Text="点位列表" Style="{StaticResource CardTitleTextStyle}" />
+                                <TextBlock Text="支持 16/32位 数据格式，配置保存在 PointMonitorConfig.json。"
+                                           Style="{StaticResource DescriptionTextStyle}"
+                                           Margin="0,4,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Top"
+                                    Margin="24,0,0,0">
+                            <Button Command="{Binding AddPointCommand}"
+                                    Style="{StaticResource PrimaryActionButtonStyle}"
+                                    Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,6,0">
+                                        <Canvas Width="24" Height="24">
+                                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M12,5 L12,19 M5,12 L19,12" />
+                                        </Canvas>
+                                    </Viewbox>
+                                    <TextBlock Text="新增点位" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button Command="{Binding DeletePointCommand}"
+                                    Style="{StaticResource DangerActionButtonStyle}"
+                                    Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,6,0">
+                                        <Canvas Width="24" Height="24">
+                                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Data="M3,6 L21,6 M8,6 L8,4 L16,4 L16,6 M6,6 L7,20 L17,20 L18,6 M10,11 L10,17 M14,11 L14,17" />
+                                        </Canvas>
+                                    </Viewbox>
+                                    <TextBlock Text="删除选中" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button Command="{Binding ReloadConfigCommand}"
+                                    Style="{StaticResource SecondaryActionButtonStyle}"
+                                    MinWidth="130"
+                                    Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,6,0">
+                                        <Canvas Width="24" Height="24">
+                                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Data="M21,12 A9,9 0 0 1 6,18.7 M3,12 A9,9 0 0 1 18,5.3 M18,3 L18,7 L22,7 M6,21 L6,17 L2,17" />
+                                        </Canvas>
+                                    </Viewbox>
+                                    <TextBlock Text="重新加载配置" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button Command="{Binding SaveConfigCommand}"
+                                    Style="{StaticResource DarkActionButtonStyle}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Viewbox Width="16" Height="16" Margin="0,0,6,0">
+                                        <Canvas Width="24" Height="24">
+                                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Data="M5,3 L17,3 L21,7 L21,21 L3,21 L3,3 Z M7,3 L7,9 L17,9 L17,3 M7,21 L7,14 L17,14 L17,21" />
+                                        </Canvas>
+                                    </Viewbox>
+                                    <TextBlock Text="保存配置" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <DataGrid Grid.Row="1"
+                          Style="{StaticResource PointTableStyle}"
+                          ItemsSource="{Binding Points}"
+                          SelectedItem="{Binding SelectedPoint, Mode=TwoWay}"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Width="45" IsReadOnly="True">
+                            <DataGridTemplateColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsEnabled="False"
+                                              HorizontalAlignment="Center"
+                                              Opacity="0.55" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.HeaderTemplate>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}, Mode=TwoWay}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTextColumn Header="地址"
+                                            Binding="{Binding Address, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                            ElementStyle="{StaticResource TableTextElementStyle}"
+                                            EditingElementStyle="{StaticResource TableEditingTextBoxStyle}"
+                                            Width="1.2*" />
+                        <DataGridTextColumn Header="类型"
+                                            Binding="{Binding PointTypeText}"
+                                            IsReadOnly="True"
+                                            ElementStyle="{StaticResource MutedTableTextElementStyle}"
+                                            Width="1*" />
+                        <DataGridTextColumn Header="位宽"
+                                            Binding="{Binding RegisterBitWidth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                            ElementStyle="{StaticResource TableTextElementStyle}"
+                                            EditingElementStyle="{StaticResource TableEditingTextBoxStyle}"
+                                            Width="0.8*" />
+                        <DataGridTextColumn Header="当前值"
+                                            Binding="{Binding ValueText}"
+                                            IsReadOnly="True"
+                                            ElementStyle="{StaticResource NumericTableTextElementStyle}"
+                                            Width="0.9*" />
+                        <DataGridTextColumn Header="描述"
+                                            Binding="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                            ElementStyle="{StaticResource TableTextElementStyle}"
+                                            EditingElementStyle="{StaticResource TableEditingTextBoxStyle}"
+                                            Width="2.1*" />
+                        <DataGridTemplateColumn Header="状态" Width="0.7*" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Ellipse Width="14"
+                                             Height="14"
+                                             Fill="{Binding StatusColor}"
+                                             Stroke="#FFFFFF"
+                                             StrokeThickness="1"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center">
+                                        <Ellipse.Effect>
+                                            <DropShadowEffect BlurRadius="3"
+                                                              Direction="270"
+                                                              ShadowDepth="1"
+                                                              Color="#000000"
+                                                              Opacity="0.12" />
+                                        </Ellipse.Effect>
+                                    </Ellipse>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="操作" Width="1.3*" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Button Content="开启"
+                                                IsEnabled="{Binding IsWriteSupported}"
+                                                Command="{Binding DataContext.TogglePointCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource InlinePrimaryButtonStyle}"
+                                                Margin="0,0,8,0" />
+                                        <Button Content="关闭"
+                                                IsEnabled="{Binding IsWriteSupported}"
+                                                Command="{Binding DataContext.TogglePointOffCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource InlineButtonStyle}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <Border Grid.Row="2"
+                        Background="#F8FAFC"
+                        BorderBrush="#F1F5F9"
+                        BorderThickness="0,1,0,0"
+                        Padding="24,12">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8"
+                                 Height="8"
+                                 Fill="#00BC7D"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   Foreground="#62748E"
+                                   FontSize="13"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

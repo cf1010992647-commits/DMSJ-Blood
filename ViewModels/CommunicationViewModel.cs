@@ -1,4 +1,5 @@
 ﻿using Blood_Alcohol.Models;
+using Blood_Alcohol.Helpers;
 using Blood_Alcohol.Services;
 using System;
 using System.Collections.Generic;
@@ -51,6 +52,8 @@ namespace Blood_Alcohol.ViewModels
         private void Raise(string prop) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
         private readonly SemaphoreSlim _tcpReceiveLock = CommunicationManager.TcpReceiveLock;
+        private readonly SemaphoreSlim _plcLock = CommunicationManager.PlcAccessLock;
+        private readonly global::Blood_Alcohol.Communication.Serial.Lx5vPlc _plc = CommunicationManager.Plc;
 
         private readonly ConfigService<CommunicationSettings> _configService;
 
@@ -103,6 +106,17 @@ namespace Blood_Alcohol.ViewModels
                 EnsureBaudRateOption(value);
                 _selectedBaudRate = value;
                 Raise(nameof(SelectedBaudRate));
+            }
+        }
+
+        private int _selectedPlcSlaveAddress = 1;
+        public int SelectedPlcSlaveAddress
+        {
+            get => _selectedPlcSlaveAddress;
+            set
+            {
+                _selectedPlcSlaveAddress = value;
+                Raise(nameof(SelectedPlcSlaveAddress));
             }
         }
 
@@ -165,6 +179,7 @@ namespace Blood_Alcohol.ViewModels
         public ICommand RefreshComPortsCommand { get; }
         public ICommand ToggleTcpCommand { get; }
         public ICommand SaveTcpConfigCommand { get; }
+        public ICommand TestPlcCommand { get; }
         public ICommand TestTemperatureCommand { get; }
         public ICommand TestWeightCommand { get; }
 
@@ -210,6 +225,7 @@ namespace Blood_Alcohol.ViewModels
             RefreshComPortsCommand = new RelayCommand(_ => RefreshComPorts());
             ToggleTcpCommand = new RelayCommand(_ => ToggleTcp());
             SaveTcpConfigCommand = new RelayCommand(_ => SaveTcpConfig());
+            TestPlcCommand = new AsyncRelayCommand(TestPlcAsync, onError: ex => Log($"PLC测试异常: {ex.Message}", Brushes.Red));
             TestTemperatureCommand = new RelayCommand(async _ => await TestTemperature());
             TestWeightCommand = new RelayCommand(async _ => await TestWeight());
 
@@ -220,6 +236,7 @@ namespace Blood_Alcohol.ViewModels
             TcpPort = _settings.TcpPort;
             SelectedComPort = _settings.ComPort;
             SelectedBaudRate = _settings.BaudRate;
+            SelectedPlcSlaveAddress = _settings.PlcSlaveAddress;
             RefreshTcpDeviceDisplay();
 
             RefreshComPorts();
@@ -264,6 +281,7 @@ namespace Blood_Alcohol.ViewModels
             _settings.TcpPort = TcpPort;
             _settings.ComPort = SelectedComPort;
             _settings.BaudRate = SelectedBaudRate;
+            _settings.PlcSlaveAddress = SelectedPlcSlaveAddress;
             _settings.TcpDevices = BuildTcpDeviceMappingsForSave();
             CommunicationManager.Settings = _settings;
             CommunicationManager.SaveSettings();
@@ -360,6 +378,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         public void RefreshComPorts()
         {
+            string preferredPort = SelectedComPort;
             AvailableComPorts.Clear();
 
             var ports = SerialPort.GetPortNames();
@@ -369,7 +388,20 @@ namespace Blood_Alcohol.ViewModels
                 AvailableComPorts.Add(port);
 
             if (AvailableComPorts.Count > 0)
-                SelectedComPort = AvailableComPorts[0];
+            {
+                if (!string.IsNullOrWhiteSpace(preferredPort) && AvailableComPorts.Contains(preferredPort))
+                {
+                    SelectedComPort = preferredPort;
+                }
+                else if (!string.IsNullOrWhiteSpace(_settings.ComPort) && AvailableComPorts.Contains(_settings.ComPort))
+                {
+                    SelectedComPort = _settings.ComPort;
+                }
+                else
+                {
+                    SelectedComPort = AvailableComPorts[0];
+                }
+            }
 
             Log("串口列表已刷新");
         }
@@ -433,6 +465,68 @@ namespace Blood_Alcohol.ViewModels
             {
                 Log($"读取重量失败: {ex.Message}", Brushes.Red);
             }
+        }
+
+        /// <summary>
+        /// 执行 PLC 只读连通性测试并输出结果。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回 PLC 测试异步任务。</returns>
+        /// <remarks>
+        /// 由通信页“测试PLC”按钮调用，按当前页面的站号只读探测 M7 与 M8。
+        /// </remarks>
+        public async Task TestPlcAsync()
+        {
+            if (!CommunicationManager.Is485Open)
+            {
+                Log("PLC测试失败: RS485 未连接。", Brushes.Red);
+                return;
+            }
+
+            _settings.PlcSlaveAddress = SelectedPlcSlaveAddress;
+            CommunicationManager.Settings = _settings;
+            CommunicationManager.ApplyPlcSlaveAddressFromSettings();
+
+            Log($"开始测试 PLC 通讯 -> 串口 {SelectedComPort} / {SelectedBaudRate} / 站号 {SelectedPlcSlaveAddress}");
+
+            ushort? startAddress = PlcAddressMapper.TryParseCoilDisplayAddress("M7");
+            if (!startAddress.HasValue)
+            {
+                Log("PLC测试失败: 无法解析测试地址 M7。", Brushes.Red);
+                return;
+            }
+
+            string? coilError = null;
+            bool? m7Value = null;
+            bool? m8Value = null;
+
+            await _plcLock.WaitAsync().ConfigureAwait(true);
+            try
+            {
+                var coilRead = await _plc.TryReadCoilsAsync(startAddress.Value, 2).ConfigureAwait(true);
+                if (coilRead.Success && coilRead.Values.Length >= 2)
+                {
+                    m7Value = coilRead.Values[0];
+                    m8Value = coilRead.Values[1];
+                }
+                else
+                {
+                    coilError = coilRead.Error;
+                }
+            }
+            finally
+            {
+                _plcLock.Release();
+            }
+
+            if (m7Value.HasValue && m8Value.HasValue)
+            {
+                Log($"PLC测试成功: M7={(m7Value.Value ? 1 : 0)}, M8={(m8Value.Value ? 1 : 0)}（显示地址起点 {startAddress.Value}，底层自动偏移4096）", Brushes.DarkGreen);
+                return;
+            }
+
+            string errorMessage = string.IsNullOrWhiteSpace(coilError) ? "读取 M7/M8 失败，未返回有效数据。" : coilError;
+            Log($"PLC测试失败: {errorMessage}", Brushes.Red);
         }
 
         /// <summary>
@@ -583,11 +677,14 @@ namespace Blood_Alcohol.ViewModels
             {
                 if (!CommunicationManager.Is485Open)
                 {
+                    _settings.PlcSlaveAddress = SelectedPlcSlaveAddress;
+                    CommunicationManager.Settings = _settings;
+                    CommunicationManager.ApplyPlcSlaveAddressFromSettings();
                     CommunicationManager.ConnectRs485(
                         SelectedComPort,
                         SelectedBaudRate);
 
-                    Log($"485已连接 -> {SelectedComPort}/{SelectedBaudRate}");
+                    Log($"485已连接 -> {SelectedComPort}/{SelectedBaudRate}/站号{SelectedPlcSlaveAddress}");
                 }
                 else
                 {

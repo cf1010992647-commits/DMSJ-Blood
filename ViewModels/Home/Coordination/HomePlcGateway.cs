@@ -35,6 +35,7 @@ internal sealed class HomePlcGateway
 	private const ushort InitInjectionPositionRegisterAddress = 6306;
 	private const ushort InitCommandCoilAddress = 13;
 	private const ushort InitDoneCoilAddress = 14;
+	private const ushort SafePositionConfirmCoilAddress = 40;
 	private const ushort AutoModeCoilAddress = 10;
 	private const ushort StartCommandCoilAddress = 5;
 	private const ushort StopCommandCoilAddress = 900;
@@ -76,6 +77,7 @@ internal sealed class HomePlcGateway
 	public void RegisterCorePollingPoints(TimeSpan alarmPollInterval, TimeSpan processModePollInterval)
 	{
 		CommunicationManager.PlcPolling.RegisterCoil(AlarmSummaryCoilAddress, alarmPollInterval);
+		CommunicationManager.PlcPolling.RegisterCoil(EmergencyStopCoilAddress, alarmPollInterval);
 		CommunicationManager.PlcPolling.RegisterCoil(StandbyModeCoilAddress, processModePollInterval);
 		CommunicationManager.PlcPolling.RegisterCoil(PressureModeCoilAddress, processModePollInterval);
 		CommunicationManager.PlcPolling.RegisterCoil(ExhaustModeCoilAddress, processModePollInterval);
@@ -93,6 +95,7 @@ internal sealed class HomePlcGateway
 	public void UnregisterCorePollingPoints()
 	{
 		CommunicationManager.PlcPolling.UnregisterCoil(AlarmSummaryCoilAddress);
+		CommunicationManager.PlcPolling.UnregisterCoil(EmergencyStopCoilAddress);
 		CommunicationManager.PlcPolling.UnregisterCoil(StandbyModeCoilAddress);
 		CommunicationManager.PlcPolling.UnregisterCoil(PressureModeCoilAddress);
 		CommunicationManager.PlcPolling.UnregisterCoil(ExhaustModeCoilAddress);
@@ -152,6 +155,20 @@ internal sealed class HomePlcGateway
 	public Task<(bool Success, bool Value, string Error)> TryReadAlarmSummaryAsync(CancellationToken token)
 	{
 		return TryReadCoilAsync(AlarmSummaryCoilAddress, token);
+	}
+
+	/// <summary>
+	/// 读取急停命令线圈状态。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="token">取消令牌。</param>
+	/// <returns>返回读取结果。</returns>
+	/// <remarks>
+	/// 该状态仅反映 PLC 侧急停命令位，不作为持续安全反馈的唯一依据。
+	/// </remarks>
+	public Task<(bool Success, bool Value, string Error)> TryReadEmergencyStopAsync(CancellationToken token)
+	{
+		return TryReadCoilAsync(EmergencyStopCoilAddress, token);
 	}
 
 	/// <summary>
@@ -252,35 +269,19 @@ internal sealed class HomePlcGateway
 	/// </remarks>
 	public async Task SendInitParametersWithVerifyAsync(ProcessParameterConfig config)
 	{
-		(ushort Address, int Value, string Name)[] items = BuildInitParameterItems(config);
+		(ushort Address, int Value, string Name, ushort WordLength)[] items = BuildInitParameterItems(config);
 		await _plcLock.WaitAsync().ConfigureAwait(false);
 		try
 		{
-			foreach ((ushort Address, int Value, string Name) item in items)
+			foreach ((ushort Address, int Value, string Name, ushort WordLength) item in items)
 			{
-				ushort expected = (ushort)Math.Clamp(item.Value, 0, 65535);
-				var write = await CommunicationManager.Plc.TryWriteSingleRegisterAsync(item.Address, expected).ConfigureAwait(false);
-				if (!write.Success)
+				if (item.WordLength == 2)
 				{
-					throw new InvalidOperationException($"D{item.Address} {item.Name} 写入失败：{write.Error}");
+					await WriteInt32InitParameterWithVerifyAsync(item.Address, item.Value, item.Name).ConfigureAwait(false);
+					continue;
 				}
 
-				var read = await CommunicationManager.Plc.TryReadHoldingRegistersAsync(item.Address, 1).ConfigureAwait(false);
-				if (!read.Success)
-				{
-					throw new InvalidOperationException($"D{item.Address} {item.Name} 回读失败：{read.Error}");
-				}
-
-				if (read.Values.Length == 0)
-				{
-					throw new InvalidOperationException($"D{item.Address} {item.Name} 回读失败：返回长度为0");
-				}
-
-				ushort actual = read.Values[0];
-				if (actual != expected)
-				{
-					throw new InvalidOperationException($"D{item.Address} {item.Name} 校验失败：期望={expected}，实际={actual}");
-				}
+				await WriteUInt16InitParameterWithVerifyAsync(item.Address, item.Value, item.Name).ConfigureAwait(false);
 			}
 		}
 		finally
@@ -300,6 +301,19 @@ internal sealed class HomePlcGateway
 	public Task SendInitCommandAsync()
 	{
 		return WriteCoilAsync(InitCommandCoilAddress, true);
+	}
+
+	/// <summary>
+	/// 写入轴安全位置确认线圈高电平。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>返回写入异步任务。</returns>
+	/// <remarks>
+	/// 由首页初始化确认通过后调用，向 PLC 点位 M40 写入 1。
+	/// </remarks>
+	public Task SendSafePositionConfirmAsync()
+	{
+		return WriteCoilAsync(SafePositionConfirmCoilAddress, true);
 	}
 
 	/// <summary>
@@ -538,35 +552,153 @@ internal sealed class HomePlcGateway
 	}
 
 	/// <summary>
+	/// 写入16位初始化参数并回读校验。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="address">D寄存器地址。</param>
+	/// <param name="value">参数原始值。</param>
+	/// <param name="name">参数名称。</param>
+	/// <returns>返回写入和校验异步任务。</returns>
+	/// <remarks>
+	/// 由 SendInitParametersWithVerifyAsync 在已持有 PLC 访问锁时调用。
+	/// </remarks>
+	private static async Task WriteUInt16InitParameterWithVerifyAsync(ushort address, int value, string name)
+	{
+		ushort expected = (ushort)Math.Clamp(value, 0, 65535);
+		var write = await CommunicationManager.Plc.TryWriteSingleRegisterAsync(address, expected).ConfigureAwait(false);
+		if (!write.Success)
+		{
+			throw new InvalidOperationException($"D{address} {name} 写入失败：{write.Error}");
+		}
+
+		var read = await CommunicationManager.Plc.TryReadHoldingRegistersAsync(address, 1).ConfigureAwait(false);
+		if (!read.Success)
+		{
+			throw new InvalidOperationException($"D{address} {name} 回读失败：{read.Error}");
+		}
+
+		if (read.Values.Length == 0)
+		{
+			throw new InvalidOperationException($"D{address} {name} 回读失败：返回长度为0");
+		}
+
+		ushort actual = read.Values[0];
+		if (actual != expected)
+		{
+			throw new InvalidOperationException($"D{address} {name} 校验失败：期望={expected}，实际={actual}");
+		}
+	}
+
+	/// <summary>
+	/// 写入32位初始化参数并回读校验。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="lowAddress">低16位D寄存器地址。</param>
+	/// <param name="value">待写入的32位参数值。</param>
+	/// <param name="name">参数名称。</param>
+	/// <returns>返回写入和校验异步任务。</returns>
+	/// <remarks>
+	/// 低16位写入 lowAddress，高16位写入 lowAddress+1，回读两个寄存器后按 Int32 校验。
+	/// </remarks>
+	private static async Task WriteInt32InitParameterWithVerifyAsync(ushort lowAddress, int value, string name)
+	{
+		SplitInt32(value, out ushort lowWord, out ushort highWord);
+		var writeLow = await CommunicationManager.Plc.TryWriteSingleRegisterAsync(lowAddress, lowWord).ConfigureAwait(false);
+		if (!writeLow.Success)
+		{
+			throw new InvalidOperationException($"D{lowAddress}/D{lowAddress + 1} {name} 低16位写入失败：{writeLow.Error}");
+		}
+
+		var writeHigh = await CommunicationManager.Plc.TryWriteSingleRegisterAsync((ushort)(lowAddress + 1), highWord).ConfigureAwait(false);
+		if (!writeHigh.Success)
+		{
+			throw new InvalidOperationException($"D{lowAddress}/D{lowAddress + 1} {name} 高16位写入失败：{writeHigh.Error}");
+		}
+
+		var read = await CommunicationManager.Plc.TryReadHoldingRegistersAsync(lowAddress, 2).ConfigureAwait(false);
+		if (!read.Success)
+		{
+			throw new InvalidOperationException($"D{lowAddress}/D{lowAddress + 1} {name} 回读失败：{read.Error}");
+		}
+
+		if (read.Values.Length < 2)
+		{
+			throw new InvalidOperationException($"D{lowAddress}/D{lowAddress + 1} {name} 回读失败：返回长度不足2");
+		}
+
+		int actual = ComposeInt32(read.Values[0], read.Values[1]);
+		if (actual != value)
+		{
+			throw new InvalidOperationException($"D{lowAddress}/D{lowAddress + 1} {name} 校验失败：期望={value}，实际={actual}");
+		}
+	}
+
+	/// <summary>
+	/// 将两个16位寄存器组合为32位有符号整数。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="lowWord">低16位寄存器值。</param>
+	/// <param name="highWord">高16位寄存器值。</param>
+	/// <returns>返回组合后的32位整数。</returns>
+	/// <remarks>
+	/// 由 WriteInt32InitParameterWithVerifyAsync 回读校验时调用。
+	/// </remarks>
+	private static int ComposeInt32(ushort lowWord, ushort highWord)
+	{
+		uint raw = (uint)lowWord | ((uint)highWord << 16);
+		return unchecked((int)raw);
+	}
+
+	/// <summary>
+	/// 将32位整数拆分为低16位和高16位寄存器值。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="value">待拆分的32位整数。</param>
+	/// <param name="lowWord">输出低16位寄存器值。</param>
+	/// <param name="highWord">输出高16位寄存器值。</param>
+	/// <remarks>
+	/// 由 WriteInt32InitParameterWithVerifyAsync 写入32位初始化参数时调用。
+	/// </remarks>
+	private static void SplitInt32(int value, out ushort lowWord, out ushort highWord)
+	{
+		unchecked
+		{
+			uint raw = (uint)value;
+			lowWord = (ushort)(raw & 0xFFFF);
+			highWord = (ushort)((raw >> 16) & 0xFFFF);
+		}
+	}
+
+	/// <summary>
 	/// 构建初始化参数写入项。
 	/// </summary>
 	/// By:ChengLei
 	/// <param name="config">流程参数配置。</param>
-	/// <returns>返回寄存器地址、值和名称集合。</returns>
+	/// <returns>返回寄存器地址、值、名称和占用字数集合。</returns>
 	/// <remarks>
 	/// 由初始化参数写入流程调用，集中维护 D6000/D6020 等地址映射。
 	/// </remarks>
-	private static (ushort Address, int Value, string Name)[] BuildInitParameterItems(ProcessParameterConfig config)
+	private static (ushort Address, int Value, string Name, ushort WordLength)[] BuildInitParameterItems(ProcessParameterConfig config)
 	{
-		return new (ushort Address, int Value, string Name)[17]
+		return new (ushort Address, int Value, string Name, ushort WordLength)[17]
 		{
-			(InitZDropNeedleRiseSlowSpeedRegisterAddress, config.ZDropNeedleRiseSlowSpeed, "Z轴_丢枪头_上升慢速速度"),
-			(InitPipetteAspirateDelayRegisterAddress, config.PipetteAspirateDelay100ms, "移液枪吸液延时时间"),
-			(InitPipetteDispenseDelayRegisterAddress, config.PipetteDispenseDelay100ms, "移液枪打液延时时间"),
-			(InitTubeShakeHomeDelayRegisterAddress, config.TubeShakeHomeDelay100ms, "采血管摇晃原位延时时间"),
-			(InitTubeShakeWorkDelayRegisterAddress, config.TubeShakeWorkDelay100ms, "采血管摇晃工位延时时间"),
-			(InitTubeShakeTargetCountRegisterAddress, config.TubeShakeTargetCount, "采血管摇晃目标次数"),
-			(InitHeadspaceShakeHomeDelayRegisterAddress, config.HeadspaceShakeHomeDelay100ms, "顶空瓶摇晃原位延时时间"),
-			(InitHeadspaceShakeWorkDelayRegisterAddress, config.HeadspaceShakeWorkDelay100ms, "顶空瓶摇晃工位延时时间"),
-			(InitHeadspaceShakeTargetCountRegisterAddress, config.HeadspaceShakeTargetCount, "顶空瓶摇晃目标次数"),
-			(InitButanolAspirateDelayRegisterAddress, config.ButanolAspirateDelay100ms, "叔丁醇吸液延时时间"),
-			(InitButanolDispenseDelayRegisterAddress, config.ButanolDispenseDelay100ms, "叔丁醇打液延时时间"),
-			(InitSampleBottlePressureTimeRegisterAddress, config.SampleBottlePressureTime100ms, "样品瓶加压时间"),
-			(InitQuantitativeLoopBalanceTimeRegisterAddress, config.QuantitativeLoopBalanceTime100ms, "定量环平衡时间"),
-			(InitInjectionTimeRegisterAddress, config.InjectionTime100ms, "进样时间"),
-			(InitSampleBottlePressurePositionRegisterAddress, config.SampleBottlePressurePosition, "样品瓶加压位置"),
-			(InitQuantitativeLoopBalancePositionRegisterAddress, config.QuantitativeLoopBalancePosition, "定量环平衡位置"),
-			(InitInjectionPositionRegisterAddress, config.InjectionPosition, "进样位置")
+			(InitZDropNeedleRiseSlowSpeedRegisterAddress, config.ZDropNeedleRiseSlowSpeed, "Z轴_丢枪头_上升慢速速度", 2),
+			(InitPipetteAspirateDelayRegisterAddress, config.PipetteAspirateDelay100ms, "移液枪吸液延时时间", 1),
+			(InitPipetteDispenseDelayRegisterAddress, config.PipetteDispenseDelay100ms, "移液枪打液延时时间", 1),
+			(InitTubeShakeHomeDelayRegisterAddress, config.TubeShakeHomeDelay100ms, "采血管摇晃原位延时时间", 1),
+			(InitTubeShakeWorkDelayRegisterAddress, config.TubeShakeWorkDelay100ms, "采血管摇晃工位延时时间", 1),
+			(InitTubeShakeTargetCountRegisterAddress, config.TubeShakeTargetCount, "采血管摇晃目标次数", 1),
+			(InitHeadspaceShakeHomeDelayRegisterAddress, config.HeadspaceShakeHomeDelay100ms, "顶空瓶摇晃原位延时时间", 1),
+			(InitHeadspaceShakeWorkDelayRegisterAddress, config.HeadspaceShakeWorkDelay100ms, "顶空瓶摇晃工位延时时间", 1),
+			(InitHeadspaceShakeTargetCountRegisterAddress, config.HeadspaceShakeTargetCount, "顶空瓶摇晃目标次数", 1),
+			(InitButanolAspirateDelayRegisterAddress, config.ButanolAspirateDelay100ms, "叔丁醇吸液延时时间", 1),
+			(InitButanolDispenseDelayRegisterAddress, config.ButanolDispenseDelay100ms, "叔丁醇打液延时时间", 1),
+			(InitSampleBottlePressureTimeRegisterAddress, config.SampleBottlePressureTime100ms, "样品瓶加压时间", 1),
+			(InitQuantitativeLoopBalanceTimeRegisterAddress, config.QuantitativeLoopBalanceTime100ms, "定量环平衡时间", 1),
+			(InitInjectionTimeRegisterAddress, config.InjectionTime100ms, "进样时间", 1),
+			(InitSampleBottlePressurePositionRegisterAddress, config.SampleBottlePressurePosition, "样品瓶加压位置", 2),
+			(InitQuantitativeLoopBalancePositionRegisterAddress, config.QuantitativeLoopBalancePosition, "定量环平衡位置", 2),
+			(InitInjectionPositionRegisterAddress, config.InjectionPosition, "进样位置", 2)
 		};
 	}
 }

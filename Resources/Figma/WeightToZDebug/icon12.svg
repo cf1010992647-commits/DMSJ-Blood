@@ -1,0 +1,14 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Icon">
+<path id="Vector" d="M12 1.33333H4C3.26362 1.33333 2.66667 1.93029 2.66667 2.66667V13.3333C2.66667 14.0697 3.26362 14.6667 4 14.6667H12C12.7364 14.6667 13.3333 14.0697 13.3333 13.3333V2.66667C13.3333 1.93029 12.7364 1.33333 12 1.33333Z" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M5.33333 4H10.6667" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M10.6667 9.33333V12" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_4" d="M10.6667 6.66667H10.6733" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_5" d="M8 6.66667H8.00667" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_6" d="M5.33333 6.66667H5.34" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_7" d="M8 9.33333H8.00667" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_8" d="M5.33333 9.33333H5.34" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_9" d="M8 12H8.00667" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_10" d="M5.33333 12H5.34" stroke="var(--stroke-0, white)" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

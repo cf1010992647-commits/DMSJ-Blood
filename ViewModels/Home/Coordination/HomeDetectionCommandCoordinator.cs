@@ -42,7 +42,7 @@ internal sealed class HomeDetectionCommandCoordinator
 			}
 			else if (initResult.Completed)
 			{
-				context.AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "初始化参数写入并校验成功（D6000、D6020、D6021、D6022、D6023、D6024、D6026、D6027、D6028、D6030、D6031、D6040、D6041、D6042、D6302、D6304、D6306）。");
+				context.AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "初始化参数写入并校验成功（D6000/D6001、D6020、D6021、D6022、D6023、D6024、D6026、D6027、D6028、D6030、D6031、D6040、D6041、D6042、D6302/D6303、D6304/D6305、D6306/D6307）。");
 				context.AddLog(HomeLogLevel.Info, HomeLogSource.System, HomeLogKind.Operation, "初始化成功");
 			}
 			else

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "WebSearch",
+      "WebFetch(domain:help.figma.com)",
+      "Bash(claude mcp *)"
+    ]
+  }
+}

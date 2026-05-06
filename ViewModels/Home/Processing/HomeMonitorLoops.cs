@@ -245,8 +245,8 @@ internal static class HomeMonitorLoops
 	/// </remarks>
 	public static async Task RunAlarmMonitorAsync(HomeAlarmMonitorContext context, CancellationToken token)
 	{
-		bool hasLastState = false;
-		bool lastState = false;
+		bool hasLastAlarmState = false;
+		bool lastAlarmState = false;
 		bool readErrorLogged = false;
 		bool hasConnectionState = false;
 		bool lastConnectionState = false;
@@ -275,7 +275,7 @@ internal static class HomeMonitorLoops
 				if (!isConnected)
 				{
 					context.SetAlarmActive(false);
-					hasLastState = false;
+					hasLastAlarmState = false;
 					readErrorLogged = false;
 					await Task.Delay(context.PollInterval, token).ConfigureAwait(false);
 					continue;
@@ -300,19 +300,19 @@ internal static class HomeMonitorLoops
 					continue;
 				}
 
-				bool currentState = alarmRead.Value;
+				bool currentAlarmState = alarmRead.Value;
 				if (commFaultActive)
 				{
 					context.AddLog(HomeLogLevel.Info, HomeLogSource.Hardware, HomeLogKind.Operation, "PLC通讯已恢复。");
 					commFaultActive = false;
 				}
 
-				context.SetAlarmActive(currentState);
-				if (!hasLastState)
+				context.SetAlarmActive(currentAlarmState);
+				if (!hasLastAlarmState)
 				{
-					hasLastState = true;
-					lastState = currentState;
-					if (currentState)
+					hasLastAlarmState = true;
+					lastAlarmState = currentAlarmState;
+					if (currentAlarmState)
 					{
 						context.RunOnUiThread(() =>
 						{
@@ -325,7 +325,7 @@ internal static class HomeMonitorLoops
 						});
 					}
 				}
-				else if (!lastState && currentState)
+				else if (!lastAlarmState && currentAlarmState)
 				{
 					context.RunOnUiThread(() =>
 					{
@@ -337,7 +337,7 @@ internal static class HomeMonitorLoops
 						}
 					});
 				}
-				else if (lastState && !currentState)
+				else if (lastAlarmState && !currentAlarmState)
 				{
 					context.RunOnUiThread(() =>
 					{
@@ -349,7 +349,7 @@ internal static class HomeMonitorLoops
 					});
 				}
 
-				lastState = currentState;
+				lastAlarmState = currentAlarmState;
 				readErrorLogged = false;
 			}
 			catch (OperationCanceledException)

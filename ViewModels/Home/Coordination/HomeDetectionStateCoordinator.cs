@@ -34,6 +34,12 @@ internal sealed class HomeDetectionStateCoordinator
 	public bool IsDetectionStarted { get; private set; }
 
 	/// <summary>
+	/// 当前是否处于急停已触发状态。
+	/// </summary>
+	/// By:ChengLei
+	public bool IsEmergencyStopped { get; private set; }
+
+	/// <summary>
 	/// 当前首页数量规则提示文本
 	/// </summary>
 	/// By:ChengLei
@@ -116,6 +122,7 @@ internal sealed class HomeDetectionStateCoordinator
 	/// </remarks>
 	public void MarkAlarmBlocked()
 	{
+		IsEmergencyStopped = false;
 		CountRuleText = AlarmBlockedCountRuleText;
 	}
 
@@ -129,6 +136,7 @@ internal sealed class HomeDetectionStateCoordinator
 	public void MarkStartFailed()
 	{
 		IsDetectionStarted = false;
+		IsEmergencyStopped = false;
 	}
 
 	/// <summary>
@@ -141,6 +149,7 @@ internal sealed class HomeDetectionStateCoordinator
 	public void MarkStarted()
 	{
 		IsDetectionStarted = true;
+		IsEmergencyStopped = false;
 		CountRuleText = StartedCountRuleText;
 	}
 
@@ -156,6 +165,7 @@ internal sealed class HomeDetectionStateCoordinator
 	{
 		bool wasRunning = IsDetectionStarted;
 		IsDetectionStarted = false;
+		IsEmergencyStopped = false;
 		CountRuleText = StoppedCountRuleText;
 		return wasRunning;
 	}
@@ -170,6 +180,7 @@ internal sealed class HomeDetectionStateCoordinator
 	public void MarkEmergencyStopped()
 	{
 		IsDetectionStarted = false;
+		IsEmergencyStopped = true;
 		CountRuleText = EmergencyStoppedCountRuleText;
 	}
 
@@ -183,6 +194,7 @@ internal sealed class HomeDetectionStateCoordinator
 	public void MarkAlarmStopped()
 	{
 		IsDetectionStarted = false;
+		IsEmergencyStopped = false;
 		CountRuleText = AlarmStoppedCountRuleText;
 	}
 
@@ -197,6 +209,7 @@ internal sealed class HomeDetectionStateCoordinator
 	{
 		if (!IsDetectionStarted)
 		{
+			IsEmergencyStopped = false;
 			CountRuleText = AlarmClearedCountRuleText;
 		}
 	}

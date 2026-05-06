@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <UserControl x:Class="Blood_Alcohol.Views.FaultDebugView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,298 +8,927 @@
              mc:Ignorable="d"
              d:DesignHeight="820"
              d:DesignWidth="1400"
+             FontFamily="Segoe UI, Microsoft YaHei"
              Unloaded="UserControl_Unloaded">
     <UserControl.DataContext>
         <vm:FaultDebugViewModel />
     </UserControl.DataContext>
 
     <UserControl.Resources>
-        <Style x:Key="IndustrialButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="#F8FAFC" />
-            <Setter Property="Background" Value="#2F6E9E" />
-            <Setter Property="BorderBrush" Value="#1E4F73" />
+        <DropShadowEffect x:Key="CardShadow"
+                          BlurRadius="10"
+                          Direction="270"
+                          ShadowDepth="1"
+                          Color="#000000"
+                          Opacity="0.10" />
+
+        <DrawingImage x:Key="FigmaFaultIconSettings">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M10.1833 1.66667H9.81667C9.37464 1.66667 8.95072 1.84226 8.63816 2.15482C8.32559 2.46738 8.15 2.89131 8.15 3.33333V3.48333C8.1497 3.7756 8.07255 4.06266 7.92628 4.3157C7.78002 4.56874 7.56978 4.77886 7.31667 4.925L6.95833 5.13333C6.70497 5.27961 6.41756 5.35662 6.125 5.35662C5.83244 5.35662 5.54503 5.27961 5.29167 5.13333L5.16667 5.06667C4.78422 4.84605 4.32986 4.7862 3.90334 4.90026C3.47681 5.01431 3.11296 5.29295 2.89167 5.675L2.70833 5.99167C2.48772 6.37411 2.42787 6.82847 2.54192 7.255C2.65598 7.68153 2.93461 8.04537 3.31667 8.26667L3.44167 8.35C3.69356 8.49543 3.90302 8.70424 4.04921 8.95569C4.1954 9.20714 4.27324 9.49248 4.275 9.78333V10.2083C4.27617 10.502 4.19971 10.7908 4.05337 11.0454C3.90703 11.3001 3.69601 11.5115 3.44167 11.6583L3.31667 11.7333C2.93461 11.9546 2.65598 12.3185 2.54192 12.745C2.42787 13.1715 2.48772 13.6259 2.70833 14.0083L2.89167 14.325C3.11296 14.7071 3.47681 14.9857 3.90334 15.0997C4.32986 15.2138 4.78422 15.1539 5.16667 14.9333L5.29167 14.8667C5.54503 14.7204 5.83244 14.6434 6.125 14.6434C6.41756 14.6434 6.70497 14.7204 6.95833 14.8667L7.31667 15.075C7.56978 15.2211 7.78002 15.4313 7.92628 15.6843C8.07255 15.9373 8.1497 16.2244 8.15 16.5167V16.6667C8.15 17.1087 8.32559 17.5326 8.63816 17.8452C8.95072 18.1577 9.37464 18.3333 9.81667 18.3333H10.1833C10.6254 18.3333 11.0493 18.1577 11.3618 17.8452C11.6744 17.5326 11.85 17.1087 11.85 16.6667V16.5167C11.8503 16.2244 11.9275 15.9373 12.0737 15.6843C12.22 15.4313 12.4302 15.2211 12.6833 15.075L13.0417 14.8667C13.295 14.7204 13.5824 14.6434 13.875 14.6434C14.1676 14.6434 14.455 14.7204 14.7083 14.8667L14.8333 14.9333C15.2158 15.1539 15.6701 15.2138 16.0967 15.0997C16.5232 14.9857 16.887 14.7071 17.1083 14.325L17.2917 14C17.5123 13.6176 17.5721 13.1632 17.4581 12.7367C17.344 12.3101 17.0654 11.9463 16.6833 11.725L16.5583 11.6583C16.304 11.5115 16.093 11.3001 15.9466 11.0454C15.8003 10.7908 15.7238 10.502 15.725 10.2083V9.79167C15.7238 9.49798 15.8003 9.20921 15.9466 8.95458C16.093 8.69995 16.304 8.48851 16.5583 8.34167L16.6833 8.26667C17.0654 8.04537 17.344 7.68153 17.4581 7.255C17.5721 6.82847 17.5123 6.37411 17.2917 5.99167L17.1083 5.675C16.887 5.29295 16.5232 5.01431 16.0967 4.90026C15.6701 4.7862 15.2158 4.84605 14.8333 5.06667L14.7083 5.13333C14.455 5.27961 14.1676 5.35662 13.875 5.35662C13.5824 5.35662 13.295 5.27961 13.0417 5.13333L12.6833 4.925C12.4302 4.77886 12.22 4.56874 12.0737 4.3157C11.9275 4.06266 11.8503 3.7756 11.85 3.48333V3.33333C11.85 2.89131 11.6744 2.46738 11.3618 2.15482C11.0493 1.84226 10.6254 1.66667 10.1833 1.66667Z">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#155DFC" Thickness="1.66667" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M10 12.5C11.3807 12.5 12.5 11.3807 12.5 10C12.5 8.61929 11.3807 7.5 10 7.5C8.61929 7.5 7.5 8.61929 7.5 10C7.5 11.3807 8.61929 12.5 10 12.5Z">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#155DFC" Thickness="1.66667" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconActive">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M8 14.6667C11.6819 14.6667 14.6667 11.6819 14.6667 8C14.6667 4.3181 11.6819 1.33333 8 1.33333C4.3181 1.33333 1.33333 4.3181 1.33333 8C1.33333 11.6819 4.3181 14.6667 8 14.6667Z">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FB2C36" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M8 5.33333V8">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FB2C36" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M8 10.6667H8.00667">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FB2C36" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconEyeOffGray">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M7.15533 3.384C8.70826 3.19894 10.2791 3.52721 11.6279 4.3187C12.9768 5.11019 14.0295 6.32138 14.6253 7.76733C14.6809 7.91701 14.6809 8.08166 14.6253 8.23133C14.3803 8.82533 14.0565 9.38367 13.6627 9.89133">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#90A1B9" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M9.38933 9.43867C9.01213 9.80298 8.50693 10.0046 7.98253 10C7.45814 9.99546 6.95651 9.78512 6.5857 9.4143C6.21488 9.04349 6.00454 8.54186 5.99999 8.01747C5.99543 7.49308 6.19702 6.98787 6.56133 6.61067">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#90A1B9" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M11.6527 11.666C10.7683 12.1899 9.78164 12.5173 8.75957 12.6263C7.73751 12.7352 6.70397 12.623 5.72909 12.2973C4.75421 11.9715 3.8608 11.4399 3.10947 10.7385C2.35815 10.0371 1.7665 9.18224 1.37467 8.232C1.31911 8.08232 1.31911 7.91768 1.37467 7.768C1.96575 6.33457 3.00578 5.1315 4.33867 4.33933">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#90A1B9" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M1.33333 1.33333L14.6667 14.6667">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#90A1B9" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconEraserWhite">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M4.66667 14L1.8 11.1333C1.13333 10.4667 1.13333 9.46667 1.8 8.86667L8.2 2.46667C8.86667 1.8 9.86667 1.8 10.4667 2.46667L14.2 6.2C14.8667 6.86667 14.8667 7.86667 14.2 8.46667L8.66667 14 M14.6667 14H4.66667 M3.33333 7.33333L9.33333 13.3333">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconAlertWhite">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M14.4867 12L9.15333 2.66667C9.03704 2.46147 8.8684 2.29079 8.66462 2.17205C8.46083 2.0533 8.22919 1.99074 7.99333 1.99074C7.75747 1.99074 7.52584 2.0533 7.32205 2.17205C7.11826 2.29079 6.94962 2.46147 6.83333 2.66667L1.5 12C1.38245 12.2036 1.32082 12.4346 1.32134 12.6697C1.32186 12.9047 1.38452 13.1355 1.50296 13.3385C1.62141 13.5416 1.79143 13.7097 1.9958 13.8259C2.20016 13.942 2.4316 14.0021 2.66667 14H13.3333C13.5673 13.9998 13.797 13.938 13.9995 13.8209C14.202 13.7037 14.3701 13.5354 14.487 13.3327C14.6039 13.1301 14.6654 12.9003 14.6653 12.6663C14.6652 12.4324 14.6036 12.2026 14.4867 12Z M8 6V8.66667 M8 11.3333H8.00667">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconShieldWhite">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M13.3333 8.66667C13.3333 12 11 13.6667 8.22667 14.6333C8.08144 14.6825 7.92369 14.6802 7.78 14.6267C5 13.6667 2.66667 12 2.66667 8.66667V4C2.66667 3.82319 2.7369 3.65362 2.86193 3.5286C2.98695 3.40357 3.15652 3.33333 3.33333 3.33333C4.66667 3.33333 6.33333 2.53333 7.49333 1.52C7.63457 1.39933 7.81424 1.33303 8 1.33303C8.18576 1.33303 8.36543 1.39933 8.50667 1.52C9.67333 2.54 11.3333 3.33333 12.6667 3.33333C12.8435 3.33333 13.013 3.40357 13.1381 3.5286C13.2631 3.65362 13.3333 3.82319 13.3333 4V8.66667Z M6 8L7.33333 9.33333L10 6.66667">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconEyeOffWhite">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M7.15533 3.384C8.70826 3.19894 10.2791 3.52721 11.6279 4.3187C12.9768 5.11019 14.0295 6.32138 14.6253 7.76733C14.6809 7.91701 14.6809 8.08166 14.6253 8.23133C14.3803 8.82533 14.0565 9.38367 13.6627 9.89133 M9.38933 9.43867C9.01213 9.80298 8.50693 10.0046 7.98253 10C7.45814 9.99546 6.95651 9.78512 6.5857 9.4143C6.21488 9.04349 6.00454 8.54186 5.99999 8.01747C5.99543 7.49308 6.19702 6.98787 6.56133 6.61067 M11.6527 11.666C10.7683 12.1899 9.78164 12.5173 8.75957 12.6263C7.73751 12.7352 6.70397 12.623 5.72909 12.2973C4.75421 11.9715 3.8608 11.4399 3.10947 10.7385C2.35815 10.0371 1.7665 9.18224 1.37467 8.232C1.31911 8.08232 1.31911 7.91768 1.37467 7.768C1.96575 6.33457 3.00578 5.1315 4.33867 4.33933 M1.33333 1.33333L14.6667 14.6667">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconTrashDark">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M2 4H14 M12.6667 4V13.3333C12.6667 14 12 14.6667 11.3333 14.6667H4.66667C4 14.6667 3.33333 14 3.33333 13.3333V4 M5.33333 4V2.66667C5.33333 2 6 1.33333 6.66667 1.33333H9.33333C10 1.33333 10.6667 2 10.6667 2.66667V4 M6.66667 7.33333V11.3333 M9.33333 7.33333V11.3333">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#0A0A0A" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconPlusWhite">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M3.33333 8H12.6667 M8 3.33333V12.6667">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconReloadDark">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M2 8C2 6.4087 2.63214 4.88258 3.75736 3.75736C4.88258 2.63214 6.4087 2 8 2C9.67737 2.00631 11.2874 2.66082 12.4933 3.82667L14 5.33333 M14 2V5.33333H10.6667 M14 8C14 9.5913 13.3679 11.1174 12.2426 12.2426C11.1174 13.3679 9.5913 14 8 14C6.32263 13.9937 4.71265 13.3392 3.50667 12.1733L2 10.6667 M5.33333 10.6667H2V14">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#0A0A0A" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconSaveWhite">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M10.1333 2C10.485 2.00501 10.8205 2.14878 11.0667 2.4L13.6 4.93333C13.8512 5.17951 13.995 5.51497 14 5.86667V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V3.33333C2 2.97971 2.14048 2.64057 2.39052 2.39052C2.64057 2.14048 2.97971 2 3.33333 2H10.1333Z M11.3333 14V9.33333C11.3333 9.15652 11.2631 8.98695 11.1381 8.86193C11.013 8.73691 10.8435 8.66667 10.6667 8.66667H5.33333C5.15652 8.66667 4.98695 8.73691 4.86193 8.86193C4.7369 8.98695 4.66667 9.15652 4.66667 9.33333V14 M4.66667 2V4.66667C4.66667 4.84348 4.7369 5.01305 4.86193 5.13807C4.98695 5.2631 5.15652 5.33333 5.33333 5.33333H10">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconAlertBlue">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.4867 12L9.15333 2.66667C9.03704 2.46147 8.8684 2.29079 8.66462 2.17205C8.46083 2.0533 8.22919 1.99074 7.99333 1.99074C7.75747 1.99074 7.52584 2.0533 7.32205 2.17205C7.11826 2.29079 6.94962 2.46147 6.83333 2.66667L1.5 12C1.38245 12.2036 1.32082 12.4346 1.32134 12.6697C1.32186 12.9047 1.38452 13.1355 1.50296 13.3385C1.62141 13.5416 1.79143 13.7097 1.9958 13.8259C2.20016 13.942 2.4316 14.0021 2.66667 14H13.3333C13.5673 13.9998 13.797 13.938 13.9995 13.8209C14.202 13.7037 14.3701 13.5354 14.487 13.3327C14.6039 13.1301 14.6654 12.9003 14.6653 12.6663C14.6652 12.4324 14.6036 12.2026 14.4867 12Z M8 6V8.66667 M8 11.3333H8.00667">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaFaultIconPulseBlue">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.6667 8H13.0133C12.722 7.99938 12.4384 8.0942 12.2061 8.26998C11.9737 8.44575 11.8053 8.6928 11.7267 8.97333L10.16 14.5467C10.1499 14.5813 10.1288 14.6117 10.1 14.6333C10.0712 14.655 10.0361 14.6667 10 14.6667C9.96394 14.6667 9.92885 14.655 9.9 14.6333C9.87115 14.6117 9.8501 14.5813 9.84 14.5467L6.16 1.45333C6.1499 1.41871 6.12885 1.3883 6.1 1.36667C6.07115 1.34503 6.03606 1.33333 6 1.33333C5.96394 1.33333 5.92885 1.34503 5.9 1.36667C5.87115 1.3883 5.8501 1.41871 5.84 1.45333L4.27333 7.02667C4.19498 7.3061 4.02759 7.55234 3.79658 7.72801C3.56556 7.90367 3.28355 7.99917 2.99333 8H1.33333">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Effect" Value="{StaticResource CardShadow}" />
+        </Style>
+
+        <Style x:Key="SectionCardStyle" TargetType="Border" BasedOn="{StaticResource CardStyle}">
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+
+        <Style x:Key="TitleTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#0F172B" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="LineHeight" Value="24" />
+        </Style>
+
+        <Style x:Key="SubTitleTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#62748E" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="LineHeight" Value="20" />
+        </Style>
+
+        <Style x:Key="SectionTitleTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#0F172B" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="LineHeight" Value="24" />
+        </Style>
+
+        <Style x:Key="ActionButtonBaseStyle" TargetType="Button">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="104" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4">
+                                CornerRadius="8">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.84" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.50" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource IndustrialButtonStyle}">
-            <Setter Property="Background" Value="#64748B" />
-            <Setter Property="BorderBrush" Value="#475569" />
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+            <Setter Property="Background" Value="#E7000B" />
+            <Setter Property="BorderBrush" Value="#E7000B" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
         </Style>
 
-        <Style x:Key="CriticalButtonStyle" TargetType="Button" BasedOn="{StaticResource IndustrialButtonStyle}">
-            <Setter Property="Background" Value="#B42318" />
-            <Setter Property="BorderBrush" Value="#8E1B12" />
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+            <Setter Property="Background" Value="#155DFC" />
+            <Setter Property="BorderBrush" Value="#155DFC" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style x:Key="DarkButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+            <Setter Property="Background" Value="#0F172B" />
+            <Setter Property="BorderBrush" Value="#0F172B" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonBaseStyle}">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="Foreground" Value="#0A0A0A" />
+        </Style>
+
+        <Style x:Key="PillBadgeStyle" TargetType="Border">
+            <Setter Property="Background" Value="#F1F5F9" />
+            <Setter Property="BorderBrush" Value="#F1F5F9" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="8,2" />
+        </Style>
+
+        <Style x:Key="CompactTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Width" Value="96" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="#F3F3F5" />
+            <Setter Property="BorderBrush" Value="#F3F3F5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#0A0A0A" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#155DFC" />
+                                <Setter TargetName="Border" Property="Background" Value="#FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FaultGridStyle" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False" />
+            <Setter Property="CanUserAddRows" Value="False" />
+            <Setter Property="CanUserDeleteRows" Value="False" />
+            <Setter Property="CanUserResizeRows" Value="False" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="GridLinesVisibility" Value="Horizontal" />
+            <Setter Property="HorizontalGridLinesBrush" Value="#F1F5F9" />
+            <Setter Property="RowHeaderWidth" Value="0" />
+            <Setter Property="SelectionMode" Value="Single" />
+            <Setter Property="SelectionUnit" Value="FullRow" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="RowHeight" Value="37" />
+            <Setter Property="ColumnHeaderHeight" Value="40" />
+            <Setter Property="ColumnHeaderStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#F8FAFC" />
+                        <Setter Property="Foreground" Value="#62748E" />
+                        <Setter Property="FontSize" Value="14" />
+                        <Setter Property="FontWeight" Value="Medium" />
+                        <Setter Property="Padding" Value="8,0" />
+                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RowStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="#FFFFFF" />
+                        <Setter Property="BorderBrush" Value="#F1F5F9" />
+                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#F8FAFC" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#EFF6FF" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CellStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="8,0" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="#0F172B" />
+                                <Setter Property="Background" Value="Transparent" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GridTextStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="Foreground" Value="#0F172B" />
+        </Style>
+
+        <Style x:Key="MutedGridTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
+            <Setter Property="Foreground" Value="#62748E" />
+        </Style>
+
+        <Style x:Key="AddressGridTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
+            <Setter Property="Foreground" Value="#314158" />
+            <Setter Property="FontFamily" Value="Consolas" />
+        </Style>
+
+        <Style x:Key="EditingTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="BorderBrush" Value="#BFDBFE" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="#0F172B" />
         </Style>
     </UserControl.Resources>
 
-    <Grid Background="White" Margin="12">
+    <Grid Background="#F8FAFC">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
+                Margin="24,24,24,0"
+                Padding="24,20"
+                Style="{StaticResource CardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="40"
+                            Height="40"
+                            Background="#EAF1FF"
+                            CornerRadius="10"
+                            Margin="0,0,12,0">
+                        <Image Width="20" Height="20" Source="{StaticResource FigmaFaultIconSettings}" />
+                    </Border>
+
+                    <StackPanel>
+                        <TextBlock Text="故障调试" Style="{StaticResource TitleTextStyle}" />
+                        <TextBlock Text="报警监控 / 屏蔽管理 / 事件日志 / 配置维护"
+                                   Style="{StaticResource SubTitleTextStyle}"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,0">
+                        <Image Width="16" Height="16" Margin="0,0,8,0" Source="{StaticResource FigmaFaultIconActive}" />
+                        <TextBlock Text="当前有效"
+                                   Foreground="#62748E"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding ActiveAlarmCount}"
+                                   Foreground="#E7000B"
+                                   FontSize="16"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,0">
+                        <Image Width="16" Height="16" Margin="0,0,8,0" Source="{StaticResource FigmaFaultIconEyeOffGray}" />
+                        <TextBlock Text="屏蔽数"
+                                   Foreground="#62748E"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding MaskedAlarmCount}"
+                                   Foreground="#314158"
+                                   FontSize="16"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8"
+                                 Height="8"
+                                 Fill="#00BC7D"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,8,0" />
+                        <TextBlock Text="正常监控"
+                                   Foreground="#62748E"
+                                   FontSize="14"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1"
+                Margin="24,16,24,0"
+                Padding="20"
+                Style="{StaticResource CardStyle}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="16" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <WrapPanel Grid.Row="0" VerticalAlignment="Center">
-                    <Button Content="{Binding ClearFaultButtonText}"
-                            Width="130"
-                            Height="40"
-                            Margin="0,0,8,0"
-                            Style="{StaticResource CriticalButtonStyle}"
-                            Command="{Binding ClearFaultCommand}" />
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                    <Button Content="{Binding GlobalShieldButtonText}"
-                            Width="150"
-                            Height="40"
-                            Margin="0,0,8,0"
-                            Style="{StaticResource IndustrialButtonStyle}"
-                            Command="{Binding ToggleGlobalShieldCommand}" />
+                    <WrapPanel VerticalAlignment="Center">
+                        <Button Command="{Binding ClearHmiFaultCommand}"
+                                Style="{StaticResource DangerButtonStyle}"
+                                MinWidth="142"
+                                Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconEraserWhite}" />
+                                <TextBlock Text="清除 HMI 报警" />
+                            </StackPanel>
+                        </Button>
 
-                    <Button Content="{Binding SelectedAlarmMaskButtonText}"
-                            Width="150"
-                            Height="40"
-                            Margin="0,0,8,0"
-                            Style="{StaticResource IndustrialButtonStyle}"
-                            Command="{Binding ToggleSelectedMaskCommand}" />
+                        <Button Command="{Binding ClearFaultCommand}"
+                                Style="{StaticResource DangerButtonStyle}"
+                                MinWidth="132"
+                                Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconAlertWhite}" />
+                                <TextBlock Text="清除当前报警" />
+                            </StackPanel>
+                        </Button>
 
-                    <CheckBox Content="仅显示当前报警"
-                              VerticalAlignment="Center"
-                              Margin="8,0,12,0"
-                              FontSize="14"
-                              Foreground="#334155"
-                              IsChecked="{Binding ShowActiveOnly}" />
+                        <Button Command="{Binding ToggleGlobalShieldCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                MinWidth="132"
+                                Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconShieldWhite}" />
+                                <TextBlock Text="{Binding GlobalShieldButtonText}" />
+                            </StackPanel>
+                        </Button>
 
-                    <Button Content="清空事件日志"
-                            Width="130"
-                            Height="40"
+                        <Button Command="{Binding ToggleSelectedMaskCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                MinWidth="132"
+                                Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconEyeOffWhite}" />
+                                <TextBlock Text="{Binding SelectedAlarmMaskButtonText}" />
+                            </StackPanel>
+                        </Button>
+
+                        <Border Width="1"
+                                Height="24"
+                                Background="#E2E8F0"
+                                Margin="4,6,12,6" />
+
+                        <CheckBox Content="仅显示当前报警"
+                                  IsChecked="{Binding ShowActiveOnly}"
+                                  Foreground="#314158"
+                                  FontSize="14"
+                                  FontWeight="Medium"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,12,0" />
+
+                        <Button Command="{Binding ClearEventLogCommand}"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                MinWidth="134">
+                            <StackPanel Orientation="Horizontal">
+                                <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconTrashDark}" />
+                                <TextBlock Text="清空事件日志" />
+                            </StackPanel>
+                        </Button>
+                    </WrapPanel>
+
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="16,0,0,0">
+                        <TextBlock Text="全局屏蔽位 (M)"
+                                   Foreground="#62748E"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0" />
+                        <TextBox Text="{Binding GlobalShieldAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource CompactTextBoxStyle}" />
+                    </StackPanel>
+                </Grid>
+
+                <Border Grid.Row="1"
+                        Height="1"
+                        Background="#F1F5F9" />
+
+                <WrapPanel Grid.Row="2">
+                    <Button Command="{Binding AddAlarmPointCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            MinWidth="118"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconPlusWhite}" />
+                            <TextBlock Text="新增报警点" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding DeleteSelectedAlarmCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
-                            Command="{Binding ClearEventLogCommand}" />
-                </WrapPanel>
+                            MinWidth="106"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconTrashDark}" />
+                            <TextBlock Text="删除选中" />
+                        </StackPanel>
+                    </Button>
 
-                <WrapPanel Grid.Row="1" Margin="0,10,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="全局屏蔽位(M):"
-                               VerticalAlignment="Center"
-                               Foreground="#334155"
-                               Margin="0,0,6,0" />
-                    <TextBox Text="{Binding GlobalShieldAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Width="80"
-                             Height="28"
-                             Margin="0,0,12,0" />
-
-                    <Button Content="新增报警点"
-                            Command="{Binding AddAlarmPointCommand}"
-                            Style="{StaticResource IndustrialButtonStyle}"
-                            Margin="0,0,8,0" />
-                    <Button Content="删除选中报警点"
-                            Command="{Binding DeleteSelectedAlarmCommand}"
+                    <Button Command="{Binding ReloadConfigCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
-                            Margin="0,0,8,0" />
-                    <Button Content="重新加载配置"
-                            Command="{Binding ReloadConfigCommand}"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Margin="0,0,8,0" />
-                    <Button Content="保存配置"
-                            Command="{Binding SaveConfigCommand}"
-                            Style="{StaticResource IndustrialButtonStyle}" />
+                            MinWidth="134"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconReloadDark}" />
+                            <TextBlock Text="重新加载配置" />
+                        </StackPanel>
+                    </Button>
 
-                    <TextBlock Text="  当前有效报警:"
-                               VerticalAlignment="Center"
-                               Foreground="#334155"
-                               Margin="16,0,4,0" />
-                    <TextBlock Text="{Binding ActiveAlarmCount}"
-                               VerticalAlignment="Center"
-                               Foreground="#B42318"
-                               FontWeight="SemiBold"
-                               FontSize="16"
-                               Margin="0,0,12,0" />
-                    <TextBlock Text="屏蔽数:"
-                               VerticalAlignment="Center"
-                               Foreground="#334155"
-                               Margin="0,0,4,0" />
-                    <TextBlock Text="{Binding MaskedAlarmCount}"
-                               VerticalAlignment="Center"
-                               Foreground="#475569"
-                               FontWeight="SemiBold"
-                               FontSize="16" />
+                    <Button Command="{Binding SaveConfigCommand}"
+                            Style="{StaticResource DarkButtonStyle}"
+                            MinWidth="104">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="16" Height="16" Margin="0,0,6,0" Source="{StaticResource FigmaFaultIconSaveWhite}" />
+                            <TextBlock Text="保存配置" />
+                        </StackPanel>
+                    </Button>
                 </WrapPanel>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2" Margin="24,16,24,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2.2*" />
-                <ColumnDefinition Width="1.3*" />
+                <ColumnDefinition Width="2.15*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="1.25*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0"
-                    Background="#F7F9FC"
-                    BorderBrush="#CBD5E1"
-                    BorderThickness="1"
-                    CornerRadius="10"
-                    Padding="10"
-                    Margin="0,0,10,0">
+            <Border Grid.Column="0" Style="{StaticResource SectionCardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="报警点位列表"
-                               FontSize="18"
-                               FontWeight="SemiBold"
-                               Foreground="#0F172A"
-                               Margin="0,0,0,8" />
+                    <Border Grid.Row="0"
+                            BorderBrush="#F1F5F9"
+                            BorderThickness="0,0,0,1"
+                            Padding="20,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                    <DataGrid Grid.Row="1"
-                              ItemsSource="{Binding AlarmPointsView}"
-                              SelectedItem="{Binding SelectedAlarm, Mode=TwoWay}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="False"
-                              SelectionMode="Single"
-                              SelectionUnit="FullRow"
-                              HeadersVisibility="Column"
-                              RowHeaderWidth="0"
-                              GridLinesVisibility="Horizontal"
-                              AlternationCount="2"
-                              CanUserAddRows="False"
-                              CanUserDeleteRows="False">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="状态" Width="120" IsReadOnly="True">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Ellipse Width="10"
-                                                     Height="10"
-                                                     Fill="{Binding StateColor}"
-                                                     Stroke="#94A3B8"
-                                                     Margin="0,0,6,0" />
-                                            <TextBlock Text="{Binding StateText}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
+                            <StackPanel Orientation="Horizontal">
+                                <Image Width="16" Height="16" Margin="0,0,8,0" Source="{StaticResource FigmaFaultIconAlertBlue}" />
+                                <TextBlock Text="报警点位列表" Style="{StaticResource SectionTitleTextStyle}" />
+                            </StackPanel>
 
-                            <DataGridTextColumn Header="地址"
-                                                Binding="{Binding Address, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                                Width="100" />
+                            <Border Grid.Column="1" Style="{StaticResource PillBadgeStyle}">
+                                <TextBlock Text="{Binding AlarmPoints.Count, StringFormat=共 {0} 项}"
+                                           Foreground="#45556C"
+                                           FontSize="12"
+                                           FontWeight="Medium" />
+                            </Border>
+                        </Grid>
+                    </Border>
 
-                            <DataGridTextColumn Header="报警内容"
-                                                Binding="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                                Width="*" />
+                    <Border Grid.Row="1"
+                            Margin="20"
+                            BorderBrush="#F1F5F9"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            ClipToBounds="True">
+                        <DataGrid ItemsSource="{Binding AlarmPointsView}"
+                                  SelectedItem="{Binding SelectedAlarm, Mode=TwoWay}"
+                                  Style="{StaticResource FaultGridStyle}"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="状态" Width="128" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="10"
+                                                         Height="10"
+                                                         Fill="{Binding StateColor}"
+                                                         VerticalAlignment="Center"
+                                                         Margin="0,0,8,0" />
+                                                <TextBlock Text="{Binding StateText}"
+                                                           VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
+                                                            <Setter Property="Foreground" Value="#009966" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#E7000B" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsMasked}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#62748E" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="报警时间"
-                                                Binding="{Binding AlarmTimeText}"
-                                                IsReadOnly="True"
-                                                Width="170" />
-
-                            <DataGridTemplateColumn Header="屏蔽" Width="70" IsReadOnly="True">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock HorizontalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Text" Value="否" />
-                                                    <Setter Property="Foreground" Value="#0F172A" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsMasked}" Value="True">
-                                                            <Setter Property="Text" Value="是" />
-                                                            <Setter Property="Foreground" Value="#475569" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                                <DataGridTextColumn Header="地址"
+                                                    Binding="{Binding Address, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                    ElementStyle="{StaticResource AddressGridTextStyle}"
+                                                    EditingElementStyle="{StaticResource EditingTextBoxStyle}"
+                                                    Width="96" />
+                                <DataGridTextColumn Header="报警内容"
+                                                    Binding="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                    ElementStyle="{StaticResource GridTextStyle}"
+                                                    EditingElementStyle="{StaticResource EditingTextBoxStyle}"
+                                                    Width="*" />
+                                <DataGridTextColumn Header="报警时间"
+                                                    Binding="{Binding AlarmTimeText}"
+                                                    IsReadOnly="True"
+                                                    ElementStyle="{StaticResource MutedGridTextStyle}"
+                                                    Width="180" />
+                                <DataGridTemplateColumn Header="屏蔽" Width="80" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource MutedGridTextStyle}">
+                                                        <Setter Property="Text" Value="否" />
+                                                        <Setter Property="Foreground" Value="#CAD5E2" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsMasked}" Value="True">
+                                                                <Setter Property="Text" Value="是" />
+                                                                <Setter Property="Foreground" Value="#45556C" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </Grid>
             </Border>
 
-            <Border Grid.Column="1"
-                    Background="#F7F9FC"
-                    BorderBrush="#CBD5E1"
-                    BorderThickness="1"
-                    CornerRadius="10"
-                    Padding="10">
+            <Border Grid.Column="2" Style="{StaticResource SectionCardStyle}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="报警事件记录"
-                               FontSize="18"
-                               FontWeight="SemiBold"
-                               Foreground="#0F172A"
-                               Margin="0,0,0,8" />
+                    <Border Grid.Row="0"
+                            BorderBrush="#F1F5F9"
+                            BorderThickness="0,0,0,1"
+                            Padding="20,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                    <DataGrid Grid.Row="1"
-                              ItemsSource="{Binding AlarmEvents}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              HeadersVisibility="Column"
-                              RowHeaderWidth="0"
-                              GridLinesVisibility="Horizontal"
-                              AlternationCount="2">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="时间"
-                                                Binding="{Binding Time, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}"
-                                                Width="170" />
-                            <DataGridTextColumn Header="地址"
-                                                Binding="{Binding Address}"
-                                                Width="80" />
-                            <DataGridTextColumn Header="动作"
-                                                Binding="{Binding Action}"
-                                                Width="130" />
-                            <DataGridTextColumn Header="内容"
-                                                Binding="{Binding Description}"
-                                                Width="*" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+                            <StackPanel Orientation="Horizontal">
+                                <Image Width="16" Height="16" Margin="0,0,8,0" Source="{StaticResource FigmaFaultIconPulseBlue}" />
+                                <TextBlock Text="报警事件记录" Style="{StaticResource SectionTitleTextStyle}" />
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Style="{StaticResource PillBadgeStyle}">
+                                <TextBlock Text="{Binding AlarmEvents.Count, StringFormat={}{0} 条}"
+                                           Foreground="#45556C"
+                                           FontSize="12"
+                                           FontWeight="Medium" />
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1"
+                            Margin="20"
+                            BorderBrush="#F1F5F9"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            ClipToBounds="True">
+                        <DataGrid ItemsSource="{Binding AlarmEvents}"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  HeadersVisibility="Column"
+                                  RowHeaderWidth="0"
+                                  GridLinesVisibility="Horizontal"
+                                  HorizontalGridLinesBrush="#F1F5F9"
+                                  Background="#FFFFFF"
+                                  BorderThickness="0"
+                                  RowHeight="39"
+                                  ColumnHeaderHeight="40"
+                                  FontSize="14"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#F8FAFC" />
+                                    <Setter Property="Foreground" Value="#62748E" />
+                                    <Setter Property="FontSize" Value="14" />
+                                    <Setter Property="FontWeight" Value="Medium" />
+                                    <Setter Property="Padding" Value="8,0" />
+                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                    <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+                            <DataGrid.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="Padding" Value="8,0" />
+                                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#EFF6FF" />
+                                            <Setter Property="Foreground" Value="#0F172B" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.CellStyle>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="时间"
+                                                    Binding="{Binding Time, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}"
+                                                    ElementStyle="{StaticResource MutedGridTextStyle}"
+                                                    Width="1.55*" />
+                                <DataGridTextColumn Header="地址"
+                                                    Binding="{Binding Address}"
+                                                    ElementStyle="{StaticResource AddressGridTextStyle}"
+                                                    Width="0.7*" />
+                                <DataGridTemplateColumn Header="动作" Width="0.75*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#F1F5F9"
+                                                    BorderBrush="#E2E8F0"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Padding="8,2"
+                                                    HorizontalAlignment="Left">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#F1F5F9" />
+                                                        <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Action}" Value="报警触发">
+                                                                <Setter Property="Background" Value="#FEF2F2" />
+                                                                <Setter Property="BorderBrush" Value="#FFE2E2" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Action}" Value="报警恢复">
+                                                                <Setter Property="Background" Value="#ECFDF5" />
+                                                                <Setter Property="BorderBrush" Value="#D0FAE5" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock FontSize="12" Text="{Binding Action}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#45556C" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Action}" Value="报警触发">
+                                                                    <Setter Property="Foreground" Value="#E7000B" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Action}" Value="报警恢复">
+                                                                    <Setter Property="Foreground" Value="#009966" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="内容"
+                                                    Binding="{Binding Description}"
+                                                    ElementStyle="{StaticResource GridTextStyle}"
+                                                    Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </Grid>
             </Border>
         </Grid>
 
-        <Border Grid.Row="2"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="10"
-                Margin="0,10,0,0">
-            <TextBlock Text="{Binding StatusMessage}"
-                       Foreground="#334155"
-                       FontSize="14" />
+        <Border Grid.Row="3"
+                Margin="24,16,24,24"
+                Padding="20,12"
+                Style="{StaticResource CardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="8"
+                             Height="8"
+                             Fill="#00BC7D"
+                             VerticalAlignment="Center"
+                             Margin="0,0,12,0" />
+                    <TextBlock Text="{Binding StatusMessage}"
+                               Foreground="#45556C"
+                               FontSize="14"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <TextBlock Grid.Column="1"
+                           Text="2026-04-27"
+                           Foreground="#90A1B9"
+                           FontSize="12"
+                           VerticalAlignment="Center" />
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

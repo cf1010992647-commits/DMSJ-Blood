@@ -2,6 +2,7 @@ using Blood_Alcohol.Models;
 using Blood_Alcohol.Services;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace Blood_Alcohol.ViewModels
@@ -404,6 +405,7 @@ namespace Blood_Alcohol.ViewModels
         public ICommand SaveConfigCommand { get; }
         public ICommand ReloadConfigCommand { get; }
         public ICommand ResetDefaultCommand { get; }
+        public ICommand WriteParameterCommand { get; }
 
         /// <summary>
         /// 初始化参数配置视图模型并绑定页面命令。
@@ -417,8 +419,183 @@ namespace Blood_Alcohol.ViewModels
             SaveConfigCommand = new RelayCommand(_ => SaveConfig());
             ReloadConfigCommand = new RelayCommand(_ => LoadConfig());
             ResetDefaultCommand = new RelayCommand(_ => ResetDefault());
+            WriteParameterCommand = new AsyncRelayCommand<string>(
+                WriteParameterToPlcAsync,
+                key => !string.IsNullOrWhiteSpace(key),
+                ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 参数写入失败：{ex.Message}");
 
             LoadConfig();
+        }
+
+        /// <summary>
+        /// 按参数键名把当前界面值写入PLC。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="parameterKey">参数键名。</param>
+        /// <returns>返回PLC写入异步任务。</returns>
+        /// <remarks>
+        /// 由参数配置页每行“写入”按钮调用，写入标题中标注的D寄存器地址。
+        /// </remarks>
+        private async Task WriteParameterToPlcAsync(string parameterKey)
+        {
+            if (!CommunicationManager.Is485Open)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} PLC未连接，参数未写入。";
+                return;
+            }
+
+                switch (parameterKey)
+            {
+                case nameof(ZDropNeedleRiseSlowSpeed):
+                    await WriteInt32ParameterAsync("Z轴_丢枪头_上升慢速速度", 6000, ZDropNeedleRiseSlowSpeed);
+                    break;
+                case nameof(PipetteAspirateDelay100ms):
+                    await WriteSingleRegisterParameterAsync("移液枪吸液延时时间", 6020, PipetteAspirateDelay100ms);
+                    break;
+                case nameof(PipetteDispenseDelay100ms):
+                    await WriteSingleRegisterParameterAsync("移液枪打液延时时间", 6021, PipetteDispenseDelay100ms);
+                    break;
+                case nameof(TubeShakeHomeDelay100ms):
+                    await WriteSingleRegisterParameterAsync("采血管摇匀原位延时时间", 6022, TubeShakeHomeDelay100ms);
+                    break;
+                case nameof(TubeShakeWorkDelay100ms):
+                    await WriteSingleRegisterParameterAsync("采血管摇匀工位延时时间", 6023, TubeShakeWorkDelay100ms);
+                    break;
+                case nameof(TubeShakeTargetCount):
+                    await WriteSingleRegisterParameterAsync("采血管摇匀目标次数", 6024, TubeShakeTargetCount);
+                    break;
+                case nameof(HeadspaceShakeHomeDelay100ms):
+                    await WriteSingleRegisterParameterAsync("顶空瓶摇匀原位延时时间", 6026, HeadspaceShakeHomeDelay100ms);
+                    break;
+                case nameof(HeadspaceShakeWorkDelay100ms):
+                    await WriteSingleRegisterParameterAsync("顶空瓶摇匀工位延时时间", 6027, HeadspaceShakeWorkDelay100ms);
+                    break;
+                case nameof(HeadspaceShakeTargetCount):
+                    await WriteSingleRegisterParameterAsync("顶空瓶摇匀目标次数", 6028, HeadspaceShakeTargetCount);
+                    break;
+                case nameof(ButanolAspirateDelay100ms):
+                    await WriteSingleRegisterParameterAsync("叔丁醇吸液延时时间", 6030, ButanolAspirateDelay100ms);
+                    break;
+                case nameof(ButanolDispenseDelay100ms):
+                    await WriteSingleRegisterParameterAsync("叔丁醇打液延时时间", 6031, ButanolDispenseDelay100ms);
+                    break;
+                case nameof(SampleBottlePressureTime100ms):
+                    await WriteSingleRegisterParameterAsync("样品瓶加压时间", 6040, SampleBottlePressureTime100ms);
+                    break;
+                case nameof(QuantitativeLoopBalanceTime100ms):
+                    await WriteSingleRegisterParameterAsync("定量环平衡时间", 6041, QuantitativeLoopBalanceTime100ms);
+                    break;
+                case nameof(InjectionTime100ms):
+                    await WriteSingleRegisterParameterAsync("进样时间", 6042, InjectionTime100ms);
+                    break;
+                case nameof(SampleBottlePressurePosition):
+                    await WriteInt32ParameterAsync("样品瓶加压位置", 6302, SampleBottlePressurePosition);
+                    break;
+                case nameof(QuantitativeLoopBalancePosition):
+                    await WriteInt32ParameterAsync("定量环平衡位置", 6304, QuantitativeLoopBalancePosition);
+                    break;
+                case nameof(InjectionPosition):
+                    await WriteInt32ParameterAsync("进样位置", 6306, InjectionPosition);
+                    break;
+                default:
+                    StatusMessage = $"{DateTime.Now:HH:mm:ss} 未识别的参数：{parameterKey}";
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 写入单寄存器参数到PLC。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="displayName">参数显示名称。</param>
+        /// <param name="address">D寄存器地址。</param>
+        /// <param name="value">待写入参数值。</param>
+        /// <returns>返回PLC写入异步任务。</returns>
+        /// <remarks>
+        /// 由 WriteParameterToPlcAsync 写入延时、次数和速度类参数时调用。
+        /// </remarks>
+        private async Task WriteSingleRegisterParameterAsync(string displayName, ushort address, int value)
+        {
+            if (value < ushort.MinValue || value > ushort.MaxValue)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} {displayName}写入失败：值必须在 0-65535 范围内。";
+                return;
+            }
+
+            await WriteRegisterWithLockAsync(address, (ushort)value);
+            StatusMessage = $"{DateTime.Now:HH:mm:ss} {displayName}已写入PLC，D{address}={value}。";
+        }
+
+        /// <summary>
+        /// 写入32位参数到PLC。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="displayName">参数显示名称。</param>
+        /// <param name="lowAddress">低16位D寄存器地址。</param>
+        /// <param name="value">待写入参数值。</param>
+        /// <returns>返回PLC写入异步任务。</returns>
+        /// <remarks>
+        /// 由 WriteParameterToPlcAsync 写入位置类参数时调用，低位写入D地址，高位写入D地址+1。
+        /// </remarks>
+        private async Task WriteInt32ParameterAsync(string displayName, ushort lowAddress, int value)
+        {
+            if (value < 0)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} {displayName}写入失败：值不能为负数。";
+                return;
+            }
+
+            SplitInt32(value, out ushort lowWord, out ushort highWord);
+            await WriteRegisterWithLockAsync(lowAddress, lowWord);
+            await WriteRegisterWithLockAsync((ushort)(lowAddress + 1), highWord);
+            StatusMessage = $"{DateTime.Now:HH:mm:ss} {displayName}已写入PLC，D{lowAddress}/D{lowAddress + 1}={value}。";
+        }
+
+        /// <summary>
+        /// 在PLC访问锁保护下写入单个寄存器。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">D寄存器地址。</param>
+        /// <param name="value">待写入寄存器值。</param>
+        /// <returns>返回寄存器写入异步任务。</returns>
+        /// <remarks>
+        /// 由参数写入按钮调用，避免与其他PLC访问并发冲突。
+        /// </remarks>
+        private static async Task WriteRegisterWithLockAsync(ushort address, ushort value)
+        {
+            await CommunicationManager.PlcAccessLock.WaitAsync();
+            try
+            {
+                var write = await CommunicationManager.Plc.TryWriteSingleRegisterAsync(address, value);
+                if (!write.Success)
+                {
+                    throw new InvalidOperationException(write.Error);
+                }
+            }
+            finally
+            {
+                CommunicationManager.PlcAccessLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// 将Int32拆分为低16位和高16位。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="value">待拆分数值。</param>
+        /// <param name="lowWord">输出低16位寄存器值。</param>
+        /// <param name="highWord">输出高16位寄存器值。</param>
+        /// <remarks>
+        /// 由 WriteInt32ParameterAsync 写入32位参数时调用。
+        /// </remarks>
+        private static void SplitInt32(int value, out ushort lowWord, out ushort highWord)
+        {
+            unchecked
+            {
+                uint raw = (uint)value;
+                lowWord = (ushort)(raw & 0xFFFF);
+                highWord = (ushort)((raw >> 16) & 0xFFFF);
+            }
         }
 
         /// <summary>

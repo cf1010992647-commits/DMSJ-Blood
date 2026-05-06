@@ -1,10 +1,12 @@
 ﻿using Blood_Alcohol.Communication.Serial;
+using Blood_Alcohol.Helpers;
 using Blood_Alcohol.Models;
 using Blood_Alcohol.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -41,10 +43,12 @@ namespace Blood_Alcohol.ViewModels
         private bool _isMonitoring;
         private PlcPoint? _selectedPoint;
         private string _statusMessage = "点位监控已加载。";
+        private readonly List<PlcPointConfigItem> _hiddenPositionControlPoints = new();
 
         private readonly Brush _connectedOnColor = Brushes.Green;
         private readonly Brush _connectedOffColor = Brushes.Gray;
         private readonly Brush _notConnectedColor = Brushes.Black;
+        private static readonly Regex PositionPointDescriptionPattern = new(@"^C\d+(?:X|Y)M(原位|工位)$", RegexOptions.Compiled);
 
         public ObservableCollection<PlcPoint> Points { get; } = new();
 
@@ -182,13 +186,25 @@ namespace Blood_Alcohol.ViewModels
         private void ApplyConfig(PointMonitorConfig config)
         {
             Points.Clear();
+            _hiddenPositionControlPoints.Clear();
 
             foreach (PlcPointConfigItem item in config.Points.Where(x => !string.IsNullOrWhiteSpace(x.Address)))
             {
+                if (IsPositionControlPoint(item))
+                {
+                    _hiddenPositionControlPoints.Add(new PlcPointConfigItem
+                    {
+                        Address = item.Address.Trim(),
+                        Description = item.Description?.Trim() ?? string.Empty,
+                        RegisterBitWidth = item.RegisterBitWidth == 32 ? 32 : 16
+                    });
+                    continue;
+                }
+
                 Points.Add(new PlcPoint
                 {
                     Address = item.Address.Trim(),
-                    Description = item.Description,
+                    Description = item.Description?.Trim() ?? string.Empty,
                     RegisterBitWidth = item.RegisterBitWidth == 32 ? 32 : 16,
                     ValueText = "--",
                     StatusColor = _connectedOffColor
@@ -218,8 +234,33 @@ namespace Blood_Alcohol.ViewModels
                         Description = x.Description?.Trim() ?? string.Empty,
                         RegisterBitWidth = x.RegisterBitWidth == 32 ? 32 : 16
                     })
+                    .Concat(_hiddenPositionControlPoints.Select(x => new PlcPointConfigItem
+                    {
+                        Address = x.Address,
+                        Description = x.Description,
+                        RegisterBitWidth = x.RegisterBitWidth == 32 ? 32 : 16
+                    }))
                     .ToList()
             };
+        }
+
+        /// <summary>
+        /// 判断配置项是否属于原位工位专用控制点。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="item">待判断的点位配置项。</param>
+        /// <returns>返回该点位是否应从点位监控页摘除。</returns>
+        /// <remarks>
+        /// 由 ApplyConfig 调用，将 CxXM 和 CxYM 的原位工位点交由独立设置页展示。
+        /// </remarks>
+        private static bool IsPositionControlPoint(PlcPointConfigItem item)
+        {
+            if (string.IsNullOrWhiteSpace(item.Description))
+            {
+                return false;
+            }
+
+            return PositionPointDescriptionPattern.IsMatch(item.Description.Trim());
         }
 
         /// <summary>
@@ -322,7 +363,7 @@ namespace Blood_Alcohol.ViewModels
         private static string BuildSuggestedAddress(IEnumerable<PlcPoint> points)
         {
             int max = points
-                .Select(x => TryParseCoilAddress(x.Address))
+                .Select(x => PlcAddressMapper.TryParseCoilDisplayAddress(x.Address))
                 .Where(x => x.HasValue)
                 .Select(x => x!.Value)
                 .DefaultIfEmpty((ushort)0)
@@ -364,19 +405,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         public void DeactivateMonitoring()
         {
-            StopMonitoring();
-        }
-
-        /// <summary>
-        /// 停止后台点位监控循环。
-        /// </summary>
-        /// By:ChengLei
-        /// <remarks>
-        /// 由 DeactivateMonitoring 和 Dispose 调用，也可用于内部停止监控。
-        /// </remarks>
-        public void StopMonitoring()
-        {
-            StopMonitoringAsync().GetAwaiter().GetResult();
+            _ = StopMonitoringAsync();
         }
 
         /// <summary>
@@ -391,6 +420,10 @@ namespace Blood_Alcohol.ViewModels
         {
             CancellationTokenSource? cts = _cts;
             Task? monitorTask = _monitorTask;
+            _cts = null;
+            _monitorTask = null;
+            _isMonitoring = false;
+            UnregisterPollingPoints();
             cts?.Cancel();
 
             if (monitorTask != null && !monitorTask.IsCompleted)
@@ -398,11 +431,7 @@ namespace Blood_Alcohol.ViewModels
                 await WaitMonitorTaskExitAsync(monitorTask).ConfigureAwait(false);
             }
 
-            _cts = null;
-            _monitorTask = null;
             cts?.Dispose();
-            _isMonitoring = false;
-            UnregisterPollingPoints();
         }
 
         /// <summary>
@@ -473,8 +502,9 @@ namespace Blood_Alcohol.ViewModels
                 {
                     break;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    StatusMessage = $"{DateTime.Now:HH:mm:ss} 点位读取异常: {ex.Message}";
                     await SetAllPointsColorAsync(_notConnectedColor);
                 }
 
@@ -517,6 +547,8 @@ namespace Blood_Alcohol.ViewModels
             var valueByPoint = new Dictionary<PlcPoint, string>();
             var coilItems = new List<CoilReadItem>();
             var registerItems = new List<RegisterReadItem>();
+            string? firstErrorMessage = null;
+            bool hasSuccessfulRead = false;
 
             foreach (PlcPoint point in snapshot)
             {
@@ -553,11 +585,13 @@ namespace Blood_Alcohol.ViewModels
                 {
                     if (cached.Success)
                     {
+                        hasSuccessfulRead = true;
                         statusByPoint[item.Point] = cached.Value ? _connectedOnColor : _connectedOffColor;
                         valueByPoint[item.Point] = cached.Value ? "1" : "0";
                     }
                     else
                     {
+                        firstErrorMessage ??= cached.Error;
                         statusByPoint[item.Point] = _notConnectedColor;
                         valueByPoint[item.Point] = "--";
                     }
@@ -578,6 +612,7 @@ namespace Blood_Alcohol.ViewModels
                     {
                         int offset = item.Address - segment.StartAddress;
                         bool value = offset >= 0 && offset < states.Length && states[offset];
+                        hasSuccessfulRead = true;
                         statusByPoint[item.Point] = value ? _connectedOnColor : _connectedOffColor;
                         valueByPoint[item.Point] = value ? "1" : "0";
                     }
@@ -586,8 +621,9 @@ namespace Blood_Alcohol.ViewModels
                 {
                     throw;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    firstErrorMessage ??= ex.Message;
                     foreach (CoilReadItem item in segment.Items)
                     {
                         statusByPoint[item.Point] = _notConnectedColor;
@@ -614,6 +650,7 @@ namespace Blood_Alcohol.ViewModels
 
                         if (item.WordLength == 1)
                         {
+                            hasSuccessfulRead = true;
                             statusByPoint[item.Point] = _connectedOnColor;
                             valueByPoint[item.Point] = regs[offset].ToString();
                             continue;
@@ -627,6 +664,7 @@ namespace Blood_Alcohol.ViewModels
                         }
 
                         int value32 = ConvertToInt32(regs[offset], regs[offset + 1]);
+                        hasSuccessfulRead = true;
                         statusByPoint[item.Point] = _connectedOnColor;
                         valueByPoint[item.Point] = value32.ToString();
                     }
@@ -635,8 +673,9 @@ namespace Blood_Alcohol.ViewModels
                 {
                     throw;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    firstErrorMessage ??= ex.Message;
                     foreach (RegisterReadItem item in segment.Items)
                     {
                         statusByPoint[item.Point] = _notConnectedColor;
@@ -653,6 +692,15 @@ namespace Blood_Alcohol.ViewModels
                     point.ValueText = valueByPoint.TryGetValue(point, out string? value) ? value : "--";
                 }
             });
+
+            if (!string.IsNullOrWhiteSpace(firstErrorMessage))
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 点位读取失败: {firstErrorMessage}";
+            }
+            else if (hasSuccessfulRead)
+            {
+                StatusMessage = $"{DateTime.Now:HH:mm:ss} 点位读取正常。";
+            }
         }
 
         /// <summary>
@@ -1010,19 +1058,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private static ushort? TryParseCoilAddress(string address)
         {
-            if (string.IsNullOrWhiteSpace(address))
-            {
-                return null;
-            }
-
-            string trimmed = address.Trim();
-            if (trimmed.StartsWith("M", StringComparison.OrdinalIgnoreCase)
-                && ushort.TryParse(trimmed.Substring(1), out ushort addr))
-            {
-                return addr;
-            }
-
-            return null;
+            return PlcAddressMapper.TryParseCoilDisplayAddress(address);
         }
 
         /// <summary>
@@ -1036,19 +1072,7 @@ namespace Blood_Alcohol.ViewModels
         /// </remarks>
         private static ushort? TryParseRegisterAddress(string address)
         {
-            if (string.IsNullOrWhiteSpace(address))
-            {
-                return null;
-            }
-
-            string trimmed = address.Trim();
-            if (trimmed.StartsWith("D", StringComparison.OrdinalIgnoreCase)
-                && ushort.TryParse(trimmed.Substring(1), out ushort addr))
-            {
-                return addr;
-            }
-
-            return null;
+            return PlcAddressMapper.TryParseRegisterDisplayAddress(address);
         }
 
         private sealed class CoilReadItem

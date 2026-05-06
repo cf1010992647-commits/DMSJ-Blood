@@ -1,4 +1,5 @@
-﻿<UserControl x:Class="Blood_Alcohol.Views.AxisDebugView"
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl x:Class="Blood_Alcohol.Views.AxisDebugView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -7,7 +8,10 @@
              xmlns:behaviors="clr-namespace:Blood_Alcohol.Views.Behaviors"
              mc:Ignorable="d"
              d:DesignHeight="860"
-             d:DesignWidth="1400">
+             d:DesignWidth="1400"
+             FontFamily="Inter, Segoe UI, Microsoft YaHei"
+             SnapsToDevicePixels="True"
+             UseLayoutRounding="True">
     <UserControl.DataContext>
         <vm:AxisDebugViewModel />
     </UserControl.DataContext>
@@ -15,349 +19,936 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
-        <Style x:Key="IndustrialActionButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="Black" />
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Background" Value="White" />
-            <Setter Property="BorderBrush" Value="#1E4F73" />
+        <SolidColorBrush x:Key="PageBackgroundBrush" Color="#F8FAFC" />
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#E2E8F0" />
+        <SolidColorBrush x:Key="WeakBorderBrush" Color="#F1F5F9" />
+        <SolidColorBrush x:Key="TileBackgroundBrush" Color="#F8FAFC" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#155DFC" />
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#EFF6FF" />
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#0F172B" />
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#62748E" />
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#90A1B9" />
+        <SolidColorBrush x:Key="SuccessBrush" Color="#00BC7D" />
+
+        <Geometry x:Key="AxisIconGeometry">M2.66667 14V9.33333 M2.66667 6.66667V2 M8 14V8 M8 5.33333V2 M13.3333 14V10.6667 M13.3333 8V2 M1.33333 9.33333H4 M6.66667 5.33333H9.33333 M12 10.6667H14.6667</Geometry>
+        <Geometry x:Key="PulseIconGeometry">M18.3333 10H16.2667C15.9025 9.99922 15.548 10.1178 15.2576 10.3375C14.9672 10.5572 14.7567 10.866 14.6583 11.2167L12.7 18.1833C12.6874 18.2266 12.6611 18.2646 12.625 18.2917C12.5889 18.3187 12.5451 18.3333 12.5 18.3333C12.4549 18.3333 12.4111 18.3187 12.375 18.2917C12.3389 18.2646 12.3126 18.2266 12.3 18.1833L7.7 1.81667C7.68738 1.77339 7.66106 1.73538 7.625 1.70833C7.58894 1.68129 7.54508 1.66667 7.5 1.66667C7.45492 1.66667 7.41106 1.68129 7.375 1.70833C7.33894 1.73538 7.31262 1.77339 7.3 1.81667L5.34167 8.78333C5.24372 9.13263 5.03448 9.44043 4.74572 9.66001C4.45696 9.87959 4.10443 9.99896 3.74167 10H1.66667</Geometry>
+        <Geometry x:Key="ConfigIconGeometry">M11.6667 4.08333H6.41667 M8.16667 9.91667H2.91667 M9.91667 11.6667C10.8832 11.6667 11.6667 10.8832 11.6667 9.91667C11.6667 8.95017 10.8832 8.16667 9.91667 8.16667C8.95017 8.16667 8.16667 8.95017 8.16667 9.91667C8.16667 10.8832 8.95017 11.6667 9.91667 11.6667Z M4.08333 5.83333C5.04983 5.83333 5.83333 5.04983 5.83333 4.08333C5.83333 3.11684 5.04983 2.33333 4.08333 2.33333C3.11684 2.33333 2.33333 3.11684 2.33333 4.08333C2.33333 5.04983 3.11684 5.83333 4.08333 5.83333Z</Geometry>
+        <Geometry x:Key="OperationIconGeometry">M8 14.6667C11.6819 14.6667 14.6667 11.6819 14.6667 8C14.6667 4.3181 11.6819 1.33333 8 1.33333C4.3181 1.33333 1.33333 4.3181 1.33333 8C1.33333 11.6819 4.3181 14.6667 8 14.6667Z M8 8.66667C8.36819 8.66667 8.66667 8.36819 8.66667 8C8.66667 7.63181 8.36819 7.33333 8 7.33333C7.63181 7.33333 7.33333 7.63181 7.33333 8C7.33333 8.36819 7.63181 8.66667 8 8.66667Z</Geometry>
+        <Geometry x:Key="LeftIconGeometry">M8 12.6667L3.33333 8L8 3.33333 M12.6667 8H3.33333</Geometry>
+        <Geometry x:Key="HomeIconGeometry">M10 14V8.66667C10 8.48986 9.92976 8.32029 9.80474 8.19526C9.67971 8.07024 9.51014 8 9.33333 8H6.66667C6.48986 8 6.32029 8.07024 6.19526 8.19526C6.07024 8.32029 6 8.48986 6 8.66667V14 M2 6.66667C1.99995 6.47271 2.04222 6.28108 2.12386 6.10514C2.20549 5.92921 2.32453 5.7732 2.47267 5.648L7.13933 1.64867C7.37999 1.44527 7.6849 1.33368 8 1.33368C8.3151 1.33368 8.62001 1.44527 8.86067 1.64867L13.5273 5.648C13.6755 5.7732 13.7945 5.92921 13.8761 6.10514C13.9578 6.28108 14 6.47271 14 6.66667V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V6.66667Z</Geometry>
+        <Geometry x:Key="RightIconGeometry">M3.33333 8H12.6667 M8 3.33333L12.6667 8L8 12.6667</Geometry>
+        <Geometry x:Key="SpeedIconGeometry">M8 9.33333L10.6667 6.66667 M2.22667 12.6667C1.64148 11.6532 1.33338 10.5036 1.33333 9.33329C1.33329 8.16302 1.6413 7.01335 2.22641 5.99985C2.81152 4.98635 3.65311 4.14473 4.66659 3.55958C5.68007 2.97443 6.82973 2.66637 8 2.66637C9.17027 2.66637 10.3199 2.97443 11.3334 3.55958C12.3469 4.14473 13.1885 4.98635 13.7736 5.99985C14.3587 7.01335 14.6667 8.16302 14.6667 9.33329C14.6666 10.5036 14.3585 11.6532 13.7733 12.6667</Geometry>
+        <Geometry x:Key="PositionIconGeometry">M13.3333 6.66667C13.3333 9.99533 9.64067 13.462 8.40067 14.5327C8.28515 14.6195 8.14453 14.6665 8 14.6665C7.85547 14.6665 7.71485 14.6195 7.59933 14.5327C6.35933 13.462 2.66667 9.99533 2.66667 6.66667C2.66667 5.25218 3.22857 3.89562 4.22876 2.89543C5.22896 1.89524 6.58551 1.33333 8 1.33333C9.41449 1.33333 10.771 1.89524 11.7712 2.89543C12.7714 3.89562 13.3333 5.25218 13.3333 6.66667Z M8 8.66667C9.10457 8.66667 10 7.77124 10 6.66667C10 5.5621 9.10457 4.66667 8 4.66667C6.89543 4.66667 6 5.5621 6 6.66667C6 7.77124 6.89543 8.66667 8 8.66667Z</Geometry>
+        <Geometry x:Key="TimeIconGeometry">M6.66667 1.33333H9.33333 M8 9.33333L10 7.33333 M8 14.6667C10.9455 14.6667 13.3333 12.2789 13.3333 9.33333C13.3333 6.38781 10.9455 4 8 4C5.05448 4 2.66667 6.38781 2.66667 9.33333C2.66667 12.2789 5.05448 14.6667 8 14.6667Z</Geometry>
+
+        <DropShadowEffect x:Key="CardShadowEffect"
+                          BlurRadius="8"
+                          Direction="270"
+                          ShadowDepth="1"
+                          Opacity="0.10"
+                          Color="#000000" />
+
+        <Style x:Key="PageTextStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Inter, Segoe UI, Microsoft YaHei" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+        </Style>
+
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Effect" Value="{StaticResource CardShadowEffect}" />
+        </Style>
+
+        <Style x:Key="IconBadgeStyle" TargetType="Border">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Background" Value="#EAF2FF" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+
+        <Style x:Key="CaptionStyle" TargetType="TextBlock" BasedOn="{StaticResource PageTextStyle}">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        </Style>
+
+        <Style x:Key="InputTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#0F172B" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="InputBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="InputBorder" Property="BorderBrush" Value="#BFDBFE" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="InputBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ButtonBaseStyle" TargetType="Button">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#314158" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#F8FAFC" />
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#BFDBFE" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#EFF6FF" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#3A7FB2" />
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#285B82" />
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Background" Value="#AEB9C6" />
-                    <Setter Property="BorderBrush" Value="#9AA6B3" />
-                    <Setter Property="Foreground" Value="#EEF2F7" />
-                </Trigger>
-            </Style.Triggers>
         </Style>
 
-        <DataTemplate x:Key="AxisCardTemplate" DataType="{x:Type vm:AxisControlCardViewModel}">
-            <Border Background="#F7F9FC"
-                    BorderBrush="#CBD5E1"
-                    BorderThickness="1"
-                    CornerRadius="10"
-                    Padding="14"
-                    Margin="0,0,12,12">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
 
-                    <TextBlock Text="{Binding Title}"
-                               FontSize="24"
-                               FontWeight="SemiBold"
-                               Foreground="#0F172A"
-                               HorizontalAlignment="Center"
-                               Margin="0,0,0,10" />
+        <Style x:Key="WriteButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="Width" Value="58" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
 
-                    <ItemsControl Grid.Row="1"
-                                  ItemsSource="{Binding StatusLamps}"
-                                  Margin="0,0,0,12">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel HorizontalAlignment="Center" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,14,8">
-                                    <Ellipse Width="12"
-                                             Height="12"
-                                             Fill="{Binding Color}"
-                                             Stroke="#94A3B8"
-                                             VerticalAlignment="Center"
-                                             Margin="0,0,6,0" />
-                                    <TextBlock Text="{Binding Name}"
-                                               Foreground="#334155"
-                                               FontSize="14"
-                                               VerticalAlignment="Center" />
+        <Style x:Key="AxisTabControlStyle" TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid Background="{StaticResource PageBackgroundBrush}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="240" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0"
+                                    Margin="24,24,0,24"
+                                    Background="#FFFFFF"
+                                    BorderBrush="{StaticResource CardBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="14"
+                                    Effect="{StaticResource CardShadowEffect}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="65" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Border BorderBrush="{StaticResource WeakBorderBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="16,12">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="32"
+                                                    Height="32"
+                                                    Background="#EAF2FF"
+                                                    CornerRadius="10"
+                                                    Margin="0,0,8,0">
+                                                <Path Data="{StaticResource AxisIconGeometry}"
+                                                      Stroke="{StaticResource AccentBrush}"
+                                                      StrokeThickness="1.35"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round"
+                                                      Stretch="Uniform"
+                                                      Width="16"
+                                                      Height="16" />
+                                            </Border>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource PageTextStyle}"
+                                                           Text="轴调试"
+                                                           FontSize="16"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Style="{StaticResource PageTextStyle}"
+                                                           Text="共 4 个轴 · 4 在线"
+                                                           Margin="0,1,0,0"
+                                                           FontSize="11"
+                                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <TabPanel Grid.Row="1"
+                                              Margin="8"
+                                              IsItemsHost="True" />
+                                </Grid>
+                            </Border>
+
+                            <ContentPresenter Grid.Column="1"
+                                              ContentSource="SelectedContent" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AxisTabItemStyle" TargetType="TabItem">
+            <Setter Property="Height" Value="52" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabRoot"
+                                Padding="10,8"
+                                Background="Transparent"
+                                CornerRadius="10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="AxisBadge"
+                                        Width="32"
+                                        Height="32"
+                                        Background="#F1F5F9"
+                                        CornerRadius="8">
+                                    <TextBlock x:Name="AxisShortText"
+                                               Style="{StaticResource PageTextStyle}"
+                                               Text="{TemplateBinding Tag}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontSize="16"
+                                               FontWeight="SemiBold"
+                                               Foreground="#314158" />
+                                </Border>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <ContentPresenter x:Name="HeaderPresenter"
+                                                      ContentSource="Header"
+                                                      TextElement.Foreground="#314158"
+                                                      TextElement.FontSize="13"
+                                                      TextElement.FontWeight="SemiBold" />
+                                    <TextBlock x:Name="SubtitleText"
+                                               Style="{StaticResource PageTextStyle}"
+                                               Text="{TemplateBinding ToolTip}"
+                                               FontSize="11"
+                                               Foreground="{StaticResource TextMutedBrush}" />
                                 </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabRoot" Property="Background" Value="#F8FAFC" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabRoot" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                <Setter TargetName="AxisBadge" Property="Background" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="AxisShortText" Property="Foreground" Value="#FFFFFF" />
+                                <Setter TargetName="HeaderPresenter" Property="TextElement.Foreground" Value="#1447E6" />
+                                <Setter TargetName="SubtitleText" Property="Foreground" Value="#2B7FFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                    <Grid Grid.Row="2" Margin="0,0,0,12">
+        <DataTemplate x:Key="StatusLampTemplate" DataType="{x:Type vm:AxisStatusLampViewModel}">
+            <Border Height="26"
+                    Margin="0,0,8,8"
+                    Padding="10,0"
+                    Background="#F8FAFC"
+                    BorderBrush="{StaticResource CardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="13">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="6"
+                             Height="6"
+                             Fill="{Binding Color}"
+                             Margin="0,0,6,0" />
+                    <TextBlock Style="{StaticResource PageTextStyle}"
+                               Text="{Binding Name}"
+                               FontSize="12"
+                               Foreground="{StaticResource TextSecondaryBrush}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="AxisCardTemplate" DataType="{x:Type vm:AxisControlCardViewModel}">
+            <Grid Background="{StaticResource PageBackgroundBrush}" Margin="16,24,24,24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Style="{StaticResource CardStyle}"
+                        Height="76"
+                        Padding="20,0"
+                        Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Width="40"
+                                Height="40"
+                                Background="#EAF2FF"
+                                CornerRadius="10"
+                                VerticalAlignment="Center"
+                                Margin="0,0,16,0">
+                            <Path Data="{StaticResource PulseIconGeometry}"
+                                  Stroke="{StaticResource AccentBrush}"
+                                  StrokeThickness="1.55"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"
+                                  Stretch="Uniform"
+                                  Width="20"
+                                  Height="20" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource PageTextStyle}"
+                                       Text="{Binding Title, StringFormat=轴调试 · {0}}"
+                                       FontSize="16"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource PageTextStyle}"
+                                       Text="运动参数与点位状态"
+                                       Margin="0,2,0,0"
+                                       FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}" />
+                        </StackPanel>
+                        <Button Grid.Column="2"
+                                Style="{StaticResource ButtonBaseStyle}"
+                                Click="OpenAxisAddressConfig_Click"
+                                Width="120"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource ConfigIconGeometry}"
+                                      Stroke="#314158"
+                                      StrokeThickness="1.2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Stretch="Uniform"
+                                      Width="14"
+                                      Height="14"
+                                      Margin="0,0,6,0" />
+                                <TextBlock Text="轴点位配置" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="150" />
-                            <ColumnDefinition Width="140" />
-                            <ColumnDefinition Width="96" />
-                        </Grid.ColumnDefinitions>
 
-                        <Grid Grid.ColumnSpan="3" Visibility="{Binding ShowPositionFields, Converter={StaticResource BoolToVisibility}}">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="150" />
-                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Text="当前位置 / MM"
-                                       Grid.Row="0"
-                                       Foreground="#334155"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,8,8" />
-                            <TextBox Grid.Row="0"
-                                     Grid.Column="1"
-                                     Text="{Binding CurrentPosition, UpdateSourceTrigger=PropertyChanged}"
-                                     Height="34"
-                                     FontSize="18"
-                                     Foreground="#0F172A"
-                                     Background="White"
-                                     BorderBrush="#B8C3D1"
-                                     BorderThickness="1"
-                                     HorizontalContentAlignment="Center" />
+                            <Border Grid.Column="0"
+                                    Style="{StaticResource CardStyle}"
+                                    MinHeight="166"
+                                    Padding="16">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource IconBadgeStyle}" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource OperationIconGeometry}"
+                                                  Stroke="{StaticResource AccentBrush}"
+                                                  StrokeThickness="1.35"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Stretch="Uniform"
+                                                  Width="16"
+                                                  Height="16" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                   Text="操作控制"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
 
-                            <TextBlock Text="目标位置 / MM"
-                                       Grid.Row="1"
-                                       Foreground="#334155"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,8,0" />
-                            <TextBox Grid.Row="1"
-                                     Grid.Column="1"
-                                     Text="{Binding TargetPosition, UpdateSourceTrigger=PropertyChanged}"
-                                     Height="34"
-                                     FontSize="18"
-                                     Foreground="#0F172A"
-                                     Background="White"
-                                     BorderBrush="#B8C3D1"
-                                     BorderThickness="1"
-                                     HorizontalContentAlignment="Center" />
+                                    <Grid Margin="0,16,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0"
+                                                Style="{StaticResource ButtonBaseStyle}"
+                                                Height="44"
+                                                behaviors:ButtonPressBehavior.PressCommand="{Binding JogMinusPressCommand}"
+                                                behaviors:ButtonPressBehavior.ReleaseCommand="{Binding JogMinusReleaseCommand}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="{StaticResource LeftIconGeometry}"
+                                                      Stroke="#314158"
+                                                      StrokeThickness="1.35"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round"
+                                                      Stretch="Uniform"
+                                                      Width="16"
+                                                      Height="16"
+                                                      Margin="0,0,6,0" />
+                                                <TextBlock Text="JOG-" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="2"
+                                                Style="{StaticResource PrimaryButtonStyle}"
+                                                Height="44"
+                                                behaviors:ButtonPressBehavior.PressCommand="{Binding GoHomePressCommand}"
+                                                behaviors:ButtonPressBehavior.ReleaseCommand="{Binding GoHomeReleaseCommand}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Path Data="{StaticResource HomeIconGeometry}"
+                                                      Stroke="#FFFFFF"
+                                                      StrokeThickness="1.35"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round"
+                                                      Stretch="Uniform"
+                                                      Width="16"
+                                                      Height="16"
+                                                      Margin="0,0,6,0" />
+                                                <TextBlock Text="回原点" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Grid.Column="4"
+                                                Style="{StaticResource ButtonBaseStyle}"
+                                                Height="44"
+                                                behaviors:ButtonPressBehavior.PressCommand="{Binding JogPlusPressCommand}"
+                                                behaviors:ButtonPressBehavior.ReleaseCommand="{Binding JogPlusReleaseCommand}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="JOG+" Margin="0,0,6,0" />
+                                                <Path Data="{StaticResource RightIconGeometry}"
+                                                      Stroke="#314158"
+                                                      StrokeThickness="1.35"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round"
+                                                      Stretch="Uniform"
+                                                      Width="16"
+                                                      Height="16" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+
+                                    <TextBlock Style="{StaticResource PageTextStyle}"
+                                               Text="长按 JOG 按钮持续运动，松开即停止。"
+                                               Margin="0,14,0,0"
+                                               FontSize="11"
+                                               Foreground="{StaticResource TextSecondaryBrush}" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2"
+                                    Style="{StaticResource CardStyle}"
+                                    MinHeight="166"
+                                    Padding="16">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource IconBadgeStyle}" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource SpeedIconGeometry}"
+                                                  Stroke="{StaticResource AccentBrush}"
+                                                  StrokeThickness="1.35"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Stretch="Uniform"
+                                                  Width="16"
+                                                  Height="16" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                   Text="状态概览"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{Binding StatusLamps}"
+                                                  ItemTemplate="{StaticResource StatusLampTemplate}"
+                                                  Margin="0,16,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="4"
+                                    Style="{StaticResource CardStyle}"
+                                    MinHeight="166"
+                                    Padding="16"
+                                    Visibility="{Binding ShowPositionFields, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource IconBadgeStyle}" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource PositionIconGeometry}"
+                                                  Stroke="{StaticResource AccentBrush}"
+                                                  StrokeThickness="1.35"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Stretch="Uniform"
+                                                  Width="16"
+                                                  Height="16" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                   Text="位置"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+
+                                    <Grid Margin="0,16,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0"
+                                                Height="72"
+                                                Padding="12,10"
+                                                Background="{StaticResource TileBackgroundBrush}"
+                                                BorderBrush="{StaticResource CardBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10">
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource CaptionStyle}" Text="当前位置" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <TextBlock Style="{StaticResource PageTextStyle}"
+                                                               Text="{Binding CurrentPosition, Mode=OneWay}"
+                                                               FontSize="20"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Style="{StaticResource PageTextStyle}"
+                                                               Text="mm"
+                                                               Margin="6,8,0,0"
+                                                               FontSize="11"
+                                                               Foreground="{StaticResource TextMutedBrush}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="2"
+                                                Height="72"
+                                                Padding="12,10"
+                                                Background="{StaticResource TileBackgroundBrush}"
+                                                BorderBrush="{StaticResource CardBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="10">
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource CaptionStyle}" Text="目标位置" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <TextBlock Style="{StaticResource PageTextStyle}"
+                                                               Text="{Binding TargetPosition, Mode=OneWay}"
+                                                               FontSize="20"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Style="{StaticResource PageTextStyle}"
+                                                               Text="mm"
+                                                               Margin="6,8,0,0"
+                                                               FontSize="11"
+                                                               Foreground="{StaticResource TextMutedBrush}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <Grid Margin="0,14,0,0"
+                                          Visibility="{Binding ShowManualLocate, Converter={StaticResource BoolToVisibility}}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="58" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="68" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Style="{StaticResource CaptionStyle}" Text="手动定位" />
+                                            <TextBox Style="{StaticResource InputTextBoxStyle}"
+                                                     Margin="0,6,0,0"
+                                                     Text="{Binding ManualLocateInput, UpdateSourceTrigger=PropertyChanged}" />
+                                        </StackPanel>
+                                        <Button Grid.Column="2"
+                                                Content="写入"
+                                                Style="{StaticResource WriteButtonStyle}"
+                                                VerticalAlignment="Bottom"
+                                                behaviors:ButtonPressBehavior.PressCommand="{Binding ManualLocatePressCommand}"
+                                                behaviors:ButtonPressBehavior.ReleaseCommand="{Binding ManualLocateReleaseCommand}" />
+                                        <Button Grid.Column="4"
+                                                Content="移动"
+                                                Style="{StaticResource ButtonBaseStyle}"
+                                                Padding="0"
+                                                VerticalAlignment="Bottom"
+                                                behaviors:ButtonPressBehavior.PressCommand="{Binding ManualLocatePressCommand}"
+                                                behaviors:ButtonPressBehavior.ReleaseCommand="{Binding ManualLocateReleaseCommand}" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
                         </Grid>
 
-                        <TextBlock Text="当前手动速度 MM/S"
-                                   Grid.Row="2"
-                                   Foreground="#334155"
-                                   VerticalAlignment="Center"
-                                   Margin="0,8,8,8" />
-                        <TextBox Grid.Row="2"
-                                 Grid.Column="1"
-                                 Grid.ColumnSpan="2"
-                                 Text="{Binding ManualSpeed, Mode=OneWay}"
-                                 Height="34"
-                                 FontSize="18"
-                                 Foreground="#0F172A"
-                                 Background="White"
-                                 BorderBrush="#B8C3D1"
-                                 BorderThickness="1"
-                                 HorizontalContentAlignment="Center"
-                                 IsReadOnly="True"
-                                 Focusable="False"
-                                 Margin="0,8,0,8" />
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="设置手动速度 MM/S"
-                                   Grid.Row="3"
-                                   Foreground="#334155"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,8" />
-                        <TextBox Grid.Row="3"
-                                 Grid.Column="1"
-                                 Text="{Binding ManualSpeedInput, UpdateSourceTrigger=PropertyChanged}"
-                                 Height="34"
-                                 FontSize="18"
-                                 Foreground="#0F172A"
-                                 Background="White"
-                                 BorderBrush="#B8C3D1"
-                                 BorderThickness="1"
-                                 HorizontalContentAlignment="Center"
-                                 Margin="0,0,8,8" />
-                        <Button Grid.Row="3"
-                                Grid.Column="2"
-                                Content="写入"
-                                Height="34"
-                                Margin="0,0,0,8"
-                                Style="{StaticResource IndustrialActionButtonStyle}"
-                                Command="{Binding WriteManualSpeedCommand}" />
+                            <Border Grid.Column="0"
+                                    Style="{StaticResource CardStyle}"
+                                    Padding="16"
+                                    MinHeight="176">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource IconBadgeStyle}" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource SpeedIconGeometry}"
+                                                  Stroke="{StaticResource AccentBrush}"
+                                                  StrokeThickness="1.35"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Stretch="Uniform"
+                                                  Width="16"
+                                                  Height="16" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                   Text="速度"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
 
-                        <TextBlock Text="当前自动速度 MM/S"
-                                   Grid.Row="4"
-                                   Foreground="#334155"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,8" />
-                        <TextBox Grid.Row="4"
-                                 Grid.Column="1"
-                                 Grid.ColumnSpan="2"
-                                 Text="{Binding AutoSpeed, Mode=OneWay}"
-                                 Height="34"
-                                 FontSize="18"
-                                 Foreground="#0F172A"
-                                 Background="White"
-                                 BorderBrush="#B8C3D1"
-                                 BorderThickness="1"
-                                 HorizontalContentAlignment="Center"
-                                 IsReadOnly="True"
-                                 Focusable="False"
-                                 Margin="0,0,0,8" />
+                                    <Grid Margin="0,16,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
-                        <TextBlock Text="设置自动速度 MM/S"
-                                   Grid.Row="5"
-                                   Foreground="#334155"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0" />
-                        <TextBox Grid.Row="5"
-                                 Grid.Column="1"
-                                 Text="{Binding AutoSpeedInput, UpdateSourceTrigger=PropertyChanged}"
-                                 Height="34"
-                                 FontSize="18"
-                                 Foreground="#0F172A"
-                                 Background="White"
-                                 BorderBrush="#B8C3D1"
-                                 BorderThickness="1"
-                                 HorizontalContentAlignment="Center"
-                                 Margin="0,0,8,0" />
-                        <Button Grid.Row="5"
-                                Grid.Column="2"
-                                Content="写入"
-                                Height="34"
-                                Style="{StaticResource IndustrialActionButtonStyle}"
-                                Command="{Binding WriteAutoSpeedCommand}" />
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Height="72"
+                                                    Padding="12,10"
+                                                    Background="{StaticResource TileBackgroundBrush}"
+                                                    BorderBrush="{StaticResource CardBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10">
+                                                <StackPanel>
+                                                    <TextBlock Style="{StaticResource CaptionStyle}" Text="当前手动速度" />
+                                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                                   Text="{Binding ManualSpeed, Mode=OneWay}"
+                                                                   FontSize="20"
+                                                                   FontWeight="SemiBold" />
+                                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                                   Text="mm/s"
+                                                                   Margin="6,8,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource TextMutedBrush}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Style="{StaticResource CaptionStyle}" Text="手动速度" />
+                                                <Grid Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="8" />
+                                                        <ColumnDefinition Width="58" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Style="{StaticResource InputTextBoxStyle}"
+                                                             Text="{Binding ManualSpeedInput, UpdateSourceTrigger=PropertyChanged}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="写入"
+                                                            Style="{StaticResource WriteButtonStyle}"
+                                                            Command="{Binding WriteManualSpeedCommand}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Grid Grid.Row="2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Height="72"
+                                                    Padding="12,10"
+                                                    Background="{StaticResource TileBackgroundBrush}"
+                                                    BorderBrush="{StaticResource CardBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10">
+                                                <StackPanel>
+                                                    <TextBlock Style="{StaticResource CaptionStyle}" Text="当前自动速度" />
+                                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                                   Text="{Binding AutoSpeed, Mode=OneWay}"
+                                                                   FontSize="20"
+                                                                   FontWeight="SemiBold" />
+                                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                                   Text="mm/s"
+                                                                   Margin="6,8,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource TextMutedBrush}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Style="{StaticResource CaptionStyle}" Text="自动速度" />
+                                                <Grid Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="8" />
+                                                        <ColumnDefinition Width="58" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Style="{StaticResource InputTextBoxStyle}"
+                                                             Text="{Binding AutoSpeedInput, UpdateSourceTrigger=PropertyChanged}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="写入"
+                                                            Style="{StaticResource WriteButtonStyle}"
+                                                            Command="{Binding WriteAutoSpeedCommand}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2"
+                                    Style="{StaticResource CardStyle}"
+                                    Padding="16"
+                                    MinHeight="176">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Style="{StaticResource IconBadgeStyle}" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource TimeIconGeometry}"
+                                                  Stroke="{StaticResource AccentBrush}"
+                                                  StrokeThickness="1.35"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round"
+                                                  Stretch="Uniform"
+                                                  Width="16"
+                                                  Height="16" />
+                                        </Border>
+                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                   Text="加减速时间"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+
+                                    <Grid Margin="0,16,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Height="72"
+                                                    Padding="12,10"
+                                                    Background="{StaticResource TileBackgroundBrush}"
+                                                    BorderBrush="{StaticResource CardBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10">
+                                                <StackPanel>
+                                                    <TextBlock Style="{StaticResource CaptionStyle}" Text="当前加速时间" />
+                                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                                   Text="{Binding AccelerationTime, Mode=OneWay}"
+                                                                   FontSize="20"
+                                                                   FontWeight="SemiBold" />
+                                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                                   Text="ms"
+                                                                   Margin="6,8,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource TextMutedBrush}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Style="{StaticResource CaptionStyle}" Text="加速时间" />
+                                                <Grid Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="8" />
+                                                        <ColumnDefinition Width="58" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Style="{StaticResource InputTextBoxStyle}"
+                                                             Text="{Binding AccelerationTimeInput, UpdateSourceTrigger=PropertyChanged}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="写入"
+                                                            Style="{StaticResource WriteButtonStyle}"
+                                                            Command="{Binding WriteAccelerationTimeCommand}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Grid Grid.Row="2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Height="72"
+                                                    Padding="12,10"
+                                                    Background="{StaticResource TileBackgroundBrush}"
+                                                    BorderBrush="{StaticResource CardBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10">
+                                                <StackPanel>
+                                                    <TextBlock Style="{StaticResource CaptionStyle}" Text="当前减速时间" />
+                                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                                   Text="{Binding DecelerationTime, Mode=OneWay}"
+                                                                   FontSize="20"
+                                                                   FontWeight="SemiBold" />
+                                                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                                                   Text="ms"
+                                                                   Margin="6,8,0,0"
+                                                                   FontSize="11"
+                                                                   Foreground="{StaticResource TextMutedBrush}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Style="{StaticResource CaptionStyle}" Text="减速时间" />
+                                                <Grid Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="8" />
+                                                        <ColumnDefinition Width="58" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox Style="{StaticResource InputTextBoxStyle}"
+                                                             Text="{Binding DecelerationTimeInput, UpdateSourceTrigger=PropertyChanged}" />
+                                                    <Button Grid.Column="2"
+                                                            Content="写入"
+                                                            Style="{StaticResource WriteButtonStyle}"
+                                                            Command="{Binding WriteDecelerationTimeCommand}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </Grid>
+                </ScrollViewer>
 
-                    <StackPanel Grid.Row="3">
-                        <Grid Margin="0,0,0,10"
-                              Visibility="{Binding ShowManualLocate, Converter={StaticResource BoolToVisibility}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110" />
-                                <ColumnDefinition Width="130" />
-                                <ColumnDefinition Width="170" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0"
-                                       Text="手动定位值 (MM)"
-                                       Foreground="#334155"
-                                       VerticalAlignment="Center" />
-                            <TextBox Grid.Column="1"
-                                     Height="34"
-                                     Text="{Binding ManualLocateInput, UpdateSourceTrigger=PropertyChanged}"
-                                     FontSize="18"
-                                     Foreground="#0F172A"
-                                     Background="White"
-                                     BorderBrush="#B8C3D1"
-                                     BorderThickness="1"
-                                     HorizontalContentAlignment="Center"
-                                     Margin="0,0,8,0" />
-                            <Button Grid.Column="2"
-                                    Content="{Binding ManualLocateText}"
-                                    Height="34"
-                                    Style="{StaticResource IndustrialActionButtonStyle}"
-                                    behaviors:ButtonPressBehavior.PressCommand="{Binding ManualLocatePressCommand}"
-                                    behaviors:ButtonPressBehavior.ReleaseCommand="{Binding ManualLocateReleaseCommand}" />
+                <Border Grid.Row="2"
+                        Height="46"
+                        Margin="0,12,0,0"
+                        Padding="20,0"
+                        Background="#FFFFFF"
+                        BorderBrush="{StaticResource CardBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="14"
+                        Effect="{StaticResource CardShadowEffect}">
+                    <DockPanel LastChildFill="True">
+                        <Grid Width="14"
+                              Height="14"
+                              DockPanel.Dock="Left"
+                              Margin="0,0,12,0"
+                              VerticalAlignment="Center">
+                            <Ellipse Fill="#00D492" Opacity="0.40" />
+                            <Ellipse Width="8"
+                                     Height="8"
+                                     Fill="{StaticResource SuccessBrush}"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center" />
                         </Grid>
-
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <Button Grid.Column="0"
-                                    Content="JOG+"
-                                    Height="72"
-                                    Margin="0,0,8,0"
-                                    Style="{StaticResource IndustrialActionButtonStyle}"
-                                    behaviors:ButtonPressBehavior.PressCommand="{Binding JogPlusPressCommand}"
-                                    behaviors:ButtonPressBehavior.ReleaseCommand="{Binding JogPlusReleaseCommand}"
-                                    FontSize="22" />
-
-                            <Button Grid.Column="1"
-                                    Content="回原点"
-                                    Height="72"
-                                    Margin="4,0"
-                                    Style="{StaticResource IndustrialActionButtonStyle}"
-                                    behaviors:ButtonPressBehavior.PressCommand="{Binding GoHomePressCommand}"
-                                    behaviors:ButtonPressBehavior.ReleaseCommand="{Binding GoHomeReleaseCommand}"
-                                    FontSize="20" />
-
-                            <Button Grid.Column="2"
-                                    Content="JOG-"
-                                    Height="72"
-                                    Margin="8,0,0,0"
-                                    Style="{StaticResource IndustrialActionButtonStyle}"
-                                    behaviors:ButtonPressBehavior.PressCommand="{Binding JogMinusPressCommand}"
-                                    behaviors:ButtonPressBehavior.ReleaseCommand="{Binding JogMinusReleaseCommand}"
-                                    FontSize="22" />
-                        </Grid>
-                    </StackPanel>
-                </Grid>
-            </Border>
+                        <TextBlock Style="{StaticResource PageTextStyle}"
+                                   Text="{Binding DataContext.ActionMessage, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
+                                   VerticalAlignment="Center"
+                                   FontSize="13"
+                                   Foreground="#314158"
+                                   TextWrapping="Wrap" />
+                    </DockPanel>
+                </Border>
+            </Grid>
         </DataTemplate>
     </UserControl.Resources>
 
-    <Grid Background="White">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-            <Grid Margin="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <ContentControl Grid.Row="0"
-                                Grid.Column="0"
-                                Content="{Binding XAxis}"
-                                ContentTemplate="{StaticResource AxisCardTemplate}" />
-
-                <ContentControl Grid.Row="0"
-                                Grid.Column="1"
-                                Content="{Binding YAxis}"
-                                ContentTemplate="{StaticResource AxisCardTemplate}" />
-
-                <ContentControl Grid.Row="1"
-                                Grid.Column="0"
-                                Content="{Binding ZAxis}"
-                                ContentTemplate="{StaticResource AxisCardTemplate}" />
-
-                <ContentControl Grid.Row="1"
-                                Grid.Column="1"
-                                Content="{Binding ShakeAxis}"
-                                ContentTemplate="{StaticResource AxisCardTemplate}" />
-
-                <Border Grid.Row="2"
-                        Grid.ColumnSpan="2"
-                        Background="#F7F9FC"
-                        BorderBrush="#CBD5E1"
-                        BorderThickness="1"
-                        CornerRadius="10"
-                        Padding="12">
-                    <TextBlock Text="{Binding ActionMessage}" Foreground="#334155" FontSize="15" />
-                </Border>
-            </Grid>
-        </ScrollViewer>
-    </Grid>
+    <TabControl Style="{StaticResource AxisTabControlStyle}"
+                ItemContainerStyle="{StaticResource AxisTabItemStyle}"
+                Background="{StaticResource PageBackgroundBrush}">
+        <TabItem Header="X 轴伺服" Tag="X" ToolTip="M1 · 横向运动">
+            <ContentControl Content="{Binding XAxis}"
+                            ContentTemplate="{StaticResource AxisCardTemplate}" />
+        </TabItem>
+        <TabItem Header="Y 轴伺服" Tag="Y" ToolTip="M2 · 纵向运动">
+            <ContentControl Content="{Binding YAxis}"
+                            ContentTemplate="{StaticResource AxisCardTemplate}" />
+        </TabItem>
+        <TabItem Header="Z 轴伺服" Tag="Z" ToolTip="M3 · 升降运动">
+            <ContentControl Content="{Binding ZAxis}"
+                            ContentTemplate="{StaticResource AxisCardTemplate}" />
+        </TabItem>
+        <TabItem Header="摇匀轴" Tag="摇" ToolTip="M4 · 摇匀电机">
+            <ContentControl Content="{Binding ShakeAxis}"
+                            ContentTemplate="{StaticResource AxisCardTemplate}" />
+        </TabItem>
+    </TabControl>
 </UserControl>

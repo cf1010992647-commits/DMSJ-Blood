@@ -1,284 +1,588 @@
+<?xml version="1.0" encoding="utf-8"?>
 <UserControl x:Class="Blood_Alcohol.Views.WeightToZDebugView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:Blood_Alcohol.ViewModels">
+             xmlns:vm="clr-namespace:Blood_Alcohol.ViewModels"
+             FontFamily="Segoe UI, Microsoft YaHei"
+             SnapsToDevicePixels="True"
+             UseLayoutRounding="True">
     <UserControl.DataContext>
         <vm:WeightToZDebugViewModel />
     </UserControl.DataContext>
 
     <UserControl.Resources>
-        <Style x:Key="InputBoxStyle" TargetType="TextBox">
-            <Setter Property="Height" Value="30" />
-            <Setter Property="Padding" Value="6,2" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="BorderBrush" Value="#CBD5E1" />
+        <DropShadowEffect x:Key="WeightCardShadow"
+                          BlurRadius="10"
+                          Direction="270"
+                          ShadowDepth="1"
+                          Color="#000000"
+                          Opacity="0.10" />
+
+        <DrawingImage x:Key="WeightIconSigmaBlue">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M15 5.83333V4.16667C15 3.94565 14.9122 3.73369 14.7559 3.57741C14.5996 3.42113 14.3877 3.33333 14.1667 3.33333H5.41667C5.33929 3.33333 5.26344 3.35488 5.19761 3.39556C5.13179 3.43624 5.07859 3.49445 5.04399 3.56366C5.00938 3.63287 4.99473 3.71035 5.00168 3.78742C5.00863 3.86449 5.03691 3.9381 5.08333 4L8.83333 9C9.0497 9.28849 9.16667 9.63938 9.16667 10C9.16667 10.3606 9.0497 10.7115 8.83333 11L5.08333 16C5.03691 16.0619 5.00863 16.1355 5.00168 16.2126C4.99473 16.2896 5.00938 16.3671 5.04399 16.4363C5.07859 16.5055 5.13179 16.5638 5.19761 16.6044C5.26344 16.6451 5.33929 16.6667 5.41667 16.6667H14.1667C14.3877 16.6667 14.5996 16.5789 14.7559 16.4226C14.9122 16.2663 15 16.0543 15 15.8333V14.1667">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.66667" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconPulseBlue">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.6667 8H13.0133C12.722 7.99938 12.4384 8.0942 12.2061 8.26998C11.9737 8.44575 11.8053 8.6928 11.7267 8.97333L10.16 14.5467C10.1499 14.5813 10.1288 14.6117 10.1 14.6333C10.0712 14.655 10.0361 14.6667 10 14.6667C9.96394 14.6667 9.92885 14.655 9.9 14.6333C9.87115 14.6117 9.8501 14.5813 9.84 14.5467L6.16 1.45333C6.1499 1.41871 6.12885 1.3883 6.1 1.36667C6.07115 1.34503 6.03606 1.33333 6 1.33333C5.96394 1.33333 5.92885 1.34503 5.9 1.36667C5.87115 1.3883 5.8501 1.41871 5.84 1.45333L4.27333 7.02667C4.19498 7.3061 4.02759 7.55234 3.79658 7.72801C3.56556 7.90367 3.28355 7.99917 2.99333 8H1.33333">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#2B7FFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconRulerBlue">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.2 10.2C14.3492 10.3486 14.4675 10.5253 14.5483 10.7198C14.629 10.9142 14.6706 11.1228 14.6706 11.3333C14.6706 11.5439 14.629 11.7524 14.5483 11.9469C14.4675 12.1414 14.3492 12.318 14.2 12.4667L12.4667 14.2C12.318 14.3492 12.1414 14.4675 11.9469 14.5483C11.7524 14.629 11.5439 14.6706 11.3333 14.6706C11.1228 14.6706 10.9142 14.629 10.7198 14.5483C10.5253 14.4675 10.3486 14.3492 10.2 14.2L1.8 5.8C1.50037 5.49892 1.33216 5.09143 1.33216 4.66667C1.33216 4.2419 1.50037 3.83442 1.8 3.53333L3.53333 1.8C3.83442 1.50037 4.2419 1.33216 4.66667 1.33216C5.09143 1.33216 5.49892 1.50037 5.8 1.8L14.2 10.2Z M9.66667 8.33333L11 7 M7.66667 6.33333L9 5 M5.66667 4.33333L7 3 M11.6667 10.3333L13 9">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconScaleDark">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M10.6667 10.6667L12.6667 5.33333L14.6667 10.6667C14.0867 11.1 13.3867 11.3333 12.6667 11.3333C11.9467 11.3333 11.2467 11.1 10.6667 10.6667Z M1.33333 10.6667L3.33333 5.33333L5.33333 10.6667C4.75333 11.1 4.05333 11.3333 3.33333 11.3333C2.61333 11.3333 1.91333 11.1 1.33333 10.6667Z M4.66667 14H11.3333 M8 2V14 M2 4.66667H3.33333C4.66667 4.66667 6.66667 4 8 3.33333C9.33333 4 11.3333 4.66667 12.6667 4.66667H14">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#314158" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconRulerDark">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.2 10.2C14.3492 10.3486 14.4675 10.5253 14.5483 10.7198C14.629 10.9142 14.6706 11.1228 14.6706 11.3333C14.6706 11.5439 14.629 11.7524 14.5483 11.9469C14.4675 12.1414 14.3492 12.318 14.2 12.4667L12.4667 14.2C12.318 14.3492 12.1414 14.4675 11.9469 14.5483C11.7524 14.629 11.5439 14.6706 11.3333 14.6706C11.1228 14.6706 10.9142 14.629 10.7198 14.5483C10.5253 14.4675 10.3486 14.3492 10.2 14.2L1.8 5.8C1.50037 5.49892 1.33216 5.09143 1.33216 4.66667C1.33216 4.2419 1.50037 3.83442 1.8 3.53333L3.53333 1.8C3.83442 1.50037 4.2419 1.33216 4.66667 1.33216C5.09143 1.33216 5.49892 1.50037 5.8 1.8L14.2 10.2Z M9.66667 8.33333L11 7 M7.66667 6.33333L9 5 M5.66667 4.33333L7 3 M11.6667 10.3333L13 9">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#314158" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconCalcDark">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M12 1.33333H4C3.26362 1.33333 2.66667 1.93029 2.66667 2.66667V13.3333C2.66667 14.0697 3.26362 14.6667 4 14.6667H12C12.7364 14.6667 13.3333 14.0697 13.3333 13.3333V2.66667C13.3333 1.93029 12.7364 1.33333 12 1.33333Z M5.33333 4H10.6667 M10.6667 9.33333V12 M10.6667 6.66667H10.6733 M8 6.66667H8.00667 M5.33333 6.66667H5.34 M8 9.33333H8.00667 M5.33333 9.33333H5.34 M8 12H8.00667 M5.33333 12H5.34">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#314158" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconLightningWhite">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M2.66667 9.33333C2.54051 9.33376 2.41682 9.29839 2.30997 9.23132C2.20312 9.16425 2.11749 9.06824 2.06303 8.95444C2.00858 8.84064 1.98753 8.71372 2.00233 8.58844C2.01714 8.46315 2.06719 8.34464 2.14667 8.24667L8.74667 1.44667C8.79617 1.38952 8.86364 1.3509 8.93799 1.33715C9.01234 1.32341 9.08915 1.33534 9.15582 1.371C9.22249 1.40666 9.27506 1.46393 9.30489 1.53341C9.33472 1.60288 9.34005 1.68043 9.32 1.75333L8.04 5.76667C8.00226 5.86768 7.98958 5.97635 8.00306 6.08334C8.01654 6.19033 8.05577 6.29245 8.11739 6.38095C8.17901 6.46945 8.26118 6.54168 8.35685 6.59144C8.45252 6.6412 8.55883 6.66702 8.66667 6.66667H13.3333C13.4595 6.66624 13.5832 6.70161 13.69 6.76868C13.7969 6.83575 13.8825 6.93176 13.937 7.04556C13.9914 7.15936 14.0125 7.28628 13.9977 7.41156C13.9829 7.53685 13.9328 7.65536 13.8533 7.75333L7.25333 14.5533C7.20383 14.6105 7.13636 14.6491 7.06201 14.6628C6.98766 14.6766 6.91085 14.6647 6.84418 14.629C6.77751 14.5933 6.72494 14.5361 6.69511 14.4666C6.66528 14.3971 6.65995 14.3196 6.68 14.2467L7.96 10.2333C7.99774 10.1323 8.01042 10.0237 7.99694 9.91666C7.98346 9.80967 7.94423 9.70755 7.88261 9.61905C7.82099 9.53055 7.73882 9.45832 7.64315 9.40856C7.54748 9.3588 7.44117 9.33298 7.33333 9.33333H2.66667Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconScaleSlate">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M10.6667 10.6667L12.6667 5.33333L14.6667 10.6667C14.0867 11.1 13.3867 11.3333 12.6667 11.3333C11.9467 11.3333 11.2467 11.1 10.6667 10.6667Z M1.33333 10.6667L3.33333 5.33333L5.33333 10.6667C4.75333 11.1 4.05333 11.3333 3.33333 11.3333C2.61333 11.3333 1.91333 11.1 1.33333 10.6667Z M4.66667 14H11.3333 M8 2V14 M2 4.66667H3.33333C4.66667 4.66667 6.66667 4 8 3.33333C9.33333 4 11.3333 4.66667 12.6667 4.66667H14">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#62748E" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconRulerSlate">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.2 10.2C14.3492 10.3486 14.4675 10.5253 14.5483 10.7198C14.629 10.9142 14.6706 11.1228 14.6706 11.3333C14.6706 11.5439 14.629 11.7524 14.5483 11.9469C14.4675 12.1414 14.3492 12.318 14.2 12.4667L12.4667 14.2C12.318 14.3492 12.1414 14.4675 11.9469 14.5483C11.7524 14.629 11.5439 14.6706 11.3333 14.6706C11.1228 14.6706 10.9142 14.629 10.7198 14.5483C10.5253 14.4675 10.3486 14.3492 10.2 14.2L1.8 5.8C1.50037 5.49892 1.33216 5.09143 1.33216 4.66667C1.33216 4.2419 1.50037 3.83442 1.8 3.53333L3.53333 1.8C3.83442 1.50037 4.2419 1.33216 4.66667 1.33216C5.09143 1.33216 5.49892 1.50037 5.8 1.8L14.2 10.2Z M9.66667 8.33333L11 7 M7.66667 6.33333L9 5 M5.66667 4.33333L7 3 M11.6667 10.3333L13 9">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#62748E" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconSigmaSmallBlue">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M12 4.66667V3.33333C12 3.15652 11.9298 2.98695 11.8047 2.86193C11.6797 2.7369 11.5101 2.66667 11.3333 2.66667H4.33333C4.27143 2.66667 4.21075 2.6839 4.15809 2.71645C4.10543 2.74899 4.06288 2.79556 4.03519 2.85093C4.00751 2.9063 3.99579 2.96828 4.00135 3.02994C4.00691 3.09159 4.02952 3.15048 4.06667 3.2L7.06667 7.2C7.23976 7.43079 7.33333 7.71151 7.33333 8C7.33333 8.28849 7.23976 8.56921 7.06667 8.8L4.06667 12.8C4.02952 12.8495 4.00691 12.9084 4.00135 12.9701C3.99579 13.0317 4.00751 13.0937 4.03519 13.1491C4.06288 13.2044 4.10543 13.251 4.15809 13.2836C4.21075 13.3161 4.27143 13.3333 4.33333 13.3333H11.3333C11.5101 13.3333 11.6797 13.2631 11.8047 13.1381C11.9298 13.013 12 12.8435 12 12.6667V11.3333">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconDropletBlue">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M8 14.6667C9.23768 14.6667 10.4247 14.175 11.2998 13.2998C12.175 12.4247 12.6667 11.2377 12.6667 10C12.6667 8.66667 12 7.4 10.6667 6.33333C9.33333 5.26667 8.33333 3.66667 8 2C7.66667 3.66667 6.66667 5.26667 5.33333 6.33333C4 7.4 3.33333 8.66667 3.33333 10C3.33333 11.2377 3.825 12.4247 4.70017 13.2998C5.57534 14.175 6.76232 14.6667 8 14.6667Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#155DFC" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconTubeSlate">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M3 2H13 M4 2V12.6667C4 13.0203 4.14048 13.3594 4.39052 13.6095C4.64057 13.8595 4.97971 14 5.33333 14H10.6667C11.0203 14 11.3594 13.8595 11.6095 13.6095C11.8595 13.3594 12 13.0203 12 12.6667V2 M4 9.33333H12">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#62748E" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconSigmaSlate">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M12 4.66667V3.33333C12 3.15652 11.9298 2.98695 11.8047 2.86193C11.6797 2.7369 11.5101 2.66667 11.3333 2.66667H4.33333C4.27143 2.66667 4.21075 2.6839 4.15809 2.71645C4.10543 2.74899 4.06288 2.79556 4.03519 2.85093C4.00751 2.9063 3.99579 2.96828 4.00135 3.02994C4.00691 3.09159 4.02952 3.15048 4.06667 3.2L7.06667 7.2C7.23976 7.43079 7.33333 7.71151 7.33333 8C7.33333 8.28849 7.23976 8.56921 7.06667 8.8L4.06667 12.8C4.02952 12.8495 4.00691 12.9084 4.00135 12.9701C3.99579 13.0317 4.00751 13.0937 4.03519 13.1491C4.06288 13.2044 4.10543 13.251 4.15809 13.2836C4.21075 13.3161 4.27143 13.3333 4.33333 13.3333H11.3333C11.5101 13.3333 11.6797 13.2631 11.8047 13.1381C11.9298 13.013 12 12.8435 12 12.6667V11.3333">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#62748E" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconLoadDark">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M10 1.33333H4C3.64638 1.33333 3.30724 1.47381 3.05719 1.72386C2.80714 1.97391 2.66667 2.31304 2.66667 2.66667V13.3333C2.66667 13.687 2.80714 14.0261 3.05719 14.2761C3.30724 14.5262 3.64638 14.6667 4 14.6667H12C12.3536 14.6667 12.6928 14.5262 12.9428 14.2761C13.1929 14.0261 13.3333 13.687 13.3333 13.3333V4.66667L10 1.33333Z M9.33333 1.33333V4C9.33333 4.35362 9.47381 4.69276 9.72386 4.94281C9.97391 5.19286 10.313 5.33333 10.6667 5.33333H13.3333 M8 8V12 M10 10L8 8L6 10">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#0A0A0A" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="WeightIconSaveWhite">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M10 1.33333H4C3.64638 1.33333 3.30724 1.47381 3.05719 1.72386C2.80714 1.97391 2.66667 2.31304 2.66667 2.66667V13.3333C2.66667 13.687 2.80714 14.0261 3.05719 14.2761C3.30724 14.5262 3.64638 14.6667 4 14.6667H12C12.3536 14.6667 12.6928 14.5262 12.9428 14.2761C13.1929 14.0261 13.3333 13.687 13.3333 13.3333V4.66667L10 1.33333Z M9.33333 1.33333V4C9.33333 4.35362 9.47381 4.69276 9.72386 4.94281C9.97391 5.19286 10.313 5.33333 10.6667 5.33333H13.3333 M8 12V8 M6 10L8 12L10 10">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <Style x:Key="WeightCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Background" Value="White" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Effect" Value="{StaticResource WeightCardShadow}" />
         </Style>
 
-        <Style x:Key="ActionButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="#F8FAFC" />
-            <Setter Property="Background" Value="#2F6E9E" />
-            <Setter Property="BorderBrush" Value="#1E4F73" />
+        <Style x:Key="SectionIconBoxStyle" TargetType="Border">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Background" Value="#EAF1FF" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="106" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#314158" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="MinWidth" Value="110" />
-            <Setter Property="Height" Value="34" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#F8FAFC" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.84" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.48" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="Background" Value="#155DFC" />
+            <Setter Property="BorderBrush" Value="#155DFC" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style x:Key="InputBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="#0A0A0A" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="InputBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="InputBorder" Property="BorderBrush" Value="#155DFC" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
-    <Grid Background="White" Margin="12">
+    <Grid Background="#F8FAFC">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
-            <TextBlock Text="{Binding StatusMessage}"
-                       Foreground="#334155"
-                       FontSize="14"
-                       TextWrapping="Wrap" />
+        <Border Grid.Row="0" Margin="24,24,24,0" Padding="24,20" Style="{StaticResource WeightCardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="40" Height="40" Background="#EAF1FF" CornerRadius="10" Margin="0,0,12,0">
+                        <Image Width="20" Height="20" Source="{StaticResource WeightIconSigmaBlue}" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="重量 → Z轴系数调试" Foreground="#0F172B" FontSize="16" LineHeight="24" />
+                        <TextBlock Text="采集重量与坐标 · 计算 Z 轴 / 微升换算系数" Foreground="#62748E" FontSize="14" LineHeight="20" Margin="0,2,0,0" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Z 系数" Foreground="#62748E" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ZPerWeight, StringFormat={}{0:F6}}" Foreground="#0F172B" FontSize="16" Margin="8,0,24,0" VerticalAlignment="Center" />
+                    <TextBlock Text="ul 系数" Foreground="#62748E" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding MicroliterPerWeight, StringFormat={}{0:F6}}" Foreground="#0F172B" FontSize="16" Margin="8,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <Border Grid.Row="1"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
-            <StackPanel>
-                <TextBlock Text="重量转Z轴系数"
-                           Foreground="#0F172A"
-                           FontSize="15"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,10" />
-
-                <WrapPanel Margin="0,0,0,10">
-                    <Button Content="获取重量"
-                            Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding ReadCurrentWeightCommand}"
-                            Margin="0,0,8,8" />
-                    <Button Content="获取当前Z轴位置"
-                            Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding ReadCurrentZCommand}"
-                            Margin="0,0,8,8" />
-                    <Button Content="计算Z轴系数"
-                            Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding ComputeCoefficientCommand}"
-                            Margin="0,0,8,8" />
-                    <Button Content="一键采集计算Z轴系数"
-                            Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding AcquireAndComputeCoefficientCommand}"
-                            MinWidth="180"
-                            Margin="0,0,8,8" />
-                </WrapPanel>
-
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Grid.Column="0"
-                            Background="White"
-                            BorderBrush="#D8E1EB"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12"
-                            Margin="0,0,8,0">
-                        <StackPanel>
-                            <TextBlock Text="重量(g)"
-                                       Foreground="#64748B"
-                                       FontSize="13" />
-                            <TextBox Text="{Binding CurrentWeight, Mode=OneWay, StringFormat=F3}"
-                                     Style="{StaticResource InputBoxStyle}"
-                                     IsReadOnly="True"
-                                     Focusable="False"
-                                     Margin="0,8,0,0" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="1"
-                            Background="White"
-                            BorderBrush="#D8E1EB"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12"
-                            Margin="0,0,8,0">
-                        <StackPanel>
-                            <TextBlock Text="Z轴坐标(mm)"
-                                       Foreground="#64748B"
-                                       FontSize="13" />
-                            <TextBox Text="{Binding CurrentZ, Mode=OneWay, StringFormat=F3}"
-                                     Style="{StaticResource InputBoxStyle}"
-                                     IsReadOnly="True"
-                                     Focusable="False"
-                                     Margin="0,8,0,0" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="2"
-                            Background="White"
-                            BorderBrush="#D8E1EB"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12">
-                        <StackPanel>
-                            <TextBlock Text="重量转Z系数(mm/g)"
-                                       Foreground="#64748B"
-                                       FontSize="13" />
-                            <TextBox Text="{Binding ZPerWeight, Mode=OneWay, StringFormat=F6}"
-                                     Style="{StaticResource InputBoxStyle}"
-                                     IsReadOnly="True"
-                                     Focusable="False"
-                                     Margin="0,8,0,0" />
-                        </StackPanel>
-                    </Border>
-                </Grid>
+        <Border Grid.Row="1" Margin="24,12,24,0" Padding="20,12" Background="#EFF6FF" BorderBrush="#DBEAFE" BorderThickness="1" CornerRadius="14">
+            <StackPanel Orientation="Horizontal">
+                <Image Width="16" Height="16" Source="{StaticResource WeightIconPulseBlue}" Margin="0,0,12,0" />
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#314158" FontSize="14" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="2"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12"
-                Margin="0,0,0,10">
-            <StackPanel>
-                <TextBlock Text="重量转微升系数"
-                           Foreground="#0F172A"
-                           FontSize="15"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,10" />
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="24,16,24,16">
+                <Border Style="{StaticResource WeightCardStyle}" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                <Grid Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="140" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0"
-                            Content="获取重量"
-                            Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding ReadCurrentWeightCommand}"
-                            Margin="0,0,8,0" />
-                    <TextBox Grid.Column="1"
-                             Text="{Binding InputMicroliter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}"
-                             Style="{StaticResource InputBoxStyle}"
-                             Margin="0,0,8,0" />
-                    <TextBlock Grid.Column="2"
-                               Text="ul"
-                               VerticalAlignment="Center"
-                               Foreground="#334155"
-                               Margin="0,0,8,0" />
-                    <Button Grid.Column="3"
-                            Content="计算重量转微升系数"
-                            Style="{StaticResource ActionButtonStyle}"
-                            Command="{Binding ComputeMicroliterCoefficientCommand}" />
-                </Grid>
+                        <Border Grid.Row="0" BorderBrush="#F1F5F9" BorderThickness="0,0,0,1" Padding="20,16">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Style="{StaticResource SectionIconBoxStyle}">
+                                    <Image Width="16" Height="16" Source="{StaticResource WeightIconRulerBlue}" />
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock Text="重量转 Z 轴系数" Foreground="#0F172B" FontSize="16" LineHeight="24" />
+                                    <TextBlock Text="获取当前重量与 Z 轴坐标后计算 mm/g 比例系数" Foreground="#62748E" FontSize="14" LineHeight="20" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Row="1" Margin="20">
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0"
-                            Background="White"
-                            BorderBrush="#D8E1EB"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12"
-                            Margin="0,0,8,0">
-                        <StackPanel>
-                            <TextBlock Text="重量(g)"
-                                       Foreground="#64748B"
-                                       FontSize="13" />
-                            <TextBox Text="{Binding CurrentWeight, Mode=OneWay, StringFormat=F3}"
-                                     Style="{StaticResource InputBoxStyle}"
-                                     IsReadOnly="True"
-                                     Focusable="False"
-                                     Margin="0,8,0,0" />
+                                <Button Grid.Column="0" Command="{Binding ReadCurrentWeightCommand}" Style="{StaticResource SecondaryButtonStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Source="{StaticResource WeightIconScaleDark}" Margin="0,0,8,0" />
+                                        <TextBlock Text="获取重量" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="2" Command="{Binding ReadCurrentZCommand}" Style="{StaticResource SecondaryButtonStyle}" MinWidth="164">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Source="{StaticResource WeightIconRulerDark}" Margin="0,0,8,0" />
+                                        <TextBlock Text="获取当前 Z 轴位置" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="4" Command="{Binding ComputeCoefficientCommand}" Style="{StaticResource SecondaryButtonStyle}" MinWidth="136">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Source="{StaticResource WeightIconCalcDark}" Margin="0,0,8,0" />
+                                        <TextBlock Text="计算 Z 轴系数" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="6" Command="{Binding AcquireAndComputeCoefficientCommand}" Style="{StaticResource PrimaryButtonStyle}" MinWidth="132">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Source="{StaticResource WeightIconLightningWhite}" Margin="0,0,8,0" />
+                                        <TextBlock Text="一键采集计算" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="16">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid>
+                                            <TextBlock Text="重量" Foreground="#62748E" FontSize="14" />
+                                            <Border Width="28" Height="28" Background="#F1F5F9" CornerRadius="8" HorizontalAlignment="Right">
+                                                <Image Width="16" Height="16" Source="{StaticResource WeightIconScaleSlate}" />
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding CurrentWeight, StringFormat={}{0:F3}}" Foreground="#0F172B" FontSize="24" LineHeight="36" />
+                                            <TextBlock Text="g" Foreground="#90A1B9" FontSize="14" Margin="8,12,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="2" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="16">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid>
+                                            <TextBlock Text="Z 轴坐标" Foreground="#62748E" FontSize="14" />
+                                            <Border Width="28" Height="28" Background="#F1F5F9" CornerRadius="8" HorizontalAlignment="Right">
+                                                <Image Width="16" Height="16" Source="{StaticResource WeightIconRulerSlate}" />
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding CurrentZ, StringFormat={}{0:F3}}" Foreground="#0F172B" FontSize="24" LineHeight="36" />
+                                            <TextBlock Text="mm" Foreground="#90A1B9" FontSize="14" Margin="8,12,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="4" BorderBrush="#BEDBFF" BorderThickness="1" CornerRadius="14" Padding="16">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid>
+                                            <TextBlock Text="重量转 Z 系数" Foreground="#62748E" FontSize="14" />
+                                            <Border Width="28" Height="28" Background="#EAF1FF" CornerRadius="8" HorizontalAlignment="Right">
+                                                <Image Width="16" Height="16" Source="{StaticResource WeightIconSigmaSmallBlue}" />
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding ZPerWeight, StringFormat={}{0:F6}}" Foreground="#155DFC" FontSize="24" LineHeight="36" />
+                                            <TextBlock Text="mm/g" Foreground="#90A1B9" FontSize="14" Margin="8,12,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
                         </StackPanel>
-                    </Border>
+                    </Grid>
+                </Border>
 
-                    <Border Grid.Column="1"
-                            Background="White"
-                            BorderBrush="#D8E1EB"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12"
-                            Margin="0,0,8,0">
-                        <StackPanel>
-                            <TextBlock Text="输入微升(ul)"
-                                       Foreground="#64748B"
-                                       FontSize="13" />
-                            <TextBox Text="{Binding InputMicroliter, Mode=OneWay, StringFormat=F3}"
-                                     Style="{StaticResource InputBoxStyle}"
-                                     IsReadOnly="True"
-                                     Focusable="False"
-                                     Margin="0,8,0,0" />
-                        </StackPanel>
-                    </Border>
+                <Border Style="{StaticResource WeightCardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <Border Grid.Column="2"
-                            Background="White"
-                            BorderBrush="#D8E1EB"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="12">
-                        <StackPanel>
-                            <TextBlock Text="重量转微升系数(ul/g)"
-                                       Foreground="#64748B"
-                                       FontSize="13" />
-                            <TextBox Text="{Binding MicroliterPerWeight, Mode=OneWay, StringFormat=F6}"
-                                     Style="{StaticResource InputBoxStyle}"
-                                     IsReadOnly="True"
-                                     Focusable="False"
-                                     Margin="0,8,0,0" />
+                        <Border Grid.Row="0" BorderBrush="#F1F5F9" BorderThickness="0,0,0,1" Padding="20,16">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Style="{StaticResource SectionIconBoxStyle}">
+                                    <Image Width="16" Height="16" Source="{StaticResource WeightIconDropletBlue}" />
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock Text="重量转微升系数" Foreground="#0F172B" FontSize="16" LineHeight="24" />
+                                    <TextBlock Text="读取重量并输入对应微升值，计算 ul/g 比例系数" Foreground="#62748E" FontSize="14" LineHeight="20" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Grid.Row="1" Margin="20">
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="144" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0" Command="{Binding ReadCurrentWeightCommand}" Style="{StaticResource SecondaryButtonStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Source="{StaticResource WeightIconScaleDark}" Margin="0,0,8,0" />
+                                        <TextBlock Text="获取重量" />
+                                    </StackPanel>
+                                </Button>
+
+                                <TextBox Grid.Column="2"
+                                         Text="{Binding InputMicroliter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F3}}"
+                                         Style="{StaticResource InputBoxStyle}" />
+                                <TextBlock Grid.Column="4" Text="ul" Foreground="#62748E" FontSize="14" VerticalAlignment="Center" />
+
+                                <Button Grid.Column="6" Command="{Binding ComputeMicroliterCoefficientCommand}" Style="{StaticResource PrimaryButtonStyle}" MinWidth="174">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Source="{StaticResource WeightIconCalcDark}" Margin="0,0,8,0" />
+                                        <TextBlock Text="计算重量转微升系数" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="16">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid>
+                                            <TextBlock Text="重量" Foreground="#62748E" FontSize="14" />
+                                            <Border Width="28" Height="28" Background="#F1F5F9" CornerRadius="8" HorizontalAlignment="Right">
+                                                <Image Width="16" Height="16" Source="{StaticResource WeightIconScaleSlate}" />
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding CurrentWeight, StringFormat={}{0:F3}}" Foreground="#0F172B" FontSize="24" LineHeight="36" />
+                                            <TextBlock Text="g" Foreground="#90A1B9" FontSize="14" Margin="8,12,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="2" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="16">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid>
+                                            <TextBlock Text="输入微升" Foreground="#62748E" FontSize="14" />
+                                            <Border Width="28" Height="28" Background="#F1F5F9" CornerRadius="8" HorizontalAlignment="Right">
+                                                <Image Width="16" Height="16" Source="{StaticResource WeightIconTubeSlate}" />
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding InputMicroliter, StringFormat={}{0:F3}}" Foreground="#0F172B" FontSize="24" LineHeight="36" />
+                                            <TextBlock Text="ul" Foreground="#90A1B9" FontSize="14" Margin="8,12,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="4" BorderBrush="#BEDBFF" BorderThickness="1" CornerRadius="14" Padding="16">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid>
+                                            <TextBlock Text="重量转微升系数" Foreground="#62748E" FontSize="14" />
+                                            <Border Width="28" Height="28" Background="#EAF1FF" CornerRadius="8" HorizontalAlignment="Right">
+                                                <Image Width="16" Height="16" Source="{StaticResource WeightIconSigmaSmallBlue}" />
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding MicroliterPerWeight, StringFormat={}{0:F6}}" Foreground="#155DFC" FontSize="24" LineHeight="36" />
+                                            <TextBlock Text="ul/g" Foreground="#90A1B9" FontSize="14" Margin="8,12,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
                         </StackPanel>
-                    </Border>
-                </Grid>
+                    </Grid>
+                </Border>
             </StackPanel>
-        </Border>
+        </ScrollViewer>
 
-        <Border Grid.Row="3"
-                Background="#F7F9FC"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="12">
-            <WrapPanel>
-                <TextBlock Text="系数配置"
-                           Foreground="#334155"
-                           FontSize="14"
-                           VerticalAlignment="Center"
-                           Margin="0,0,12,0" />
-                <Button Content="加载Json"
-                        Style="{StaticResource ActionButtonStyle}"
-                        Command="{Binding LoadConfigCommand}"
-                        Margin="0,0,8,0" />
-                <Button Content="保存Json"
-                        Style="{StaticResource ActionButtonStyle}"
-                        Command="{Binding SaveConfigCommand}" />
-            </WrapPanel>
+        <Border Grid.Row="3" Margin="24,0,24,24" Padding="20,16" Style="{StaticResource WeightCardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Image Width="16" Height="16" Source="{StaticResource WeightIconSigmaSlate}" Margin="0,0,8,0" />
+                    <TextBlock Text="系数配置 · 用于持久化保存当前调试结果" Foreground="#62748E" FontSize="14" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Command="{Binding LoadConfigCommand}" Style="{StaticResource SecondaryButtonStyle}" MinWidth="110" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="16" Height="16" Source="{StaticResource WeightIconLoadDark}" Margin="0,0,8,0" />
+                            <TextBlock Text="加载 Json" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding SaveConfigCommand}" Style="{StaticResource PrimaryButtonStyle}" MinWidth="110">
+                        <StackPanel Orientation="Horizontal">
+                            <Image Width="16" Height="16" Source="{StaticResource WeightIconSaveWhite}" Margin="0,0,8,0" />
+                            <TextBlock Text="保存 Json" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

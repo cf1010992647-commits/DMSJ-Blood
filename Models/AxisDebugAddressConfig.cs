@@ -24,9 +24,13 @@ namespace Blood_Alcohol.Models
             CurrentPositionLowRegister = 1002,
             CurrentPositionHighRegister = 1003,
             ManualSpeedRegister = 1004,
+            ManualSpeedHighRegister = 1005,
             AutoSpeedRegister = 1008,
+            AutoSpeedHighRegister = 1009,
             ManualTargetLowRegister = 1016,
-            ManualTargetHighRegister = 1017
+            ManualTargetHighRegister = 1017,
+            AccelerationTimeRegister = 1028,
+            DecelerationTimeRegister = 1029
         };
 
         /// <summary>
@@ -46,9 +50,13 @@ namespace Blood_Alcohol.Models
             CurrentPositionLowRegister = 1102,
             CurrentPositionHighRegister = 1103,
             ManualSpeedRegister = 1104,
+            ManualSpeedHighRegister = 1105,
             AutoSpeedRegister = 1108,
+            AutoSpeedHighRegister = 1109,
             ManualTargetLowRegister = 1116,
-            ManualTargetHighRegister = 1117
+            ManualTargetHighRegister = 1117,
+            AccelerationTimeRegister = 1128,
+            DecelerationTimeRegister = 1129
         };
 
         /// <summary>
@@ -68,9 +76,13 @@ namespace Blood_Alcohol.Models
             CurrentPositionLowRegister = 1202,
             CurrentPositionHighRegister = 1203,
             ManualSpeedRegister = 1204,
+            ManualSpeedHighRegister = 1205,
             AutoSpeedRegister = 1208,
+            AutoSpeedHighRegister = 1209,
             ManualTargetLowRegister = 1216,
-            ManualTargetHighRegister = 1217
+            ManualTargetHighRegister = 1217,
+            AccelerationTimeRegister = 1228,
+            DecelerationTimeRegister = 1229
         };
 
         /// <summary>
@@ -90,9 +102,13 @@ namespace Blood_Alcohol.Models
             CurrentPositionLowRegister = 1302,
             CurrentPositionHighRegister = 1303,
             ManualSpeedRegister = 1304,
+            ManualSpeedHighRegister = 1305,
             AutoSpeedRegister = 1308,
+            AutoSpeedHighRegister = 1309,
             ManualTargetLowRegister = 1316,
-            ManualTargetHighRegister = 1317
+            ManualTargetHighRegister = 1317,
+            AccelerationTimeRegister = 1328,
+            DecelerationTimeRegister = 1329
         };
 
         /// <summary>
@@ -163,14 +179,20 @@ namespace Blood_Alcohol.Models
                 {
                     ($"{axisName}-当前位置低16位", profile.CurrentPositionLowRegister),
                     ($"{axisName}-当前位置高16位", profile.CurrentPositionHighRegister),
-                    ($"{axisName}-手动速度", profile.ManualSpeedRegister),
-                    ($"{axisName}-自动速度", profile.AutoSpeedRegister),
+                    ($"{axisName}-手动速度低16位", profile.ManualSpeedRegister),
+                    ($"{axisName}-手动速度高16位", profile.ManualSpeedHighRegister),
+                    ($"{axisName}-自动速度低16位", profile.AutoSpeedRegister),
+                    ($"{axisName}-自动速度高16位", profile.AutoSpeedHighRegister),
                     ($"{axisName}-手动目标低16位", profile.ManualTargetLowRegister),
-                    ($"{axisName}-手动目标高16位", profile.ManualTargetHighRegister)
+                    ($"{axisName}-手动目标高16位", profile.ManualTargetHighRegister),
+                    ($"{axisName}-加速时间", profile.AccelerationTimeRegister),
+                    ($"{axisName}-减速时间", profile.DecelerationTimeRegister)
                 },
                 "轴D寄存器地址");
 
             ValidateRegisterPair(errors, axisName, "当前位置", profile.CurrentPositionLowRegister, profile.CurrentPositionHighRegister);
+            ValidateRegisterPair(errors, axisName, "手动速度", profile.ManualSpeedRegister, profile.ManualSpeedHighRegister);
+            ValidateRegisterPair(errors, axisName, "自动速度", profile.AutoSpeedRegister, profile.AutoSpeedHighRegister);
             ValidateRegisterPair(errors, axisName, "手动目标", profile.ManualTargetLowRegister, profile.ManualTargetHighRegister);
         }
 
@@ -289,14 +311,24 @@ namespace Blood_Alcohol.Models
         public ushort CurrentPositionHighRegister { get; set; }
 
         /// <summary>
-        /// 手动速度寄存器地址。
+        /// 手动速度低16位寄存器地址。
         /// </summary>
         public ushort ManualSpeedRegister { get; set; }
 
         /// <summary>
-        /// 自动速度寄存器地址。
+        /// 手动速度高16位寄存器地址。
+        /// </summary>
+        public ushort ManualSpeedHighRegister { get; set; }
+
+        /// <summary>
+        /// 自动速度低16位寄存器地址。
         /// </summary>
         public ushort AutoSpeedRegister { get; set; }
+
+        /// <summary>
+        /// 自动速度高16位寄存器地址。
+        /// </summary>
+        public ushort AutoSpeedHighRegister { get; set; }
 
         /// <summary>
         /// 手动定位目标低16位地址。
@@ -307,5 +339,15 @@ namespace Blood_Alcohol.Models
         /// 手动定位目标高16位地址。
         /// </summary>
         public ushort ManualTargetHighRegister { get; set; }
+
+        /// <summary>
+        /// 加速时间寄存器地址。
+        /// </summary>
+        public ushort AccelerationTimeRegister { get; set; }
+
+        /// <summary>
+        /// 减速时间寄存器地址。
+        /// </summary>
+        public ushort DecelerationTimeRegister { get; set; }
     }
 }

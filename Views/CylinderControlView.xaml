@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl x:Class="Blood_Alcohol.Views.CylinderControlView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Blood_Alcohol.ViewModels"
+             FontFamily="Segoe UI, Microsoft YaHei"
+             SnapsToDevicePixels="True"
+             UseLayoutRounding="True">
+    <UserControl.DataContext>
+        <vm:CylinderControlViewModel />
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <DropShadowEffect x:Key="CylinderCardShadow"
+                          BlurRadius="10"
+                          Direction="270"
+                          ShadowDepth="1"
+                          Color="#000000"
+                          Opacity="0.10" />
+
+        <DrawingImage x:Key="CylinderIconMain">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M10 6.66667C14.1421 6.66667 17.5 5.54738 17.5 4.16667C17.5 2.78595 14.1421 1.66667 10 1.66667C5.85786 1.66667 2.5 2.78595 2.5 4.16667C2.5 5.54738 5.85786 6.66667 10 6.66667Z M2.5 4.16667V15.8333C2.5 16.4964 3.29018 17.1323 4.6967 17.6011C6.10322 18.0699 8.01088 18.3333 10 18.3333C11.9891 18.3333 13.8968 18.0699 15.3033 17.6011C16.7098 17.1323 17.5 16.4964 17.5 15.8333V4.16667">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#155DFC" Thickness="1.66667" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="CylinderIconGear">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M8.14667 1.33333H7.85333C7.49971 1.33333 7.16057 1.47381 6.91052 1.72386C6.66048 1.97391 6.52 2.31304 6.52 2.66667V2.78667C6.51976 3.02048 6.45804 3.25013 6.34103 3.45256C6.22401 3.65499 6.05582 3.82309 5.85333 3.94L5.56667 4.10667C5.36397 4.22369 5.13405 4.2853 4.9 4.2853C4.66595 4.2853 4.43603 4.22369 4.23333 4.10667L4.13333 4.05333C3.82738 3.87684 3.46389 3.82896 3.12267 3.92021C2.78144 4.01145 2.49037 4.23436 2.31333 4.54L2.16667 4.79333C1.99018 5.09929 1.9423 5.46278 2.03354 5.804C2.12478 6.14522 2.34769 6.4363 2.65333 6.61333L2.75333 6.68C2.95485 6.79634 3.12241 6.96339 3.23937 7.16455C3.35632 7.36572 3.4186 7.59398 3.42 7.82667V8.16667C3.42093 8.40161 3.35977 8.63264 3.2427 8.83634C3.12562 9.04004 2.95681 9.20919 2.75333 9.32667L2.65333 9.38667C2.34769 9.5637 2.12478 9.85478 2.03354 10.196C1.9423 10.5372 1.99018 10.9007 2.16667 11.2067L2.31333 11.46C2.49037 11.7656 2.78144 11.9886 3.12267 12.0798C3.46389 12.171 3.82738 12.1232 4.13333 11.9467L4.23333 11.8933C4.43603 11.7763 4.66595 11.7147 4.9 11.7147C5.13405 11.7147 5.36397 11.7763 5.56667 11.8933L5.85333 12.06C6.05582 12.1769 6.22401 12.345 6.34103 12.5474C6.45804 12.7499 6.51976 12.9795 6.52 13.2133V13.3333C6.52 13.687 6.66048 14.0261 6.91052 14.2761C7.16057 14.5262 7.49971 14.6667 7.85333 14.6667H8.14667C8.50029 14.6667 8.83943 14.5262 9.08948 14.2761C9.33952 14.0261 9.48 13.687 9.48 13.3333V13.2133C9.48024 12.9795 9.54196 12.7499 9.65897 12.5474C9.77599 12.345 9.94418 12.1769 10.1467 12.06L10.4333 11.8933C10.636 11.7763 10.866 11.7147 11.1 11.7147C11.334 11.7147 11.564 11.7763 11.7667 11.8933L11.8667 11.9467C12.1726 12.1232 12.5361 12.171 12.8773 12.0798C13.2186 11.9886 13.5096 11.7656 13.6867 11.46L13.8333 11.2C14.0098 10.894 14.0577 10.5306 13.9665 10.1893C13.8752 9.84811 13.6523 9.55703 13.3467 9.38L13.2467 9.32667C13.0432 9.20919 12.8744 9.04004 12.7573 8.83634C12.6402 8.63264 12.5791 8.40161 12.58 8.16667V7.83333C12.5791 7.59839 12.6402 7.36736 12.7573 7.16366C12.8744 6.95996 13.0432 6.79081 13.2467 6.67333L13.3467 6.61333C13.6523 6.4363 13.8752 6.14522 13.9665 5.804C14.0577 5.46278 14.0098 5.09929 13.8333 4.79333L13.6867 4.54C13.5096 4.23436 13.2186 4.01145 12.8773 3.92021C12.5361 3.82896 12.1726 3.87684 11.8667 4.05333L11.7667 4.10667C11.564 4.22369 11.334 4.2853 11.1 4.2853C10.866 4.2853 10.636 4.22369 10.4333 4.10667L10.1467 3.94C9.94418 3.82309 9.77599 3.65499 9.65897 3.45256C9.54196 3.25013 9.48024 3.02048 9.48 2.78667V2.66667C9.48 2.31304 9.33952 1.97391 9.08948 1.72386C8.83943 1.47381 8.50029 1.33333 8.14667 1.33333Z M8 10C9.10457 10 10 9.10457 10 8C10 6.89543 9.10457 6 8 6C6.89543 6 6 6.89543 6 8C6 9.10457 6.89543 10 8 10Z">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#90A1B9" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="CylinderIconInfo">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M8 14.6667C11.6819 14.6667 14.6667 11.6819 14.6667 8C14.6667 4.3181 11.6819 1.33333 8 1.33333C4.3181 1.33333 1.33333 4.3181 1.33333 8C1.33333 11.6819 4.3181 14.6667 8 14.6667Z M8 10.6667V8 M8 5.33333H8.00667">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#2B7FFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="CylinderIconSearch">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M7.33333 12.6667C10.2789 12.6667 12.6667 10.2789 12.6667 7.33333C12.6667 4.38781 10.2789 2 7.33333 2C4.38781 2 2 4.38781 2 7.33333C2 10.2789 4.38781 12.6667 7.33333 12.6667Z M14 14L11.1333 11.1333">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#90A1B9" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="CylinderIconHomeDark">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M10 14V8.66667C10 8.48986 9.92976 8.32029 9.80474 8.19526C9.67971 8.07024 9.51014 8 9.33333 8H6.66667C6.48986 8 6.32029 8.07024 6.19526 8.19526C6.07024 8.32029 6 8.48986 6 8.66667V14 M2 6.66667C1.99995 6.47271 2.04222 6.28108 2.12386 6.10514C2.20549 5.92921 2.32453 5.7732 2.47267 5.648L7.13933 1.64867C7.37999 1.44527 7.6849 1.33368 8 1.33368C8.3151 1.33368 8.62001 1.44527 8.86067 1.64867L13.5273 5.648C13.6755 5.7732 13.7945 5.92921 13.8761 6.10514C13.9578 6.28108 14 6.47271 14 6.66667V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V6.66667Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#0A0A0A" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="CylinderIconCheckWhite">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M8 14.6667C11.6819 14.6667 14.6667 11.6819 14.6667 8C14.6667 4.3181 11.6819 1.33333 8 1.33333C4.3181 1.33333 1.33333 4.3181 1.33333 8C1.33333 11.6819 4.3181 14.6667 8 14.6667Z M6 8L7.33333 9.33333L10 6.66667">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#FFFFFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="CylinderIconWorkDark">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M9.8 4.2C9.67785 4.32462 9.60943 4.49216 9.60943 4.66667C9.60943 4.84117 9.67785 5.00871 9.8 5.13333L10.8667 6.2C10.9913 6.32215 11.1588 6.39057 11.3333 6.39057C11.5078 6.39057 11.6754 6.32215 11.8 6.2L14.3133 3.68667C14.6486 4.42746 14.7501 5.25282 14.6043 6.05276C14.4586 6.8527 14.0725 7.58923 13.4975 8.16419C12.9226 8.73914 12.186 9.12522 11.3861 9.27097C10.5862 9.41672 9.76079 9.31522 9.02 8.98L4.41333 13.5867C4.14812 13.8519 3.78841 14.0009 3.41333 14.0009C3.03826 14.0009 2.67855 13.8519 2.41333 13.5867C2.14812 13.3214 1.99912 12.9617 1.99912 12.5867C1.99912 12.2116 2.14812 11.8519 2.41333 11.5867L7.02 6.98C6.68478 6.23921 6.58328 5.41384 6.72903 4.6139C6.87478 3.81396 7.26086 3.07744 7.83581 2.50248C8.41077 1.92752 9.1473 1.54145 9.94724 1.39569C10.7472 1.24994 11.5725 1.35144 12.3133 1.68667L9.80667 4.19333L9.8 4.2Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#314158" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="CylinderIconHomeSlate">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M10 14V8.66667C10 8.48986 9.92976 8.32029 9.80474 8.19526C9.67971 8.07024 9.51014 8 9.33333 8H6.66667C6.48986 8 6.32029 8.07024 6.19526 8.19526C6.07024 8.32029 6 8.48986 6 8.66667V14 M2 6.66667C1.99995 6.47271 2.04222 6.28108 2.12386 6.10514C2.20549 5.92921 2.32453 5.7732 2.47267 5.648L7.13933 1.64867C7.37999 1.44527 7.6849 1.33368 8 1.33368C8.3151 1.33368 8.62001 1.44527 8.86067 1.64867L13.5273 5.648C13.6755 5.7732 13.7945 5.92921 13.8761 6.10514C13.9578 6.28108 14 6.47271 14 6.66667V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V6.66667Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#314158" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="CylinderIconPulse">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.6667 8H13.0133C12.722 7.99938 12.4384 8.0942 12.2061 8.26998C11.9737 8.44575 11.8053 8.6928 11.7267 8.97333L10.16 14.5467C10.1499 14.5813 10.1288 14.6117 10.1 14.6333C10.0712 14.655 10.0361 14.6667 10 14.6667C9.96394 14.6667 9.92885 14.655 9.9 14.6333C9.87115 14.6117 9.8501 14.5813 9.84 14.5467L6.16 1.45333C6.1499 1.41871 6.12885 1.3883 6.1 1.36667C6.07115 1.34503 6.03606 1.33333 6 1.33333C5.96394 1.33333 5.92885 1.34503 5.9 1.36667C5.87115 1.3883 5.8501 1.41871 5.84 1.45333L4.27333 7.02667C4.19498 7.3061 4.02759 7.55234 3.79658 7.72801C3.56556 7.90367 3.28355 7.99917 2.99333 8H1.33333">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#2B7FFF" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <Style x:Key="CylinderCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Effect" Value="{StaticResource CylinderCardShadow}" />
+        </Style>
+
+        <Style x:Key="CylinderButtonBaseStyle" TargetType="Button">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="160" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.84" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CylinderPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource CylinderButtonBaseStyle}">
+            <Setter Property="Background" Value="#155DFC" />
+            <Setter Property="BorderBrush" Value="#155DFC" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style x:Key="CylinderSecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource CylinderButtonBaseStyle}">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="Foreground" Value="#314158" />
+        </Style>
+
+        <Style x:Key="CylinderDataGridStyle" TargetType="DataGrid">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="GridLinesVisibility" Value="None" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="RowHeaderWidth" Value="0" />
+            <Setter Property="AutoGenerateColumns" Value="False" />
+            <Setter Property="CanUserAddRows" Value="False" />
+            <Setter Property="CanUserDeleteRows" Value="False" />
+            <Setter Property="CanUserResizeRows" Value="False" />
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="SelectionMode" Value="Single" />
+            <Setter Property="SelectionUnit" Value="FullRow" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+
+        <Style x:Key="CylinderColumnHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Height" Value="44" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="BorderBrush" Value="#F1F5F9" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Foreground" Value="#62748E" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+
+        <Style x:Key="CylinderRowStyle" TargetType="DataGridRow">
+            <Setter Property="Height" Value="60" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="#0F172B" />
+            <Setter Property="BorderBrush" Value="#F1F5F9" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F8FAFC" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#FFFFFF" />
+                    <Setter Property="Foreground" Value="#0F172B" />
+                </Trigger>
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsMouseOver" Value="True" />
+                        <Condition Property="IsSelected" Value="True" />
+                    </MultiTrigger.Conditions>
+                    <Setter Property="Background" Value="#F8FAFC" />
+                </MultiTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CylinderCellStyle" TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                    <Setter Property="Foreground" Value="#0F172B" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="#F8FAFC">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Margin="24,24,24,0" Padding="24,20" Style="{StaticResource CylinderCardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="40" Height="40" Margin="0,0,12,0" Background="#EAF1FF" CornerRadius="10">
+                        <Image Width="20" Height="20" Source="{StaticResource CylinderIconMain}" />
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="气缸手动控制" Foreground="#0F172B" FontSize="16" LineHeight="24" />
+                        <TextBlock Margin="0,2,0,0" Text="原位 / 工位切换 · 实时状态监控" Foreground="#62748E" FontSize="14" LineHeight="20" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Fill="#00BC7D" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="就绪" Foreground="#62748E" FontSize="14" VerticalAlignment="Center" />
+                    <Ellipse Width="8" Height="8" Fill="#2B7FFF" Margin="24,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="控制点" Foreground="#62748E" FontSize="14" VerticalAlignment="Center" />
+                    <Image Width="16" Height="16" Source="{StaticResource CylinderIconGear}" Margin="24,0,8,0" />
+                    <TextBlock Text="总计" Foreground="#62748E" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Cylinders.Count}" Foreground="#0F172B" FontSize="16" Margin="8,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Margin="24,12,24,0" Padding="20,12" Background="#EFF6FF" BorderBrush="#DBEAFE" BorderThickness="1" CornerRadius="14">
+            <StackPanel Orientation="Horizontal">
+                <Image Width="16" Height="16" Source="{StaticResource CylinderIconInfo}" Margin="0,0,12,0" />
+                <TextBlock Foreground="#314158" FontSize="14" VerticalAlignment="Center">
+                    <Run Text="每一行对应一个气缸，左侧按钮控制原位，右侧按钮控制工位。页面显示地址为项目 " />
+                    <Run Text="M" Foreground="#0F172B" />
+                    <Run Text=" 地址，底层通信自动补齐 " />
+                    <Run Text="4096" Foreground="#0F172B" />
+                    <Run Text=" 偏移。" />
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2" Margin="24,16,24,0" Padding="20,16" Style="{StaticResource CylinderCardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="288" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border Height="36" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8">
+                    <Grid>
+                        <Image Width="16" Height="16" Source="{StaticResource CylinderIconSearch}" Margin="12,0,0,0" HorizontalAlignment="Left" />
+                        <TextBox Margin="36,0,12,0"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="#717182"
+                                 FontSize="14"
+                                 VerticalContentAlignment="Center"
+                                 Text="搜索编号 / 名称 / 地址" />
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="2" Height="22" Padding="9,2" Background="#F1F5F9" CornerRadius="8" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Cylinders.Count, StringFormat=匹配 {0} 项}" Foreground="#45556C" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" />
+                </Border>
+
+                <Button Grid.Column="4"
+                        Style="{StaticResource CylinderSecondaryButtonStyle}"
+                        MinWidth="120"
+                        IsEnabled="False"
+                        ToolTip="当前未启用批量回原位命令，避免误触发全部气缸动作">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Width="16" Height="16" Source="{StaticResource CylinderIconHomeDark}" Margin="0,0,8,0" />
+                        <TextBlock Text="全部回原位" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3" Margin="24,16,24,0" Style="{StaticResource CylinderCardStyle}" ClipToBounds="True">
+            <DataGrid ItemsSource="{Binding Cylinders}"
+                      Style="{StaticResource CylinderDataGridStyle}"
+                      ColumnHeaderStyle="{StaticResource CylinderColumnHeaderStyle}"
+                      RowStyle="{StaticResource CylinderRowStyle}"
+                      CellStyle="{StaticResource CylinderCellStyle}">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="编号" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border Width="44" Height="28" Background="#F1F5F9" CornerRadius="8" HorizontalAlignment="Left">
+                                    <TextBlock Text="{Binding CylinderCode}" Foreground="#314158" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="气缸名称" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayName}"
+                                           Foreground="#0F172B"
+                                           FontSize="16"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="状态" Width="140">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border Height="26" Padding="10,0" Background="#ECFDF5" BorderBrush="#D0FAE5" BorderThickness="1" CornerRadius="13" HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" Fill="#00BC7D" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="就绪" Foreground="#007A55" FontSize="12" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="原位控制" Width="220">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Command="{Binding GoHomeCommand}" Style="{StaticResource CylinderPrimaryButtonStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Source="{StaticResource CylinderIconCheckWhite}" Margin="0,0,8,0" />
+                                        <TextBlock Text="{Binding HomeActionText}" />
+                                        <TextBlock Text=" (" Opacity="0.8" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding HomeAddress}" Opacity="0.8" FontSize="12" VerticalAlignment="Center" />
+                                        <TextBlock Text=")" Opacity="0.8" FontSize="12" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTemplateColumn Header="工位控制" Width="220">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Command="{Binding GoWorkCommand}" Style="{StaticResource CylinderSecondaryButtonStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Image Width="16" Height="16" Source="{StaticResource CylinderIconWorkDark}" Margin="0,0,8,0" />
+                                        <TextBlock Text="{Binding WorkActionText}" />
+                                        <TextBlock Text=" (" Opacity="0.8" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding WorkAddress}" Opacity="0.8" FontSize="12" VerticalAlignment="Center" />
+                                        <TextBlock Text=")" Opacity="0.8" FontSize="12" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <Border Grid.Row="4" Margin="24,0,24,24" Padding="20,12" Style="{StaticResource CylinderCardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Image Width="16" Height="16" Source="{StaticResource CylinderIconPulse}" Margin="0,0,12,0" />
+                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Foreground="#314158" FontSize="14" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="2" Text="2026-04-27" Foreground="#90A1B9" FontSize="12" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
