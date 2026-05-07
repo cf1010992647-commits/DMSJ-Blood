@@ -5,18 +5,18 @@ namespace Blood_Alcohol.Models
     /// </summary>
     /// By:ChengLei
     /// <remarks>
-    /// 用于把设备类型、逻辑设备键、客户端地址和端口关联起来。
+    /// 用于把设备类型、逻辑设备键、客户端地址和端口标识关联起来。
     /// </remarks>
     public class TcpDeviceMapping
     {
         private string _deviceKey = string.Empty;
 
         /// <summary>
-        /// 旧版端口标识。
+        /// 端口标识。
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 仅用于兼容旧调用方，不再作为设备唯一身份。
+        /// 服务端模式下优先作为可固定源端口设备的辅助识别条件，源端口随机时不作为唯一身份。
         /// </remarks>
         public int Port { get; set; }
 
@@ -47,7 +47,7 @@ namespace Blood_Alcohol.Models
         /// </summary>
         /// By:ChengLei
         /// <remarks>
-        /// 与端口一起作为设备身份匹配条件。
+        /// 服务端模式下优先用于识别客户端连接，同一 IP 下可绑定多个逻辑设备。
         /// </remarks>
         public string? ClientIp { get; set; }
 

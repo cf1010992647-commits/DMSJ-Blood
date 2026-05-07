@@ -534,8 +534,8 @@ public class WorkflowEngine
 		await _tcpReceiveLock.WaitAsync(token);
 		try
 		{
-			byte[] response = await ReceiveOnceWithTimeoutAsync(deviceKey, TimeSpan.FromSeconds(8.0), token);
-			return _scanner.ParseCode(response).Trim();
+			await DrainStaleTcpFramesAsync(deviceKey, token);
+			return await ReceiveValidScanCodeAsync(deviceKey, TimeSpan.FromSeconds(8.0), token);
 		}
 		finally
 		{
@@ -559,19 +559,69 @@ public class WorkflowEngine
 		await _tcpReceiveLock.WaitAsync(token);
 		try
 		{
-			await CommunicationManager.TcpServer.SendToDeviceAsync(deviceKey, CommunicationManager.Balance.GetZeroCommand());
-			try
-			{
-				_ = await ReceiveOnceWithTimeoutAsync(deviceKey, TimeSpan.FromMilliseconds(800.0), token);
-			}
-			catch (TimeoutException)
-			{
-			}
-			await Task.Delay(200, token);
+			await SendZeroCommandWithAckAsync(deviceKey, token);
 		}
 		finally
 		{
 			_tcpReceiveLock.Release();
+		}
+	}
+
+	/// <summary>
+	/// 向天平发送清零命令并在当前收发链路内等待确认回包。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="deviceKey">逻辑设备键。</param>
+	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
+	/// <returns>返回清零发送与确认等待异步任务。</returns>
+	/// <remarks>
+	/// 由 ZeroBalanceAsync 与 ReadWeightAsync 复用调用 调用前需已确认设备在线且已持有全局 TCP 收发锁
+	/// </remarks>
+	private async Task SendZeroCommandWithAckAsync(string deviceKey, CancellationToken token)
+	{
+		await CommunicationManager.TcpServer.SendToDeviceAsync(deviceKey, CommunicationManager.Balance.GetZeroCommand());
+		try
+		{
+			_ = await ReceiveOnceWithTimeoutAsync(deviceKey, TimeSpan.FromMilliseconds(800.0), token);
+		}
+		catch (TimeoutException)
+		{
+		}
+
+		await Task.Delay(200, token);
+	}
+
+	/// <summary>
+	/// 循环接收直到拿到有效扫码文本。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="deviceKey">逻辑设备键。</param>
+	/// <param name="timeout">等待扫码数据的最长时间。</param>
+	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
+	/// <returns>返回清洗后的扫码文本。</returns>
+	/// <remarks>
+	/// 由 ReadScanCodeAsync 调用，过滤同一 TCP 网关中可能残留的温控或天平二进制回包。
+	/// </remarks>
+	private async Task<string> ReceiveValidScanCodeAsync(string deviceKey, TimeSpan timeout, CancellationToken token)
+	{
+		DateTime deadline = DateTime.UtcNow + timeout;
+		while (true)
+		{
+			TimeSpan remain = deadline - DateTime.UtcNow;
+			if (remain <= TimeSpan.Zero)
+			{
+				throw new TimeoutException($"等待扫码数据超时（{timeout.TotalSeconds:F0}s）。");
+			}
+
+			byte[] response = await ReceiveOnceWithTimeoutAsync(deviceKey, remain, token);
+			try
+			{
+				return _scanner.ParseCode(response).Trim();
+			}
+			catch (Exception ex)
+			{
+				WriteWorkflowLog($"扫码回包无效，已忽略（len={response.Length}，reason={ex.Message}）。", "警告", "检测日志", GetCurrentTubeIndex());
+			}
 		}
 	}
 
@@ -592,6 +642,8 @@ public class WorkflowEngine
 		try
 		{
 			await DrainStaleTcpFramesAsync(deviceKey, token);
+			await SendZeroCommandWithAckAsync(deviceKey, token);
+			await DrainStaleTcpFramesAsync(deviceKey, token);
 			await CommunicationManager.TcpServer.SendToDeviceAsync(deviceKey, CommunicationManager.Balance.GetAllCommand());
 			byte[] response = await ReceiveValidBalanceAllResponseAsync(deviceKey, TimeSpan.FromSeconds(5.0), token);
 			return CommunicationManager.Balance.ReadWeight(response);
@@ -603,14 +655,14 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
-	/// 清理天平端口历史缓存帧，避免旧包干扰。
+	/// 清理 TCP 设备历史缓存帧，避免旧包干扰。
 	/// </summary>
 	/// By:ChengLei
 	/// <param name="deviceKey">逻辑设备键。</param>
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
 	/// <returns>返回缓存清理异步任务。</returns>
 	/// <remarks>
-	/// 由 ReadWeightAsync 在发送读重量命令前调用。
+	/// 由扫码和称重流程在等待目标回包前调用。
 	/// </remarks>
 	private async Task DrainStaleTcpFramesAsync(string deviceKey, CancellationToken token)
 	{

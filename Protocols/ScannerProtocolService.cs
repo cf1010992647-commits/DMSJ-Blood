@@ -71,6 +71,38 @@ namespace Blood_Alcohol.Communication.Protocols
             {
                 throw new Exception("扫码数据为空");
             }
+
+            if (!ContainsOnlyScannerTextBytes(data))
+            {
+                throw new Exception("扫码数据包含非文本字节，疑似混入其它TCP设备回包");
+            }
+        }
+
+        /// <summary>
+        /// 判断扫码数据是否只包含扫码枪常见文本字节。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="data">扫码枪返回的原始字节。</param>
+        /// <returns>返回是否只包含可清洗的 ASCII 文本字节。</returns>
+        /// <remarks>
+        /// 允许条码可见字符以及扫码枪常见的结束符，拒绝 Modbus 等二进制帧误入扫码流程。
+        /// </remarks>
+        private static bool ContainsOnlyScannerTextBytes(byte[] data)
+        {
+            foreach (byte current in data)
+            {
+                if (current == 0x00 || current == 0x09 || current == 0x0A || current == 0x0D)
+                {
+                    continue;
+                }
+
+                if (current < 0x20 || current > 0x7E)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>

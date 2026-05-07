@@ -1,4 +1,5 @@
 ﻿using Blood_Alcohol.Models;
+using Blood_Alcohol.Communication.Protocols;
 using Blood_Alcohol.Helpers;
 using Blood_Alcohol.Services;
 using System;
@@ -54,6 +55,7 @@ namespace Blood_Alcohol.ViewModels
         private readonly SemaphoreSlim _tcpReceiveLock = CommunicationManager.TcpReceiveLock;
         private readonly SemaphoreSlim _plcLock = CommunicationManager.PlcAccessLock;
         private readonly global::Blood_Alcohol.Communication.Serial.Lx5vPlc _plc = CommunicationManager.Plc;
+        private readonly ScannerProtocolService _scanner = new ScannerProtocolService();
 
         private readonly ConfigService<CommunicationSettings> _configService;
 
@@ -182,6 +184,7 @@ namespace Blood_Alcohol.ViewModels
         public ICommand TestPlcCommand { get; }
         public ICommand TestTemperatureCommand { get; }
         public ICommand TestWeightCommand { get; }
+        public ICommand TestScannerCommand { get; }
 
         public ObservableCollection<LogItem> Logs { get; }
             = new ObservableCollection<LogItem>();
@@ -226,8 +229,9 @@ namespace Blood_Alcohol.ViewModels
             ToggleTcpCommand = new RelayCommand(_ => ToggleTcp());
             SaveTcpConfigCommand = new RelayCommand(_ => SaveTcpConfig());
             TestPlcCommand = new AsyncRelayCommand(TestPlcAsync, onError: ex => Log($"PLC测试异常: {ex.Message}", Brushes.Red));
-            TestTemperatureCommand = new RelayCommand(async _ => await TestTemperature());
-            TestWeightCommand = new RelayCommand(async _ => await TestWeight());
+            TestTemperatureCommand = new AsyncRelayCommand(TestTemperature, onError: ex => Log($"温度测试异常: {ex.Message}", Brushes.Red));
+            TestWeightCommand = new AsyncRelayCommand(TestWeight, onError: ex => Log($"天平测试异常: {ex.Message}", Brushes.Red));
+            TestScannerCommand = new AsyncRelayCommand(TestScanner, onError: ex => Log($"扫码测试异常: {ex.Message}", Brushes.Red));
 
             _settings = _configService.Load();
 
@@ -407,6 +411,65 @@ namespace Blood_Alcohol.ViewModels
         }
 
         /// <summary>
+        /// 等待扫码枪数据并解析显示条码。
+        /// </summary>
+        /// By:ChengLei
+        /// <returns>返回扫码测试异步任务。</returns>
+        /// <remarks>
+        /// 由通信页“测试扫码枪”按钮调用，点击后等待扫码枪主动上报一帧数据并写入日志。
+        /// </remarks>
+        public async Task TestScanner()
+        {
+            try
+            {
+                Log("开始等待扫码枪数据，请在8秒内扫码...");
+
+                var mapping = GetDeviceMapping("扫码枪");
+
+                if (mapping == null)
+                {
+                    Log("未找到扫码枪设备端口配置", Brushes.Red);
+                    return;
+                }
+
+                if (!CommunicationManager.IsTcpRunning)
+                {
+                    Log("TCP服务未启动", Brushes.Red);
+                    return;
+                }
+
+                if (!CommunicationManager.TcpServer.IsDeviceConnected(mapping.DeviceKey))
+                {
+                    Log($"扫码枪未连接: {mapping.DeviceKey}", Brushes.Red);
+                    return;
+                }
+
+                if (!await TryEnterTcpReceiveLockAsync(TimeSpan.FromSeconds(2)))
+                {
+                    return;
+                }
+
+                try
+                {
+                    await DrainStaleTcpFramesAsync(mapping.DeviceKey);
+                    byte[] response = await ReceiveOnceWithTimeoutAsync(mapping.DeviceKey, TimeSpan.FromSeconds(8));
+                    Log($"扫码枪接收HEX: {ToHex(response)}");
+
+                    string code = _scanner.ParseCode(response).Trim();
+                    Log($"扫码结果: {code}", Brushes.DarkGreen);
+                }
+                finally
+                {
+                    _tcpReceiveLock.Release();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"扫码测试失败: {ex.Message}", Brushes.Red);
+            }
+        }
+
+        /// <summary>
         /// 发送天平读数命令并解析重量值。
         /// </summary>
         /// By:ChengLei
@@ -440,13 +503,19 @@ namespace Blood_Alcohol.ViewModels
                     return;
                 }
 
-                await _tcpReceiveLock.WaitAsync();
+                if (!await TryEnterTcpReceiveLockAsync(TimeSpan.FromSeconds(2)))
+                {
+                    return;
+                }
+
                 try
                 {
                     await DrainStaleTcpFramesAsync(mapping.DeviceKey);
+                    byte[] command = CommunicationManager.Balance.GetAllCommand();
+                    Log($"天平发送HEX: {CommunicationManager.Balance.ToHex(command)}");
                     await CommunicationManager.TcpServer.SendToDeviceAsync(
                         mapping.DeviceKey,
-                        CommunicationManager.Balance.GetAllCommand());
+                        command);
 
                     byte[] response = await ReceiveValidBalanceAllResponseAsync(
                         mapping.DeviceKey,
@@ -558,6 +627,44 @@ namespace Blood_Alcohol.ViewModels
         }
 
         /// <summary>
+        /// 将原始字节转换为 HEX 日志文本。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="data">待转换的原始字节。</param>
+        /// <returns>返回空格分隔的 HEX 文本。</returns>
+        /// <remarks>
+        /// 由扫码测试日志调用，方便现场核对扫码枪实际上报内容。
+        /// </remarks>
+        private static string ToHex(byte[] data)
+        {
+            return BitConverter.ToString(data).Replace("-", " ");
+        }
+
+        /// <summary>
+        /// 尝试进入 TCP 收发互斥通道。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="timeout">等待互斥通道空闲的最长时间。</param>
+        /// <returns>返回是否成功进入互斥通道。</returns>
+        /// <remarks>
+        /// 由通信页测试按钮调用，避免上一次无响应测试长期占用通道后新测试静默卡住。
+        /// </remarks>
+        private async Task<bool> TryEnterTcpReceiveLockAsync(TimeSpan timeout)
+        {
+            using var cts = new CancellationTokenSource(timeout);
+            try
+            {
+                await _tcpReceiveLock.WaitAsync(cts.Token);
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                Log($"TCP收发通道被占用，等待 {timeout.TotalSeconds:F0}s 后仍未空闲，请稍后重试或重启通讯服务", Brushes.DarkGoldenrod);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// 清理端口中可能残留的历史TCP报文。
         /// </summary>
         /// By:ChengLei
@@ -591,7 +698,7 @@ namespace Blood_Alcohol.ViewModels
         /// <remarks>
         /// 由 TestWeight 调用，内部依赖 IsBalanceAllResponse 判定报文有效性。
         /// </remarks>
-        private static async Task<byte[]> ReceiveValidBalanceAllResponseAsync(string deviceKey, TimeSpan timeout)
+        private async Task<byte[]> ReceiveValidBalanceAllResponseAsync(string deviceKey, TimeSpan timeout)
         {
             DateTime deadline = DateTime.UtcNow + timeout;
             while (true)
@@ -603,25 +710,16 @@ namespace Blood_Alcohol.ViewModels
                 }
 
                 byte[] response = await ReceiveOnceWithTimeoutAsync(deviceKey, remain);
-                if (IsBalanceAllResponse(response))
+                if (CommunicationManager.Balance.TryValidateAllResponse(response, out string errorMessage))
                 {
+                    Log($"天平接收HEX: {CommunicationManager.Balance.ToHex(response)}");
                     return response;
                 }
-            }
-        }
 
-        /// <summary>
-        /// 判断报文是否符合天平全量读数响应格式。
-        /// </summary>
-        /// By:ChengLei
-        /// <param name="response">待校验的原始响应数据。</param>
-        /// <returns>返回是否为可解析的天平响应。</returns>
-        /// <remarks>
-        /// 由 ReceiveValidBalanceAllResponseAsync 调用，过滤非目标报文。
-        /// </remarks>
-        private static bool IsBalanceAllResponse(byte[] response)
-        {
-            return response.Length >= 13 && response[0] == 1 && response[1] == 3 && response[2] >= 8;
+                Log(
+                    $"天平回包无效已忽略: {CommunicationManager.Balance.ToHex(response)}，原因: {errorMessage}",
+                    Brushes.DarkGoldenrod);
+            }
         }
 
         /// <summary>
@@ -646,17 +744,42 @@ namespace Blood_Alcohol.ViewModels
                     return;
                 }
 
-                byte[] cmd = CommunicationManager.Shimaden.ReadSV();
+                if (!CommunicationManager.IsTcpRunning)
+                {
+                    Log("TCP服务未启动", Brushes.Red);
+                    return;
+                }
 
-                await CommunicationManager.TcpServer.SendToDeviceAsync(mapping.DeviceKey, cmd);
+                if (!CommunicationManager.TcpServer.IsDeviceConnected(mapping.DeviceKey))
+                {
+                    Log($"温控未连接: {mapping.DeviceKey}", Brushes.Red);
+                    return;
+                }
 
-                byte[] response =
-                    await CommunicationManager.TcpServer.ReceiveOnceFromDeviceAsync(mapping.DeviceKey);
+                if (!await TryEnterTcpReceiveLockAsync(TimeSpan.FromSeconds(2)))
+                {
+                    return;
+                }
 
-                double temp =
-                    CommunicationManager.Shimaden.ParseTemperature(response);
+                try
+                {
+                    byte[] cmd = CommunicationManager.Shimaden.ReadSV();
+                    Log($"温控发送HEX: {CommunicationManager.Shimaden.ToHex(cmd)}");
 
-                Log($"当前温度: {temp:F1} ℃");
+                    await CommunicationManager.TcpServer.SendToDeviceAsync(mapping.DeviceKey, cmd);
+
+                    byte[] response = await ReceiveOnceWithTimeoutAsync(mapping.DeviceKey, TimeSpan.FromSeconds(5));
+                    Log($"温控接收HEX: {CommunicationManager.Shimaden.ToHex(response)}");
+
+                    double temp =
+                        CommunicationManager.Shimaden.ParseTemperature(response);
+
+                    Log($"当前温度: {temp:F1} ℃");
+                }
+                finally
+                {
+                    _tcpReceiveLock.Release();
+                }
             }
             catch (Exception ex)
             {

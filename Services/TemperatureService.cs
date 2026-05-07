@@ -15,6 +15,13 @@ namespace Blood_Alcohol.Services
     public class TemperatureService
     {
         /// <summary>
+        /// 作用
+        /// 温控单次 TCP 回包等待上限
+        /// </summary>
+        /// By:ChengLei
+        private static readonly TimeSpan ReceiveTimeout = TimeSpan.FromMilliseconds(1500);
+
+        /// <summary>
         /// 等待温度达到目标值。
         /// </summary>
         /// By:ChengLei
@@ -158,12 +165,37 @@ namespace Blood_Alcohol.Services
             {
                 byte[] cmd = protocol.ReadPV();
                 await CommunicationManager.TcpServer.SendToDeviceAsync(deviceKey, cmd).ConfigureAwait(false);
-                byte[] data = await CommunicationManager.TcpServer.ReceiveOnceFromDeviceAsync(deviceKey, token).ConfigureAwait(false);
+                byte[] data = await ReceiveOnceWithTimeoutAsync(deviceKey, ReceiveTimeout, token).ConfigureAwait(false);
                 return protocol.ParseTemperature(data);
             }
             finally
             {
                 CommunicationManager.TcpReceiveLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// 在限定时间内接收温控器回包。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="deviceKey">逻辑设备键。</param>
+        /// <param name="timeout">本次接收超时时间。</param>
+        /// <param name="token">取消令牌。</param>
+        /// <returns>返回接收到的原始回包。</returns>
+        /// <remarks>
+        /// 由温控后台轮询调用，避免温控未回包时长期占用全局 TCP 收发通道。
+        /// </remarks>
+        private static async Task<byte[]> ReceiveOnceWithTimeoutAsync(string deviceKey, TimeSpan timeout, CancellationToken token)
+        {
+            using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeoutCts.CancelAfter(timeout);
+            try
+            {
+                return await CommunicationManager.TcpServer.ReceiveOnceFromDeviceAsync(deviceKey, timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested && timeoutCts.IsCancellationRequested)
+            {
+                throw new TimeoutException($"温控TCP接收超时（{timeout.TotalMilliseconds:F0}ms）。");
             }
         }
 
