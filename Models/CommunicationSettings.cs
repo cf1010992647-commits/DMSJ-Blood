@@ -120,11 +120,11 @@ namespace Blood_Alcohol.Models
 
                 if (device.Port <= 0 || device.Port > 65535)
                 {
-                    errors.Add($"TCP 设备映射 {rowName} 的客户端端口必须在 1-65535 范围内");
+                    errors.Add($"TCP 设备映射 {rowName} 的端口标识必须在 1-65535 范围内");
                 }
                 else if (usedPorts.TryGetValue(device.Port, out string? existingName))
                 {
-                    errors.Add($"TCP 设备客户端端口重复：{device.Port}（{existingName}、{rowName}）");
+                    errors.Add($"TCP 设备端口标识重复：{device.Port}（{existingName}、{rowName}）");
                 }
                 else
                 {

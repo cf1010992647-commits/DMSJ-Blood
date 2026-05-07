@@ -30,6 +30,12 @@ public sealed class TcpClientSession
     public string DeviceKey { get; set; } = string.Empty;
 
     /// <summary>
+    /// 当前会话绑定的逻辑设备身份键集合。
+    /// </summary>
+    /// By:ChengLei
+    public HashSet<string> DeviceKeys { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// 当前设备的接收队列。
     /// </summary>
     /// By:ChengLei
@@ -194,9 +200,15 @@ public class TcpServer
     /// </remarks>
     public async Task SendToAll(byte[] data)
     {
-        foreach (string deviceKey in GetConnectedDeviceKeys())
+        HashSet<TcpClient> sentClients = new HashSet<TcpClient>();
+        foreach (TcpClientSession session in _sessionsByDeviceKey.Values.ToList())
         {
-            await SendToDeviceAsync(deviceKey, data).ConfigureAwait(false);
+            if (!sentClients.Add(session.Client))
+            {
+                continue;
+            }
+
+            await SendToSessionAsync(DescribeSession(session), session, data).ConfigureAwait(false);
         }
     }
 
@@ -219,16 +231,32 @@ public class TcpServer
             throw new InvalidOperationException(message);
         }
 
+        await SendToSessionAsync(deviceKey, session, data).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 通过指定会话发送 TCP 数据。
+    /// </summary>
+    /// By:ChengLei
+    /// <param name="routeDescription">日志中展示的路由描述。</param>
+    /// <param name="session">目标客户端会话。</param>
+    /// <param name="data">待发送数据。</param>
+    /// <returns>返回发送任务。</returns>
+    /// <remarks>
+    /// 由按设备发送和广播发送共用，保证同一物理连接只维护一套异常处理。
+    /// </remarks>
+    private async Task SendToSessionAsync(string routeDescription, TcpClientSession session, byte[] data)
+    {
         try
         {
             NetworkStream stream = session.Client.GetStream();
             await stream.WriteAsync(data, 0, data.Length).ConfigureAwait(false);
-            OnMessageReceived?.Invoke($"定向发送[{deviceKey}] HEX: {ToHex(data)}");
+            OnMessageReceived?.Invoke($"定向发送[{routeDescription}] HEX: {ToHex(data)}");
         }
         catch (Exception ex)
         {
             RemoveSession(session.Client);
-            string message = $"发送失败[{deviceKey}]: {ex.Message}";
+            string message = $"发送失败[{routeDescription}]: {ex.Message}";
             OnMessageReceived?.Invoke(message);
             throw new InvalidOperationException(message, ex);
         }
@@ -484,25 +512,85 @@ public class TcpServer
     /// <param name="session">客户端会话。</param>
     /// <returns>返回绑定结果。</returns>
     /// <remarks>
-    /// 仅按客户端 IP 和客户端源端口组合匹配设备映射。
+    /// 优先按客户端 IP 和源端口精确匹配，匹配不到时按客户端 IP 绑定同一连接下的所有设备键。
     /// </remarks>
     private DeviceBindResult TryBindSession(TcpClientSession session)
     {
-        TcpDeviceMapping? mapping = _deviceMappings.FirstOrDefault(x =>
-            !string.IsNullOrWhiteSpace(x.ClientIp)
-            && x.Port > 0
-            && x.Port == session.RemoteEndPoint.Port
-            && string.Equals(x.ClientIp.Trim(), session.RemoteEndPoint.Address.ToString(), StringComparison.OrdinalIgnoreCase));
+        List<TcpDeviceMapping> mappings = ResolveSessionMappings(session);
 
-        if (mapping == null)
+        if (mappings.Count == 0)
         {
             return DeviceBindResult.Fail(
-                $"无法识别TCP设备身份：Remote={session.RemoteEndPoint}，请配置匹配的 ClientIp 和 Port。");
+                $"无法识别TCP设备身份：Remote={session.RemoteEndPoint}，请配置匹配的 ClientIp，或确认设备源端口与端口标识一致。");
         }
 
-        BindSessionToDevice(session, mapping.DeviceKey);
-        OnClientConnected?.Invoke($"设备已绑定 {mapping.DeviceKey} <- {session.RemoteEndPoint}（ClientIp+Port）");
+        foreach (TcpDeviceMapping mapping in mappings)
+        {
+            BindSessionToDevice(session, mapping.DeviceKey);
+        }
+
+        string deviceKeys = string.Join(", ", mappings.Select(x => x.DeviceKey));
+        string bindMode = mappings.Any(x => x.Port == session.RemoteEndPoint.Port) ? "ClientIp+源端口" : "ClientIp";
+        OnClientConnected?.Invoke($"设备已绑定 {deviceKeys} <- {session.RemoteEndPoint}（{bindMode}）");
         return DeviceBindResult.Ok();
+    }
+
+    /// <summary>
+    /// 解析客户端会话对应的设备映射。
+    /// </summary>
+    /// By:ChengLei
+    /// <param name="session">客户端会话。</param>
+    /// <returns>返回匹配到的设备映射集合。</returns>
+    /// <remarks>
+    /// 先兼容可固定源端口的设备；源端口随机时按客户端 IP 绑定同一网关下的多个逻辑设备。
+    /// </remarks>
+    private List<TcpDeviceMapping> ResolveSessionMappings(TcpClientSession session)
+    {
+        string remoteIp = session.RemoteEndPoint.Address.ToString();
+
+        List<TcpDeviceMapping> exactMappings = _deviceMappings
+            .Where(x => IsClientIpMatched(x, remoteIp) && x.Port == session.RemoteEndPoint.Port)
+            .ToList();
+        if (exactMappings.Count > 0)
+        {
+            return exactMappings;
+        }
+
+        List<TcpDeviceMapping> ipMappings = _deviceMappings
+            .Where(x => IsClientIpMatched(x, remoteIp))
+            .ToList();
+        if (ipMappings.Count > 0)
+        {
+            return ipMappings;
+        }
+
+        List<TcpDeviceMapping> portOnlyMappings = _deviceMappings
+            .Where(x => string.IsNullOrWhiteSpace(x.ClientIp) && x.Port == session.RemoteEndPoint.Port)
+            .ToList();
+        if (portOnlyMappings.Count > 0)
+        {
+            return portOnlyMappings;
+        }
+
+        return _deviceMappings.Count == 1 && string.IsNullOrWhiteSpace(_deviceMappings[0].ClientIp)
+            ? new List<TcpDeviceMapping> { _deviceMappings[0] }
+            : new List<TcpDeviceMapping>();
+    }
+
+    /// <summary>
+    /// 判断设备映射是否匹配客户端 IP。
+    /// </summary>
+    /// By:ChengLei
+    /// <param name="mapping">设备映射。</param>
+    /// <param name="remoteIp">客户端远端 IP。</param>
+    /// <returns>返回是否匹配。</returns>
+    /// <remarks>
+    /// 集中处理空白 ClientIp 和大小写差异，避免绑定逻辑重复字符串判断。
+    /// </remarks>
+    private static bool IsClientIpMatched(TcpDeviceMapping mapping, string remoteIp)
+    {
+        return !string.IsNullOrWhiteSpace(mapping.ClientIp)
+            && string.Equals(mapping.ClientIp.Trim(), remoteIp, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -516,7 +604,9 @@ public class TcpServer
     /// </remarks>
     private void BindSessionToDevice(TcpClientSession session, string deviceKey)
     {
-        session.DeviceKey = deviceKey;
+        session.DeviceKeys.Add(deviceKey);
+        session.DeviceKey = string.Join(", ", session.DeviceKeys);
+
         if (_sessionsByDeviceKey.TryGetValue(deviceKey, out TcpClientSession? oldSession)
             && !ReferenceEquals(oldSession.Client, session.Client))
         {
@@ -617,12 +707,14 @@ public class TcpServer
             }
         }
 
-        if (removedSession != null && !string.IsNullOrWhiteSpace(removedSession.DeviceKey))
+        if (removedSession != null)
         {
-            if (_sessionsByDeviceKey.TryGetValue(removedSession.DeviceKey, out TcpClientSession? current)
-                && ReferenceEquals(current.Client, removedSession.Client))
+            foreach (KeyValuePair<string, TcpClientSession> pair in _sessionsByDeviceKey.ToArray())
             {
-                _sessionsByDeviceKey.TryRemove(removedSession.DeviceKey, out _);
+                if (ReferenceEquals(pair.Value.Client, removedSession.Client))
+                {
+                    _sessionsByDeviceKey.TryRemove(pair.Key, out _);
+                }
             }
         }
     }
