@@ -7,6 +7,7 @@ namespace Blood_Alcohol.Views
     public partial class HomeView : UserControl
     {
         private Window? _hostWindow;
+        private VideoMonitoringWindow? _videoMonitoringWindow;
 
         /// <summary>
         /// 初始化首页视图并注册页面生命周期事件
@@ -80,6 +81,12 @@ namespace Blood_Alcohol.Views
         /// </remarks>
         private void HostWindow_Closed(object? sender, System.EventArgs e)
         {
+            if (_videoMonitoringWindow != null)
+            {
+                _videoMonitoringWindow.Close();
+                _videoMonitoringWindow = null;
+            }
+
             if (_hostWindow != null)
             {
                 _hostWindow.Closed -= HostWindow_Closed;
@@ -89,6 +96,61 @@ namespace Blood_Alcohol.Views
             if (DataContext is HomeViewModel vm)
             {
                 vm.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// 打开视频监控窗口并在已存在时激活窗口。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="sender">事件发送对象。</param>
+        /// <param name="e">路由事件参数。</param>
+        /// <remarks>
+        /// 由首页报警状态左侧的视频监控按钮调用，当前先打开空白监控页面占位。
+        /// </remarks>
+        private void OpenVideoMonitoringWindow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_videoMonitoringWindow == null)
+            {
+                _videoMonitoringWindow = new VideoMonitoringWindow();
+                if (_hostWindow != null)
+                {
+                    _videoMonitoringWindow.Owner = _hostWindow;
+                }
+
+                _videoMonitoringWindow.Closed += VideoMonitoringWindow_Closed;
+                _videoMonitoringWindow.Show();
+                return;
+            }
+
+            if (!_videoMonitoringWindow.IsVisible)
+            {
+                _videoMonitoringWindow.Show();
+            }
+
+            if (_videoMonitoringWindow.WindowState == WindowState.Minimized)
+            {
+                _videoMonitoringWindow.WindowState = WindowState.Normal;
+            }
+
+            _videoMonitoringWindow.Activate();
+        }
+
+        /// <summary>
+        /// 处理视频监控窗口关闭事件并清理窗口引用。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="sender">事件发送对象。</param>
+        /// <param name="e">事件参数。</param>
+        /// <remarks>
+        /// 由视频监控窗口关闭时调用，避免首页重复持有失效窗口对象。
+        /// </remarks>
+        private void VideoMonitoringWindow_Closed(object? sender, System.EventArgs e)
+        {
+            if (_videoMonitoringWindow != null)
+            {
+                _videoMonitoringWindow.Closed -= VideoMonitoringWindow_Closed;
+                _videoMonitoringWindow = null;
             }
         }
     }

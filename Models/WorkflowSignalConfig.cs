@@ -103,6 +103,11 @@ namespace Blood_Alcohol.Models
         public ushort ZAbsolutePositionLowRegister { get; set; } = 1212;
 
         /// <summary>
+        /// 天平_采血管下降位置低16位地址（D位）。
+        /// </summary>
+        public ushort BloodTubeDropPositionLowRegister { get; set; } = 6002;
+
+        /// <summary>
         /// Z轴缩放系数。
         /// </summary>
         public ushort ZAbsolutePositionScale { get; set; } = 100;

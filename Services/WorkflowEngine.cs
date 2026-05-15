@@ -147,6 +147,8 @@ public class WorkflowEngine
 
 	private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(3);
 
+	private static readonly TimeSpan BalanceStabilizationDelay = TimeSpan.FromSeconds(2);
+
 	private Lx5vPlc? _plc;
 
 	private CancellationTokenSource? _cts;
@@ -174,6 +176,8 @@ public class WorkflowEngine
 	public bool IsRunning => _isRunning;
 
 	public event Action<WorkflowLogMessage>? OnLogGenerated;
+
+	public event Func<string, Task>? OnEmergencyStopRequested;
 
 	/// <summary>
 	/// 配置流程日志输出目标与批次上下文提供器
@@ -460,8 +464,8 @@ public class WorkflowEngine
 			_currentScanCode = code.Trim();
 			WriteWorkflowLog($"步骤3 扫码成功：{code}，映射 {code}A/{code}B", "信息", "检测日志", tubeIndex, _currentScanCode, processName: "扫码", eventName: "扫码成功");
 			CurrentStep = 4;
-			await WaitForCoilTrueAsync(_signals.ScanOkCoil, "扫码OK", token);
-			WriteWorkflowLog($"步骤4 扫码OK=1：M{_signals.ScanOkCoil}", "信息", "检测日志", tubeIndex, processName: "扫码", eventName: "扫码确认", plcValue: $"M{_signals.ScanOkCoil}=1");
+			await WriteCoilAsync(_signals.ScanOkCoil, true, token);
+			WriteWorkflowLog($"步骤4 扫码完成确认已下发：M{_signals.ScanOkCoil}=1", "信息", "检测日志", tubeIndex, processName: "扫码", eventName: "扫码确认", plcValue: $"M{_signals.ScanOkCoil}=1");
 			CurrentStep = 5;
 			await ZeroBalanceAsync(token);
 			WriteWorkflowLog("步骤5 天平清零已执行。", "信息", "检测日志", tubeIndex, processName: "天平清零", eventName: "清零完成");
@@ -499,18 +503,37 @@ public class WorkflowEngine
 			await WaitForCoilTrueAsync(allowCoil, stepLabel + "允称重", token);
 			double weight = await ReadWeightAsync(token);
 			string headspaceBottleTag = ResolveHeadspaceBottleTag(weightStepKey);
+			WriteWorkflowLog(
+				$"步骤{stepReadWeight} {stepLabel}称重完成：{weight:F3}。",
+				"信息",
+				"检测日志",
+				tubeIndex,
+				scanCode: null,
+				weightStepKey: weightStepKey,
+				measuredWeight: weight,
+				headspaceBottleTag: headspaceBottleTag,
+				processName: stepLabel,
+				eventName: "称重完成",
+				plcValue: weight.ToString("F3"));
 			if (needWeightToZ)
 			{
+				await Task.Delay(100);
 				int zRaw = ComputeZRawFromWeight(weight);
-				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，换算Z={zRaw}（吸液步骤，下发Z坐标）", "信息", "检测日志", tubeIndex, scanCode: null, weightStepKey: weightStepKey, measuredWeight: weight, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "称重完成", plcValue: weight.ToString("F3"));
+				if (zRaw == 0)
+				{
+					await RequestEmergencyStopAsync("发送Z轴坐标为0,请检查称是否正常以及Z轴转坐标系数是否为0,已启动急停", tubeIndex, stepLabel, "Z坐标为0", $"D{_signals.BloodTubeDropPositionLowRegister}=0").ConfigureAwait(false);
+					return;
+				}
+
+				WriteWorkflowLog($"步骤{stepReadWeight} {stepLabel}称重={weight:F3}，换算Z={zRaw}（吸液步骤，下发Z坐标）", "信息", "检测日志", tubeIndex, scanCode: null, weightStepKey: weightStepKey, measuredWeight: weight, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "Z换算", plcValue: weight.ToString("F3"));
 				int stepWeightToZ = (CurrentStep = ((stepReadWeight == 14) ? 15 : 18));
-				await WriteInt32AtAddressAsync(_signals.ZAbsolutePositionLowRegister, zRaw, token);
-				WriteWorkflowLog($"步骤{stepWeightToZ} 重量->Z下发：D{_signals.ZAbsolutePositionLowRegister}/D{_signals.ZAbsolutePositionLowRegister + 1}={zRaw}", "信息", "检测日志", tubeIndex, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "Z坐标下发", plcValue: zRaw.ToString());
+				await WriteInt32AtAddressAsync(_signals.BloodTubeDropPositionLowRegister, zRaw, token);
+				WriteWorkflowLog($"步骤{stepWeightToZ} 重量->Z下发：D{_signals.BloodTubeDropPositionLowRegister}/D{_signals.BloodTubeDropPositionLowRegister + 1}={zRaw}", "信息", "检测日志", tubeIndex, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "Z坐标下发", plcValue: zRaw.ToString());
 				await Task.Delay(100, token);
 			}
 			CurrentStep = stepWaitOk;
-			await WaitForCoilTrueAsync(okCoil, stepLabel + "OK", token);
-			WriteWorkflowLog($"步骤{stepWaitOk} {stepLabel}OK=1：M{okCoil}", "信息", "检测日志", tubeIndex, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "步骤确认", plcValue: $"M{okCoil}=1");
+			await WriteCoilAsync(okCoil, true, token);
+			WriteWorkflowLog($"步骤{stepWaitOk} {stepLabel}确认已下发：M{okCoil}=1", "信息", "检测日志", tubeIndex, headspaceBottleTag: headspaceBottleTag, processName: stepLabel, eventName: "步骤确认", plcValue: $"M{okCoil}=1");
 		}
 		finally
 		{
@@ -642,7 +665,9 @@ public class WorkflowEngine
 		try
 		{
 			await DrainStaleTcpFramesAsync(deviceKey, token);
-			await SendZeroCommandWithAckAsync(deviceKey, token);
+			//await SendZeroCommandWithAckAsync(deviceKey, token);
+			//WriteWorkflowLog($"天平清零完成，等待{BalanceStabilizationDelay.TotalSeconds:F0}秒后发送称重命令。", "信息", "检测日志", GetCurrentTubeIndex(), processName: "天平称重", eventName: "稳定等待", plcValue: $"{BalanceStabilizationDelay.TotalSeconds:F0}s");
+			await Task.Delay(BalanceStabilizationDelay, token);
 			await DrainStaleTcpFramesAsync(deviceKey, token);
 			await CommunicationManager.TcpServer.SendToDeviceAsync(deviceKey, CommunicationManager.Balance.GetAllCommand());
 			byte[] response = await ReceiveValidBalanceAllResponseAsync(deviceKey, TimeSpan.FromSeconds(5.0), token);
@@ -761,6 +786,43 @@ public class WorkflowEngine
 	}
 
 	/// <summary>
+	/// 记录致命流程错误并请求首页执行急停联动。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="message">需要展示给操作员的错误提示。</param>
+	/// <param name="tubeIndex">当前关联采血管号。</param>
+	/// <param name="processName">当前工序名称。</param>
+	/// <param name="eventName">当前事件名称。</param>
+	/// <param name="plcValue">当前关联PLC值文本。</param>
+	/// <returns>返回急停请求异步任务。</returns>
+	/// <remarks>
+	/// 当流程继续执行可能导致 PLC 卡死或设备状态异常时调用，优先走首页既有急停链路。
+	/// </remarks>
+	private async Task RequestEmergencyStopAsync(string message, int tubeIndex, string processName, string eventName, string plcValue)
+	{
+		WriteWorkflowLog(message, "错误", "检测日志", tubeIndex, processName: processName, eventName: eventName, plcValue: plcValue);
+		Func<string, Task>? handlers = OnEmergencyStopRequested;
+		if (handlers == null)
+		{
+			await StopAsync().ConfigureAwait(false);
+			return;
+		}
+
+		foreach (Func<string, Task> handler in handlers.GetInvocationList())
+		{
+			try
+			{
+				await handler(message).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				WriteWorkflowLog("急停联动执行失败：" + ex.Message, "错误", "检测日志", tubeIndex, processName: processName, eventName: "急停联动失败", plcValue: plcValue);
+				await StopAsync().ConfigureAwait(false);
+			}
+		}
+	}
+
+	/// <summary>
 	/// 判断异常是否属于重量转Z配置致命错误。
 	/// </summary>
 	/// By:ChengLei
@@ -790,12 +852,21 @@ public class WorkflowEngine
 	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
 	/// <returns>返回等待完成异步任务。</returns>
 	/// <remarks>
-	/// 由扫码流程和称重流程在等待OK/允许信号时调用。
+	/// 由称重流程在等待允许或确认信号时调用。
 	/// </remarks>
 	private async Task WaitForCoilTrueAsync(ushort coilAddress, string signalName, CancellationToken token)
 	{
 		int timeoutSeconds = Math.Max(5, _signals.SignalWaitTimeoutSeconds);
 		Stopwatch sw = Stopwatch.StartNew();
+		int tubeIndex = GetCurrentTubeIndex();
+		WriteWorkflowLog(
+			$"开始等待 {signalName}：M{coilAddress}=1。",
+			"信息",
+			"普通操作日志",
+			tubeIndex,
+			processName: signalName,
+			eventName: "等待信号开始",
+			plcValue: $"M{coilAddress}=1");
 		while (!token.IsCancellationRequested && !(await ReadCoilAsync(coilAddress, token)))
 		{
 			if (sw.Elapsed > TimeSpan.FromSeconds(timeoutSeconds))
@@ -804,6 +875,16 @@ public class WorkflowEngine
 			}
 			await Task.Delay(100, token);
 		}
+
+		WriteWorkflowLog(
+			$"已等到 {signalName}：M{coilAddress}=1，耗时 {sw.Elapsed.TotalSeconds:F1}s。",
+			"信息",
+			"普通操作日志",
+			tubeIndex,
+			processName: signalName,
+			eventName: "等待信号完成",
+			plcValue: $"M{coilAddress}=1",
+			durationSeconds: sw.Elapsed.TotalSeconds);
 	}
 
 	/// <summary>
@@ -955,6 +1036,35 @@ public class WorkflowEngine
 		foreach (string error in errors)
 		{
 			target.Add($"{prefix}：{error}");
+		}
+	}
+
+	/// <summary>
+	/// 写入单个PLC线圈值。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="address">PLC地址。</param>
+	/// <param name="value">待写入的布尔值。</param>
+	/// <param name="token">取消令牌，用于外部终止当前异步流程。</param>
+	/// <returns>返回线圈写入异步任务。</returns>
+	/// <remarks>
+	/// 由扫码流程和称重流程在完成后向 PLC 回写确认位时调用。
+	/// </remarks>
+	private async Task WriteCoilAsync(ushort address, bool value, CancellationToken token)
+	{
+		EnsurePlcReady();
+		await _plcLock.WaitAsync(token);
+		try
+		{
+			(bool Success, string Error) write = await _plc!.TryWriteSingleCoilAsync(address, value);
+			if (!write.Success)
+			{
+				throw new InvalidOperationException(write.Error);
+			}
+		}
+		finally
+		{
+			_plcLock.Release();
 		}
 	}
 

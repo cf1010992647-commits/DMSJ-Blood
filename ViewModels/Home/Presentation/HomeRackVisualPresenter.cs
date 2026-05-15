@@ -135,15 +135,15 @@ internal static class HomeRackVisualPresenter
 				continue;
 			}
 
-			if (completedSlots.Contains(slot.Number))
-			{
-				ApplyBrush(slot, CompletedSlotFill, ActiveSlotText);
-				continue;
-			}
-
 			if (runningSlots.Contains(slot.Number))
 			{
 				ApplyBrush(slot, RunningSlotFill, ActiveSlotText);
+				continue;
+			}
+
+			if (completedSlots.Contains(slot.Number))
+			{
+				ApplyBrush(slot, CompletedSlotFill, ActiveSlotText);
 				continue;
 			}
 

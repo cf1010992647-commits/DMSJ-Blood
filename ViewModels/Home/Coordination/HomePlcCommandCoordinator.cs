@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Blood_Alcohol.Models;
+using Blood_Alcohol.Services;
 
 namespace Blood_Alcohol.ViewModels;
 
@@ -153,6 +154,8 @@ internal sealed class HomePlcCommandCoordinator
 		bool lastState;
 		bool seenLow;
 
+		CommunicationManager.Log485Message("PLC等待：开始等待 M14=1（初始化完成）。");
+
 		try
 		{
 			lastState = await _plcGateway.ReadInitDoneDirectAsync().ConfigureAwait(false);
@@ -173,6 +176,7 @@ internal sealed class HomePlcCommandCoordinator
 				bool currentState = await _plcGateway.ReadInitDoneDirectAsync().ConfigureAwait(false);
 				if (currentState)
 				{
+					CommunicationManager.Log485Message("PLC等待：已等到 M14=1（初始化完成）。");
 					return true;
 				}
 
@@ -203,6 +207,7 @@ internal sealed class HomePlcCommandCoordinator
 			await Task.Delay(_initPollInterval).ConfigureAwait(false);
 		}
 
+		CommunicationManager.Log485Message($"PLC等待：等待 M14=1（初始化完成）超时（>{_initTimeout.TotalMinutes:F0}min）。");
 		return false;
 	}
 

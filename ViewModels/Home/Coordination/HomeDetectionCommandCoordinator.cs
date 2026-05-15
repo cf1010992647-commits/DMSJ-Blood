@@ -90,6 +90,14 @@ internal sealed class HomeDetectionCommandCoordinator
 				return;
 			}
 
+			if (!context.HasValidWeightToZCoefficient())
+			{
+				await context.ResetStartCommandLowAsync().ConfigureAwait(true);
+				context.ShowWeightToZCoefficientRequired();
+				context.AddLog(HomeLogLevel.Warning, HomeLogSource.Process, HomeLogKind.Operation, "开始已取消：Z重量转坐标系数未标定，不允许开始。");
+				return;
+			}
+
 			HomeStartAttemptResult startResult = await context.TryStartAsync().ConfigureAwait(true);
 			context.SetAlarmActive(startResult.AlarmActive);
 			if (!startResult.Success)
@@ -226,6 +234,8 @@ internal sealed class HomeStartCommandContext
 	public required int SelectedTubeCount { get; init; }
 	public required int SelectedHeadspaceCount { get; init; }
 	public required Func<bool> IsPlcConnected { get; init; }
+	public required Func<bool> HasValidWeightToZCoefficient { get; init; }
+	public required Action ShowWeightToZCoefficientRequired { get; init; }
 	public required Func<Task> ResetStartCommandLowAsync { get; init; }
 	public required Func<Task<HomeStartAttemptResult>> TryStartAsync { get; init; }
 	public required Action<bool> SetAlarmActive { get; init; }

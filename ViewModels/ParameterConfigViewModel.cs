@@ -423,7 +423,6 @@ namespace Blood_Alcohol.ViewModels
                 WriteParameterToPlcAsync,
                 key => !string.IsNullOrWhiteSpace(key),
                 ex => StatusMessage = $"{DateTime.Now:HH:mm:ss} 参数写入失败：{ex.Message}");
-
             LoadConfig();
         }
 

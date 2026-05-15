@@ -15,21 +15,21 @@ namespace Blood_Alcohol.ViewModels;
 /// </remarks>
 internal sealed class HomeRackProcessState
 {
-	private static readonly int[] TubeRunningRegisterOffsets = new int[5] { 0, 1, 3, 4, 11 };
-	private static readonly int[] TubeCompletedRegisterOffsets = new int[1] { 12 };
-	private static readonly int[] HeadspaceRunningRegisterOffsets = new int[13]
+	private static readonly int[] TubeRunningRegisterOffsets = new int[7] { 0, 2, 3, 5, 6, 13, 14 };
+	private static readonly int[] TubeCompletedRegisterOffsets = Array.Empty<int>();
+	private static readonly int[] HeadspaceRunningRegisterOffsets = new int[17]
 	{
-		2, 6, 7, 8, 9, 10, 13, 14, 15, 16,
-		17, 20, 21
+		1, 4, 7, 8, 9, 10, 11, 12, 15, 16,
+		17, 18, 19, 20, 22, 23, 24
 	};
 
-	private static readonly int[] HeadspaceCompletedRegisterOffsets = new int[1] { 18 };
+	private static readonly int[] HeadspaceCompletedRegisterOffsets = Array.Empty<int>();
 
-	private const int NeedleHeadUsedCountRegisterOffset = 19;
+	private const int NeedleHeadUsedCountRegisterOffset = 21;
 
-	private const int TubeShakeCurrentProductionRegisterOffset = 1;
+	private const int TubeShakeCurrentProductionRegisterOffset = 3;
 
-	private const int HeadspaceShakeCurrentProductionRegisterOffset = 2;
+	private const int HeadspaceShakeCurrentProductionRegisterOffset = 4;
 
 	private readonly int _maxTubeCount;
 	private readonly int _maxHeadspaceCount;
@@ -163,7 +163,11 @@ internal sealed class HomeRackProcessState
 	/// <remarks>
 	/// 由 ApplyRegisters 分别提取采血管和顶空瓶工序槽位时调用。
 	/// </remarks>
-	private static HashSet<int> ExtractSlotsFromRegisters(IReadOnlyList<ushort> registers, IEnumerable<int> offsets, int maxSlotNumber)
+	/// <param name="slotNumberBias">PLC 槽位值与界面槽位号的固定偏差。</param>
+	private static HashSet<int> ExtractSlotsFromRegisters(
+		IReadOnlyList<ushort> registers,
+		IEnumerable<int> offsets,
+		int maxSlotNumber)
 	{
 		HashSet<int> slots = new HashSet<int>();
 		foreach (int offset in offsets)

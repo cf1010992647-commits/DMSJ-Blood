@@ -237,6 +237,48 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="VideoMonitorButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#0F172A" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#C9D8EA" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="MinWidth" Value="138" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="21"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#F8FBFF" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#AFC6E5" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#EEF5FF" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#93B5DE" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid Background="White">
@@ -389,6 +431,32 @@
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
                             Margin="24,0,12,0">
+                    <Button Click="OpenVideoMonitoringWindow_Click"
+                            Margin="0,0,12,0"
+                            Style="{StaticResource VideoMonitorButton}">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="24"
+                                    Height="24"
+                                    Margin="0,0,8,0"
+                                    Background="#E8F1FF"
+                                    CornerRadius="12">
+                                <Viewbox Width="14"
+                                         Height="14"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center">
+                                    <Canvas Width="24" Height="24">
+                                        <Path Fill="#2563EB"
+                                              Data="M4.75,6.25 C3.783,6.25 3,7.033 3,8 L3,16 C3,16.967 3.783,17.75 4.75,17.75 L14.25,17.75 C15.217,17.75 16,16.967 16,16 L16,13.75 L18.688,15.543 C19.519,16.097 20.625,15.502 20.625,14.503 L20.625,9.497 C20.625,8.498 19.519,7.903 18.688,8.457 L16,10.25 L16,8 C16,7.033 15.217,6.25 14.25,6.25 Z M4.75,7.75 L14.25,7.75 C14.388,7.75 14.5,7.862 14.5,8 L14.5,16 C14.5,16.138 14.388,16.25 14.25,16.25 L4.75,16.25 C4.612,16.25 4.5,16.138 4.5,16 L4.5,8 C4.5,7.862 4.612,7.75 4.75,7.75 Z M16,12.053 L19.125,9.969 L19.125,14.031 Z" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Border>
+                            <TextBlock Text="视频监控"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="#334155"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <Border Style="{StaticResource TopStatusCard}">
                         <Grid>
                             <Grid.ColumnDefinitions>

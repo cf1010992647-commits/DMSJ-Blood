@@ -45,8 +45,8 @@ internal sealed class HomePlcGateway
 	private const ushort PressureModeCoilAddress = 491;
 	private const ushort ExhaustModeCoilAddress = 492;
 	private const ushort InjectionModeCoilAddress = 493;
-	private const ushort RackProcessStartRegisterAddress = 233;
-	private const ushort RackProcessRegisterCount = 22;
+	private const ushort RackProcessStartRegisterAddress = 231;
+	private const ushort RackProcessRegisterCount = 25;
 	private readonly SemaphoreSlim _plcLock;
 	private readonly TimeSpan _coilCacheMaxAge;
 

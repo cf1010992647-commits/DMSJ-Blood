@@ -26,6 +26,7 @@
     <Resource Include="Resources\Figma\PointPositionControl\*.svg" />
     <Resource Include="Resources\Figma\AxisAddressConfig\*.svg" />
     <Resource Include="Resources\Figma\AxisDebug\*.svg" />
+    <Resource Include="Resources\Figma\VideoMonitoring\*.svg" />
   </ItemGroup>
 
   <ItemGroup>

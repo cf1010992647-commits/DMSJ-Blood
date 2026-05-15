@@ -1,3 +1,4 @@
+using Blood_Alcohol.Services;
 using NModbus;
 using System;
 using System.IO;
@@ -267,35 +268,7 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task WriteSingleCoilAsync(ushort address, bool value)
         {
-            ushort mappedAddress = NormalizeAddress(address);
-
-            if (_transport != null)
-            {
-                PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
-                    operation: "WriteSingleCoil",
-                    action: async transport =>
-                    {
-                        await transport.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
-                        return true;
-                    },
-                    fallback: false).ConfigureAwait(false);
-
-                if (!transportResult.Success)
-                {
-                    throw transportResult.Error!;
-                }
-
-                return;
-            }
-
-            PlcCallResult<bool> result = await ExecuteAsync(
-                operation: "WriteSingleCoil",
-                action: async master =>
-                {
-                    await master.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
-                    return true;
-                },
-                fallback: false).ConfigureAwait(false);
+            PlcCallResult<bool> result = await ExecuteWriteSingleCoilAsync(address, value).ConfigureAwait(false);
 
             if (!result.Success)
             {
@@ -315,32 +288,7 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, string Error)> TryWriteSingleCoilAsync(ushort address, bool value)
         {
-            ushort mappedAddress = NormalizeAddress(address);
-
-            if (_transport != null)
-            {
-                PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
-                    operation: "WriteSingleCoil",
-                    action: async transport =>
-                    {
-                        await transport.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
-                        return true;
-                    },
-                    fallback: false).ConfigureAwait(false);
-
-                return transportResult.Success
-                    ? (true, string.Empty)
-                    : (false, transportResult.Error?.Message ?? "Unknown PLC error.");
-            }
-
-            PlcCallResult<bool> result = await ExecuteAsync(
-                operation: "WriteSingleCoil",
-                action: async master =>
-                {
-                    await master.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
-                    return true;
-                },
-                fallback: false).ConfigureAwait(false);
+            PlcCallResult<bool> result = await ExecuteWriteSingleCoilAsync(address, value).ConfigureAwait(false);
 
             return result.Success
                 ? (true, string.Empty)
@@ -359,35 +307,7 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task WriteSingleRegisterAsync(ushort address, ushort value)
         {
-            ushort mappedAddress = NormalizeAddress(address);
-
-            if (_transport != null)
-            {
-                PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
-                    operation: "WriteSingleRegister",
-                    action: async transport =>
-                    {
-                        await transport.WriteSingleRegisterAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
-                        return true;
-                    },
-                    fallback: false).ConfigureAwait(false);
-
-                if (!transportResult.Success)
-                {
-                    throw transportResult.Error!;
-                }
-
-                return;
-            }
-
-            PlcCallResult<bool> result = await ExecuteAsync(
-                operation: "WriteSingleRegister",
-                action: async master =>
-                {
-                    await master.WriteSingleRegisterAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
-                    return true;
-                },
-                fallback: false).ConfigureAwait(false);
+            PlcCallResult<bool> result = await ExecuteWriteSingleRegisterAsync(address, value).ConfigureAwait(false);
 
             if (!result.Success)
             {
@@ -407,11 +327,77 @@ namespace Blood_Alcohol.Communication.Serial
         /// </remarks>
         public async Task<(bool Success, string Error)> TryWriteSingleRegisterAsync(ushort address, ushort value)
         {
+            PlcCallResult<bool> result = await ExecuteWriteSingleRegisterAsync(address, value).ConfigureAwait(false);
+
+            return result.Success
+                ? (true, string.Empty)
+                : (false, result.Error?.Message ?? "Unknown PLC error.");
+        }
+
+        /// <summary>
+        /// 执行单个线圈写入并在成功后输出 PLC 写入日志。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">线圈显示地址。</param>
+        /// <param name="value">线圈目标值。</param>
+        /// <returns>返回统一封装后的 PLC 调用结果。</returns>
+        /// <remarks>
+        /// 由 WriteSingleCoilAsync 和 TryWriteSingleCoilAsync 复用，确保所有 M 点写入都会进入主页日志。
+        /// </remarks>
+        private async Task<PlcCallResult<bool>> ExecuteWriteSingleCoilAsync(ushort address, bool value)
+        {
             ushort mappedAddress = NormalizeAddress(address);
+            PlcCallResult<bool> result;
 
             if (_transport != null)
             {
-                PlcCallResult<bool> transportResult = await ExecuteTransportAsync(
+                result = await ExecuteTransportAsync(
+                    operation: "WriteSingleCoil",
+                    action: async transport =>
+                    {
+                        await transport.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
+                        return true;
+                    },
+                    fallback: false).ConfigureAwait(false);
+            }
+            else
+            {
+                result = await ExecuteAsync(
+                    operation: "WriteSingleCoil",
+                    action: async master =>
+                    {
+                        await master.WriteSingleCoilAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
+                        return true;
+                    },
+                    fallback: false).ConfigureAwait(false);
+            }
+
+            if (result.Success)
+            {
+                LogPlcWrite($"M{address}={(value ? 1 : 0)}");
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 执行单个保持寄存器写入并在成功后输出 PLC 写入日志。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="address">寄存器显示地址。</param>
+        /// <param name="value">寄存器写入值。</param>
+        /// <returns>返回统一封装后的 PLC 调用结果。</returns>
+        /// <remarks>
+        /// 由 WriteSingleRegisterAsync 和 TryWriteSingleRegisterAsync 复用，确保所有 D 点写入都会进入主页日志。
+        /// </remarks>
+        private async Task<PlcCallResult<bool>> ExecuteWriteSingleRegisterAsync(ushort address, ushort value)
+        {
+            ushort mappedAddress = NormalizeAddress(address);
+            PlcCallResult<bool> result;
+
+            if (_transport != null)
+            {
+                result = await ExecuteTransportAsync(
                     operation: "WriteSingleRegister",
                     action: async transport =>
                     {
@@ -419,24 +405,25 @@ namespace Blood_Alcohol.Communication.Serial
                         return true;
                     },
                     fallback: false).ConfigureAwait(false);
-
-                return transportResult.Success
-                    ? (true, string.Empty)
-                    : (false, transportResult.Error?.Message ?? "Unknown PLC error.");
+            }
+            else
+            {
+                result = await ExecuteAsync(
+                    operation: "WriteSingleRegister",
+                    action: async master =>
+                    {
+                        await master.WriteSingleRegisterAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
+                        return true;
+                    },
+                    fallback: false).ConfigureAwait(false);
             }
 
-            PlcCallResult<bool> result = await ExecuteAsync(
-                operation: "WriteSingleRegister",
-                action: async master =>
-                {
-                    await master.WriteSingleRegisterAsync(SlaveAddress, mappedAddress, value).ConfigureAwait(false);
-                    return true;
-                },
-                fallback: false).ConfigureAwait(false);
+            if (result.Success)
+            {
+                LogPlcWrite($"D{address}={value}");
+            }
 
-            return result.Success
-                ? (true, string.Empty)
-                : (false, result.Error?.Message ?? "Unknown PLC error.");
+            return result;
         }
 
         /// <summary>
@@ -457,6 +444,19 @@ namespace Blood_Alcohol.Communication.Serial
             }
 
             return (ushort)mappedAddress;
+        }
+
+        /// <summary>
+        /// 输出 PLC 写入成功日志。
+        /// </summary>
+        /// By:ChengLei
+        /// <param name="message">写入点位和值文本。</param>
+        /// <remarks>
+        /// 复用 CommunicationManager 的 RS485 日志入口，让主页窗口自动显示所有 PLC 发送值。
+        /// </remarks>
+        private static void LogPlcWrite(string message)
+        {
+            CommunicationManager.Log485Message("PLC写入：" + message);
         }
 
         /// <summary>

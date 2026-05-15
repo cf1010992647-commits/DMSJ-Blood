@@ -793,6 +793,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		CommunicationManager.OnStateChanged += OnCommunicationStateChanged;
 		CommunicationManager.OnLogReceived += OnCommunicationLogReceived;
 		_workflowEngine.OnLogGenerated += OnWorkflowLogGenerated;
+		_workflowEngine.OnEmergencyStopRequested += OnWorkflowEmergencyStopRequestedAsync;
 		StartTubeProcessEventLoop();
 		StartAlarmMonitor();
 		StartOperationModeMonitor();
@@ -996,7 +997,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	}
 
 	/// <summary>
-	/// 执行初始化流程：确认轴安全位置、写入 M40、下发参数、发送初始化命令并等待完成信号。
+	/// 执行初始化流程：校验手动模式、确认轴安全位置、写入 M40、下发参数、发送初始化命令并等待完成信号。
 	/// </summary>
 	/// By:ChengLei
 	/// <returns>返回初始化执行异步任务。</returns>
@@ -1005,6 +1006,13 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	/// </remarks>
 	private async Task InitializeSystemAsync()
 	{
+		if (!IsManualMode)
+		{
+			_systemInitializationDialogService.ShowManualModeRequired();
+			AddLog(HomeLogLevel.Warning, HomeLogSource.System, HomeLogKind.Operation, "初始化已取消：请先切换到手动模式。");
+			return;
+		}
+
 		if (!_systemInitializationDialogService.ConfirmAxisSafePosition())
 		{
 			AddLog(HomeLogLevel.Info, HomeLogSource.System, HomeLogKind.Operation, "初始化已取消：未确认轴处于安全位置。");
@@ -1062,6 +1070,8 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			SelectedTubeCount = _selectedTubeCount,
 			SelectedHeadspaceCount = _selectedHeadspaceCount,
 			IsPlcConnected = () => CommunicationManager.Is485Open,
+			HasValidWeightToZCoefficient = HasValidWeightToZCoefficient,
+			ShowWeightToZCoefficientRequired = _systemInitializationDialogService.ShowWeightToZCoefficientRequired,
 			ResetStartCommandLowAsync = ResetStartCommandLowAsync,
 			TryStartAsync = _plcCommands.TryStartAsync,
 			SetAlarmActive = value => _isAlarmActive = value,
@@ -1074,6 +1084,27 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			AddLog = (level, source, kind, message) => AddLog(level, source, kind, message),
 			InvalidateCommands = CommandManager.InvalidateRequerySuggested
 		});
+	}
+
+	/// <summary>
+	/// 校验当前是否已完成有效的 Z 重量转坐标系数标定。
+	/// </summary>
+	/// By:ChengLei
+	/// <returns>已存在有效标定系数返回 true，否则返回 false。</returns>
+	/// <remarks>
+	/// 由开始命令前置校验调用，读取失败或系数为 0 时统一视为未标定。
+	/// </remarks>
+	private bool HasValidWeightToZCoefficient()
+	{
+		try
+		{
+			WeightToZCalibrationConfig config = _weightToZConfigService.Load() ?? new WeightToZCalibrationConfig();
+			return config.HasCoefficient && Math.Abs(config.ZPerWeight) > 1E-07;
+		}
+		catch
+		{
+			return false;
+		}
 	}
 
 	/// <summary>
@@ -1120,6 +1151,31 @@ public class HomeViewModel : BaseViewModel, IDisposable
 			SendEmergencyStopAsync = () => ExecutePlcCommandAsync(_plcCommands.SendEmergencyStopAsync, "急停信号发送失败："),
 			SendStopAsync = () => ExecutePlcCommandAsync(_plcCommands.SendStopAsync, "向PLC发送停止信号失败："),
 			AddLog = (level, source, kind, message) => AddLog(level, source, kind, message)
+		});
+	}
+
+	/// <summary>
+	/// 响应流程引擎发出的致命异常急停请求。
+	/// </summary>
+	/// By:ChengLei
+	/// <param name="message">流程引擎传入的错误提示。</param>
+	/// <returns>返回急停处理异步任务。</returns>
+	/// <remarks>
+	/// 由 WorkflowEngine 在运行期发现不能继续执行的致命异常时调用，复用首页既有急停链路。
+	/// </remarks>
+	private async Task OnWorkflowEmergencyStopRequestedAsync(string message)
+	{
+		await _detectionCommands.EmergencyStopAsync(new HomeEmergencyStopCommandContext
+		{
+			DetectionState = _detectionState,
+			RefreshDetectionState = RefreshDetectionCommandStates,
+			StopTubeCountSyncAsync = StopTubeCountSyncAsync,
+			ClearTubeProcessRuntimeState = ClearTubeProcessRuntimeState,
+			ClearRackProcessStates = ClearRackProcessStates,
+			StopWorkflowAsync = () => _workflowEngine.StopAsync(),
+			SendEmergencyStopAsync = () => ExecutePlcCommandAsync(_plcCommands.SendEmergencyStopAsync, "急停信号发送失败："),
+			SendStopAsync = () => ExecutePlcCommandAsync(_plcCommands.SendStopAsync, "向PLC发送停止信号失败："),
+			AddLog = (level, source, kind, msg) => AddLog(level, source, kind, msg)
 		});
 	}
 
@@ -1729,15 +1785,15 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	}
 
 	/// <summary>
-	/// 启动采血管数量同步任务。
+	/// 启动采血管数量单次发送任务。
 	/// </summary>
 	/// By:ChengLei
 	/// <remarks>
-	/// 由检测流程启动时调用。
+	/// 由检测流程启动时调用，仅在点击开始后向 PLC 下发一次当前采血管数量。
 	/// </remarks>
 	private void StartTubeCountSync()
 	{
-		_backgroundTasks.Restart(_tubeCountSyncTaskSlot, SyncTubeCountLoopAsync);
+		_backgroundTasks.Restart(_tubeCountSyncTaskSlot, SendTubeCountOnceAsync);
 	}
 
 	/// <summary>
@@ -1754,32 +1810,31 @@ public class HomeViewModel : BaseViewModel, IDisposable
 	}
 
 	/// <summary>
-	/// 循环将首页数量设置同步到PLC。
+	/// 将首页采血管数量单次发送到 PLC。
 	/// </summary>
 	/// By:ChengLei
 	/// <param name="token">取消令牌，用于中断后台循环或等待。</param>
 	/// <returns>返回数量同步异步任务。</returns>
 	/// <remarks>
-	/// 由 StartTubeCountSync 启动并循环调用首页 PLC 网关写入采血管数量。
+	/// 由 StartTubeCountSync 启动，仅在开始检测时向 D230 写入一次采血管数量。
 	/// </remarks>
-	private async Task SyncTubeCountLoopAsync(CancellationToken token)
+	private async Task SendTubeCountOnceAsync(CancellationToken token)
 	{
-		while (!token.IsCancellationRequested && _detectionState.IsDetectionStarted)
+		try
 		{
-			try
+			if (!_detectionState.IsDetectionStarted)
 			{
-				await _plcGateway.SendTubeCountAsync(_selectedTubeCount, token);
-				await Task.Delay(1000, token);
+				return;
 			}
-			catch (OperationCanceledException)
-			{
-				break;
-			}
-			catch (Exception ex2)
-			{
-				AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Detection, "采血管数量上报给PLC失败：" + ex2.Message);
-				await Task.Delay(1000, token);
-			}
+
+			await _plcGateway.SendTubeCountAsync(_selectedTubeCount, token).ConfigureAwait(false);
+		}
+		catch (OperationCanceledException)
+		{
+		}
+		catch (Exception ex2)
+		{
+			AddLog(HomeLogLevel.Warning, HomeLogSource.Hardware, HomeLogKind.Detection, "采血管数量上报给PLC失败：" + ex2.Message);
 		}
 	}
 
@@ -2091,6 +2146,7 @@ public class HomeViewModel : BaseViewModel, IDisposable
 		CommunicationManager.OnStateChanged -= OnCommunicationStateChanged;
 		CommunicationManager.OnLogReceived -= OnCommunicationLogReceived;
 		_workflowEngine.OnLogGenerated -= OnWorkflowLogGenerated;
+		_workflowEngine.OnEmergencyStopRequested -= OnWorkflowEmergencyStopRequestedAsync;
 		await StopTubeCountSyncAsync().ConfigureAwait(false);
 		await StopTubeProcessEventLoopAsync().ConfigureAwait(false);
 		await StopAlarmMonitorAsync().ConfigureAwait(false);

@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="Blood_Alcohol.Views.WeightToZCoefficientRequiredDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="开始提示"
+        Width="480"
+        Height="286"
+        MinWidth="480"
+        MinHeight="286"
+        MaxWidth="480"
+        MaxHeight="286"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="Inter, Segoe UI, Microsoft YaHei"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <Window.Resources>
+        <DropShadowEffect x:Key="DialogShadowEffect"
+                          BlurRadius="22"
+                          Direction="270"
+                          ShadowDepth="5"
+                          Opacity="0.14"
+                          Color="#000000" />
+
+        <DrawingImage x:Key="FigmaDialogIconClose">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M12 4L4 12">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#62748E" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M4 4L12 12">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#62748E" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <DrawingImage x:Key="FigmaDialogIconAlert">
+            <DrawingImage.Drawing>
+                <GeometryDrawing Geometry="M14.4867 12L9.15333 2.66667C9.03704 2.46147 8.8684 2.29079 8.66462 2.17205C8.46083 2.0533 8.22919 1.99074 7.99333 1.99074C7.75747 1.99074 7.52584 2.0533 7.32205 2.17205C7.11826 2.29079 6.94962 2.46147 6.83333 2.66667L1.5 12C1.38245 12.2036 1.32082 12.4346 1.32134 12.6697C1.32186 12.9047 1.38452 13.1355 1.50296 13.3385C1.62141 13.5416 1.79143 13.7097 1.9958 13.8259C2.20016 13.942 2.4316 14.0021 2.66667 14H13.3333C13.5673 13.9998 13.797 13.938 13.9995 13.8209C14.202 13.7037 14.3701 13.5354 14.487 13.3327C14.6039 13.1301 14.6654 12.9003 14.6653 12.6663C14.6652 12.4324 14.6036 12.2026 14.4867 12Z M8 6V8.66667 M8 11.3333H8.00667">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#F59E0B" Thickness="1.33333" StartLineCap="Round" EndLineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+
+        <Style x:Key="DialogButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="MinWidth" Value="104" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.90" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.78" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryDialogButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource DialogButtonStyle}">
+            <Setter Property="Background" Value="#155DFC" />
+            <Setter Property="BorderBrush" Value="#155DFC" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="18"
+            Background="#FFFFFF"
+            BorderBrush="#E5E7EB"
+            BorderThickness="1"
+            CornerRadius="14"
+            Effect="{StaticResource DialogShadowEffect}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="58" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="72" />
+            </Grid.RowDefinitions>
+
+            <Border BorderBrush="#EEF2F7"
+                    BorderThickness="0,0,0,1"
+                    Padding="20,0">
+                <Grid>
+                    <TextBlock Text="开始前置提示"
+                               VerticalAlignment="Center"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#0F172A" />
+                    <Button Width="30"
+                            Height="30"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            Click="AcknowledgeButton_Click">
+                        <Image Width="16"
+                               Height="16"
+                               Source="{StaticResource FigmaDialogIconClose}" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1"
+                  Margin="28,22,28,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="58" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Width="48"
+                        Height="48"
+                        Background="#FFFBEB"
+                        BorderBrush="#FDE68A"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        VerticalAlignment="Top">
+                    <Image Width="28"
+                           Height="28"
+                           Source="{StaticResource FigmaDialogIconAlert}" />
+                </Border>
+
+                <StackPanel Grid.Column="1"
+                            Margin="4,0,0,0">
+                    <TextBlock Text="Z重量转坐标系数未标定，不允许开始"
+                               FontSize="19"
+                               FontWeight="SemiBold"
+                               Foreground="#111827"
+                               TextWrapping="Wrap" />
+
+                    <TextBlock Text="请先到系数配置页完成 Z 重量转坐标系数标定，再重新点击开始。"
+                               Margin="0,6,0,0"
+                               FontSize="13"
+                               Foreground="#64748B"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="2"
+                    Background="#F8FAFC"
+                    BorderBrush="#EEF2F7"
+                    BorderThickness="0,1,0,0"
+                    Padding="20,0">
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <Button Style="{StaticResource PrimaryDialogButtonStyle}"
+                            Content="知道了"
+                            Click="AcknowledgeButton_Click" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>
